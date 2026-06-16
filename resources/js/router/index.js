@@ -15,27 +15,13 @@ const routes = [
         children: [
             {
                 path: '',
-                redirect: { name: 'home' },
+                redirect: { name: 'portal' },
             },
             {
-                path: 'home',
-                name: 'home',
-                component: () => import('../views/HomeView.vue'),
-            },
-            {
-                path: 'methodology/:slug',
-                name: 'methodology.show',
-                component: () => import('../views/methodology/MethodologyPageView.vue'),
-            },
-            {
-                path: 'dashboard',
-                name: 'dashboard',
-                component: () => import('../views/DashboardView.vue'),
-            },
-            {
-                path: 'referentials',
-                name: 'referentials',
-                component: () => import('../views/ReferentialsView.vue'),
+                path: 'portal',
+                name: 'portal',
+                component: () => import('../views/PortalView.vue'),
+                meta: { isPortal: true },
             },
             {
                 path: 'environments',
@@ -87,6 +73,111 @@ const routes = [
                     },
                 ],
             },
+            {
+                path: 'cartographie',
+                meta: { module: 'cartographie' },
+                children: [
+                    {
+                        path: '',
+                        redirect: { name: 'cartographie.home' },
+                    },
+                    {
+                        path: 'home',
+                        name: 'cartographie.home',
+                        component: () => import('../views/HomeView.vue'),
+                    },
+                    {
+                        path: 'methodology/:slug',
+                        name: 'cartographie.methodology.show',
+                        component: () => import('../views/methodology/MethodologyPageView.vue'),
+                        beforeEnter: (to) => {
+                            if (to.params.slug === 'principes') {
+                                return { name: 'cartographie.principes' };
+                            }
+                            if (to.params.slug === 'definitions-objectifs') {
+                                return { name: 'cartographie.definitions-objectifs' };
+                            }
+                            if (to.params.slug === 'preambule') {
+                                return { name: 'cartographie.preambule' };
+                            }
+                        },
+                    },
+                    {
+                        path: 'dashboard',
+                        name: 'cartographie.dashboard',
+                        component: () => import('../views/DashboardView.vue'),
+                    },
+                    {
+                        path: 'referentials',
+                        name: 'cartographie.referentials',
+                        component: () => import('../views/ReferentialsView.vue'),
+                    },
+                    {
+                        path: 'echelle-pg',
+                        name: 'cartographie.echelle-pg',
+                        component: () => import('../views/cartographie/EchellePgView.vue'),
+                    },
+                    {
+                        path: 'echelle-controle',
+                        name: 'cartographie.echelle-controle',
+                        component: () => import('../views/cartographie/EchelleControleView.vue'),
+                    },
+                    {
+                        path: 'matrice-risques',
+                        name: 'cartographie.matrice-risques',
+                        component: () => import('../views/cartographie/MatriceRisquesView.vue'),
+                    },
+                    {
+                        path: 'principes',
+                        name: 'cartographie.principes',
+                        component: () => import('../views/cartographie/PrincipesView.vue'),
+                    },
+                    {
+                        path: 'definitions-objectifs',
+                        name: 'cartographie.definitions-objectifs',
+                        component: () => import('../views/cartographie/DefinitionsObjectifsView.vue'),
+                    },
+                    {
+                        path: 'preambule',
+                        name: 'cartographie.preambule',
+                        component: () => import('../views/cartographie/PreambuleView.vue'),
+                    },
+                    {
+                        path: 'lexique',
+                        name: 'cartographie.lexique',
+                        component: () => import('../views/cartographie/LexiqueView.vue'),
+                    },
+                    {
+                        path: 'plus-gros-risques',
+                        name: 'cartographie.plus-gros-risques',
+                        component: () => import('../views/cartographie/PlusGrosRisquesView.vue'),
+                    },
+                    {
+                        path: 'departements/:code',
+                        name: 'cartographie.departement-analyse',
+                        component: () => import('../views/cartographie/DepartementAnalyseView.vue'),
+                    },
+                ],
+            },
+            {
+                path: 'home',
+                redirect: { name: 'cartographie.home' },
+            },
+            {
+                path: 'methodology/:slug',
+                redirect: (to) => ({
+                    name: 'cartographie.methodology.show',
+                    params: { slug: to.params.slug },
+                }),
+            },
+            {
+                path: 'referentials',
+                redirect: { name: 'cartographie.referentials' },
+            },
+            {
+                path: 'dashboard',
+                redirect: { name: 'cartographie.dashboard' },
+            },
         ],
     },
 ];
@@ -120,12 +211,12 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (to.meta.guest && auth.token) {
-        return next({ name: 'home' });
+        return next({ name: 'portal' });
     }
 
     if (to.matched.some((record) => record.meta.canManageUsers)) {
         if (!canManageUsers(auth.user?.profile)) {
-            return next({ name: 'home' });
+            return next({ name: 'portal' });
         }
     }
 
@@ -133,12 +224,12 @@ router.beforeEach(async (to, from, next) => {
         if (auth.user?.profile === 'admin' && auth.user.environment_id) {
             return next({ name: 'environments.detail', params: { id: auth.user.environment_id } });
         }
-        return next({ name: 'home' });
+        return next({ name: 'portal' });
     }
 
     if (to.meta.requiresEnvironmentAccess && to.params.id) {
         if (!canAccessEnvironment(auth, to.params.id)) {
-            return next({ name: 'home' });
+            return next({ name: 'portal' });
         }
     }
 

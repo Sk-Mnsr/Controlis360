@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
             RiskFamilySeeder::class,
             EnvironmentSeeder::class,
             MethodologyPageSeeder::class,
+            TopRiskSeeder::class,
+            OperationalRiskSeeder::class,
             UserSeeder::class,
         ]);
     }

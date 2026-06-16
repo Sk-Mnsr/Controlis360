@@ -1,66 +1,167 @@
 <template>
-    <div class="flex min-h-screen bg-slate-50 text-slate-900">
-        <aside class="flex w-64 shrink-0 flex-col border-r border-slate-200 bg-white">
-            <div class="border-b border-slate-200 px-5 py-5">
+    <div class="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
+        <aside
+            class="flex h-screen shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white"
+            :class="activeModule ? 'w-72' : 'w-64'"
+        >
+            <div class="shrink-0 border-b border-slate-200 px-5 py-5">
                 <img
                     :src="logoUrl"
                     alt="COFINA — Compagnie Financière Africaine"
-                    class="h-9 w-auto max-w-full object-contain object-left"
+                    class="h-14 w-auto max-w-full object-contain object-left"
                 />
-                <h1 class="mt-3 text-base font-semibold leading-tight text-slate-900">Controlis360</h1>
-                <p class="mt-0.5 text-xs text-slate-500">Cartographie des risques</p>
+                <p v-if="isPortal" class="mt-2.5 text-sm font-medium text-slate-600">Controlis360</p>
+                <p v-else-if="activeModule" class="mt-2.5 text-sm font-medium text-slate-600">{{ activeModule.name }}</p>
             </div>
 
-            <nav class="flex-1 space-y-1 px-3 py-4">
-                <RouterLink class="nav-link" :to="{ name: 'home' }" active-class="nav-link-active">
-                    Home
+            <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
+                <RouterLink
+                    v-if="isPortal"
+                    class="nav-link nav-link-active"
+                    :to="{ name: 'portal' }"
+                >
+                    Modules
                 </RouterLink>
 
-                <RouterLink
-                    v-if="auth.user?.profile === 'super_admin'"
-                    class="nav-link"
-                    :class="{ 'nav-link-active': isEnvironmentsSection }"
-                    :to="{ name: 'environments' }"
-                >
-                    Environnements
-                </RouterLink>
-                <RouterLink
-                    v-else-if="auth.user?.profile === 'admin' && auth.user?.environment_id"
-                    class="nav-link"
-                    :to="{ name: 'environments.detail', params: { id: auth.user.environment_id } }"
-                    active-class="nav-link-active"
-                >
-                    Mon environnement
-                </RouterLink>
+                <template v-else-if="activeModule">
+                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
+                        ← Tous les modules
+                    </RouterLink>
 
-                <div v-if="canManageUsers" class="nav-group">
-                    <p class="nav-group-label" :class="{ 'nav-group-label-active': isUsersSection }">
-                        Utilisateurs
-                    </p>
-                    <div class="nav-group-children">
-                        <RouterLink
-                            class="nav-sublink"
-                            :class="{ 'nav-sublink-active': isUsersCreateSection }"
-                            :to="{ name: 'users.create' }"
-                        >
-                            Nouveau
-                        </RouterLink>
-                        <RouterLink
-                            class="nav-sublink"
-                            :class="{ 'nav-sublink-active': isUsersHistorySection }"
-                            :to="{ name: 'users.history' }"
-                        >
-                            Historiques
-                        </RouterLink>
+                    <button
+                        type="button"
+                        class="nav-link nav-dashboard"
+                        :class="{ 'nav-link-active': isDashboardActive }"
+                        @click="goToDashboard"
+                    >
+                        Dashboard
+                    </button>
+
+                    <div class="nav-group">
+                        <p class="nav-group-label" :class="{ 'nav-group-label-active': isMethodologySection }">
+                            Méthodologie
+                        </p>
+                        <div class="nav-group-children">
+                            <template v-for="item in methodologyItems" :key="item.id">
+                                <RouterLink
+                                    v-if="item.slug"
+                                    class="nav-sublink"
+                                    :class="{ 'nav-sublink-active': isMethodologyItemActive(item) }"
+                                    :to="{ name: 'cartographie.methodology.show', params: { slug: item.slug } }"
+                                >
+                                    {{ item.label }}
+                                </RouterLink>
+                                <RouterLink
+                                    v-else-if="item.route"
+                                    class="nav-sublink"
+                                    :class="{ 'nav-sublink-active': route.name === item.route }"
+                                    :to="{ name: item.route }"
+                                >
+                                    {{ item.label }}
+                                </RouterLink>
+                                <button
+                                    v-else
+                                    type="button"
+                                    class="nav-sublink nav-sublink-btn"
+                                    @click="navigateMethodology(item)"
+                                >
+                                    {{ item.label }}
+                                </button>
+                            </template>
+                        </div>
                     </div>
-                </div>
 
-                <RouterLink class="nav-link" :to="{ name: 'referentials' }" active-class="nav-link-active">
-                    Référentiels
-                </RouterLink>
+                    <div class="nav-group">
+                        <button
+                            type="button"
+                            class="nav-group-toggle"
+                            :class="{ 'nav-group-toggle-active': isDepartmentsSection }"
+                            :aria-expanded="departmentsOpen"
+                            @click="departmentsOpen = !departmentsOpen"
+                        >
+                            <span>Départements</span>
+                            <svg
+                                class="nav-group-chevron"
+                                :class="{ 'nav-group-chevron-open': departmentsOpen }"
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                aria-hidden="true"
+                            >
+                                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                        <div v-show="departmentsOpen" class="nav-group-children">
+                            <p v-if="departmentsLoading" class="nav-sublink nav-dept-loading">Chargement...</p>
+                            <button
+                                v-for="entity in cartographie.departmentEntities"
+                                :key="entity.id"
+                                type="button"
+                                class="nav-sublink nav-sublink-btn nav-dept"
+                                :class="{ 'nav-sublink-active': isDepartmentActive(entity) }"
+                                @click="selectDepartmentEntity(entity)"
+                            >
+                                {{ entity.name }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="nav-cartographie"
+                        @click="openCartographie"
+                    >
+                        Cartographie
+                    </button>
+                </template>
+
+                <template v-else>
+                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
+                        ← Tous les modules
+                    </RouterLink>
+
+                    <RouterLink
+                        v-if="auth.user?.profile === 'super_admin'"
+                        class="nav-link"
+                        :class="{ 'nav-link-active': isEnvironmentsSection }"
+                        :to="{ name: 'environments' }"
+                    >
+                        Environnements
+                    </RouterLink>
+                    <RouterLink
+                        v-else-if="auth.user?.profile === 'admin' && auth.user?.environment_id"
+                        class="nav-link"
+                        :to="{ name: 'environments.detail', params: { id: auth.user.environment_id } }"
+                        active-class="nav-link-active"
+                    >
+                        Mon environnement
+                    </RouterLink>
+
+                    <div v-if="canManageUsers" class="nav-group">
+                        <p class="nav-group-label" :class="{ 'nav-group-label-active': isUsersSection }">
+                            Utilisateurs
+                        </p>
+                        <div class="nav-group-children">
+                            <RouterLink
+                                class="nav-sublink"
+                                :class="{ 'nav-sublink-active': isUsersCreateSection }"
+                                :to="{ name: 'users.create' }"
+                            >
+                                Nouveau
+                            </RouterLink>
+                            <RouterLink
+                                class="nav-sublink"
+                                :class="{ 'nav-sublink-active': isUsersHistorySection }"
+                                :to="{ name: 'users.history' }"
+                            >
+                                Historiques
+                            </RouterLink>
+                        </div>
+                    </div>
+                </template>
             </nav>
 
-            <div class="border-t border-slate-200 px-4 py-4">
+            <div class="shrink-0 border-t border-slate-200 px-4 py-4">
                 <div class="mb-3">
                     <p class="truncate text-sm font-medium">{{ auth.user?.name }}</p>
                     <p class="truncate text-xs text-slate-500">{{ userRoleLabel }}</p>
@@ -76,8 +177,8 @@
             </div>
         </aside>
 
-        <div class="flex min-w-0 flex-1 flex-col">
-            <main class="flex-1 overflow-auto" :class="isHomePage ? '' : 'p-6 lg:p-8'">
+        <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <main class="min-h-0 flex-1 overflow-y-auto" :class="isFullBleedPage ? '' : 'p-6 lg:p-8'">
                 <RouterView />
             </main>
         </div>
@@ -85,21 +186,82 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { methodologyItems } from '../config/cartographie-nav';
+import { getModuleFromRoute } from '../config/modules';
+import { useCartographieNavigation } from '../stores/cartographie';
 import { useAuthStore } from '../stores/auth';
+import api from '../api/client';
 
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+const { cartographie, navigateMethodology, goToDashboard, selectDepartmentEntity } = useCartographieNavigation();
 
 const logoUrl = '/logo_Cofina.png';
-const isHomePage = computed(() => route.name === 'home' || route.name === 'methodology.show');
+const isPortal = computed(() => route.name === 'portal');
+const activeModule = computed(() => getModuleFromRoute(route));
+const isFullBleedPage = computed(() =>
+    route.name === 'cartographie.home'
+    || route.name === 'cartographie.methodology.show'
+    || route.name === 'cartographie.departement-analyse',
+);
+const isDashboardActive = computed(() =>
+    route.name === 'cartographie.home' && cartographie.selectedDepartment === 'DASHBOARD',
+);
+const isMethodologySection = computed(() => route.name === 'cartographie.methodology.show');
+const isDepartmentsSection = computed(() => route.name === 'cartographie.departement-analyse');
 const isEnvironmentsSection = computed(() => route.path.startsWith('/environments'));
 const isUsersSection = computed(() => route.path.startsWith('/users'));
 const isUsersCreateSection = computed(() => route.name === 'users.create');
 const isUsersHistorySection = computed(() => route.name === 'users.history' || route.name === 'users.edit');
 const canManageUsers = computed(() => ['super_admin', 'admin'].includes(auth.user?.profile));
+const departmentsOpen = ref(false);
+const departmentsLoading = ref(false);
+
+async function loadDepartmentEntities() {
+    if (!activeModule.value || activeModule.value.slug !== 'cartographie') {
+        return;
+    }
+
+    departmentsLoading.value = true;
+
+    try {
+        const { data } = await api.get('/referentials/entities-departments');
+        cartographie.setDepartmentEntities(data.data ?? data ?? []);
+    } catch {
+        cartographie.setDepartmentEntities([]);
+    } finally {
+        departmentsLoading.value = false;
+    }
+}
+
+watch(activeModule, (module) => {
+    if (module?.slug === 'cartographie') {
+        loadDepartmentEntities();
+    }
+}, { immediate: true });
+
+watch(isDepartmentsSection, (active) => {
+    if (active) {
+        departmentsOpen.value = true;
+    }
+}, { immediate: true });
+
+function isMethodologyItemActive(item) {
+    return route.name === 'cartographie.methodology.show' && route.params.slug === item.slug;
+}
+
+function isDepartmentActive(entity) {
+    return route.name === 'cartographie.departement-analyse'
+        && route.params.code === entity.code;
+}
+
+function openCartographie() {
+    cartographie.openCartographie();
+    router.push({ name: 'cartographie.home' });
+}
 
 const userRoleLabel = computed(() => {
     const user = auth.user;
@@ -143,6 +305,59 @@ async function handleLogout() {
     font-weight: 600;
 }
 
+.nav-back {
+    margin-bottom: 0.35rem;
+    font-size: 0.8125rem;
+    color: #64748b;
+}
+
+.nav-dashboard {
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.nav-sublink-btn {
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.nav-dept-loading {
+    cursor: default;
+    color: #94a3b8;
+}
+
+.nav-dept {
+    font-size: 0.75rem;
+    line-height: 1.35;
+}
+
+.nav-cartographie {
+    display: block;
+    width: 100%;
+    margin-top: 0.75rem;
+    border: none;
+    border-radius: 0.5rem;
+    background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+    padding: 0.7rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #ffffff;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.nav-cartographie:hover {
+    opacity: 0.92;
+}
+
 .nav-group {
     margin-top: 0.25rem;
 }
@@ -158,6 +373,43 @@ async function handleLogout() {
 
 .nav-group-label-active {
     color: #047857;
+}
+
+.nav-group-toggle {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border: none;
+    background: transparent;
+    padding: 0.5rem 0.75rem 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+
+.nav-group-toggle:hover {
+    color: #64748b;
+}
+
+.nav-group-toggle-active {
+    color: #047857;
+}
+
+.nav-group-chevron {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+
+.nav-group-chevron-open {
+    transform: rotate(180deg);
 }
 
 .nav-group-children {

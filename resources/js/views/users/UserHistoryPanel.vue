@@ -45,8 +45,8 @@
                         <span v-if="user.controle_role_fr" class="text-slate-500">({{ user.controle_role_fr }})</span>
                         <span v-else-if="user.metier_role_fr" class="text-slate-500">({{ user.metier_role_fr }})</span>
                     </td>
-                    <td v-if="isSuperAdmin" class="px-4 py-3">{{ user.environment?.name ?? '—' }}</td>
-                    <td class="px-4 py-3">{{ user.entity?.name ?? '—' }}</td>
+                    <td v-if="isSuperAdmin" class="px-4 py-3">{{ environmentName(user) }}</td>
+                    <td class="px-4 py-3">{{ entityName(user) }}</td>
                     <td class="px-4 py-3">
                         <span
                             class="rounded-full px-2 py-0.5 text-xs"
@@ -86,6 +86,28 @@ const loading = ref(true);
 const users = ref([]);
 const search = ref('');
 
+function extractUsers(responseData) {
+    const root = responseData?.data ?? responseData;
+
+    if (Array.isArray(root)) {
+        return root;
+    }
+
+    if (Array.isArray(root?.data)) {
+        return root.data;
+    }
+
+    return [];
+}
+
+function environmentName(user) {
+    return user.environment?.name ?? user.Environment?.name ?? '—';
+}
+
+function entityName(user) {
+    return user.entity?.name ?? user.Entity?.name ?? '—';
+}
+
 const filteredUsers = computed(() => {
     const term = search.value.trim().toLowerCase();
     if (!term) return users.value;
@@ -108,9 +130,13 @@ async function loadUsers() {
             params.environment_id = auth.user.environment_id;
         }
 
-        const { data } = await api.get('/users', { params });
-        const payload = data.data?.data ?? data.data ?? data ?? [];
-        users.value = Array.isArray(payload) ? payload : [];
+        const { data } = await api.get('/users', {
+            params: {
+                ...params,
+                paginate: 'false',
+            },
+        });
+        users.value = extractUsers(data);
     } finally {
         loading.value = false;
     }

@@ -27,7 +27,7 @@
                         <img :src="logoUrl" alt="COFINA" class="login-card-logo" />
                         <p class="login-card-badge">Controlis360</p>
                         <h1 class="login-card-title">Connexion</h1>
-                        <p class="login-card-subtitle">Accédez à votre espace de cartographie des risques</p>
+                        <p class="login-card-subtitle">Accédez à la plateforme Controlis360</p>
                     </div>
 
                     <form class="login-form" @submit.prevent="submit">
@@ -123,7 +123,7 @@ const heroStyle = computed(() => ({
 async function submit() {
     try {
         await auth.login(email.value, password.value);
-        router.push({ name: 'home' });
+        router.push({ name: 'portal' });
     } catch {
         // error handled in store
     }

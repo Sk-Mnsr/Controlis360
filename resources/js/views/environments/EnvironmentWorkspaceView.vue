@@ -54,7 +54,7 @@
                         >
                             <td class="px-4 py-3 font-medium text-violet-700">{{ env.name }}</td>
                             <td class="px-4 py-3 text-slate-500">{{ env.code }}</td>
-                            <td class="px-4 py-3">{{ env.entities?.length ?? 0 }}</td>
+                            <td class="px-4 py-3">{{ entitiesCount(env) }}</td>
                             <td class="px-4 py-3">
                                 <div class="flex justify-end gap-2" @click.stop>
                                     <button
@@ -149,6 +149,36 @@ const filteredEnvironments = computed(() => {
     );
 });
 
+function extractEnvironments(responseData) {
+    const root = responseData?.data ?? responseData;
+
+    if (Array.isArray(root)) {
+        return root;
+    }
+
+    if (Array.isArray(root?.data)) {
+        return root.data;
+    }
+
+    return [];
+}
+
+function entitiesCount(env) {
+    if (typeof env.entities_count === 'number') {
+        return env.entities_count;
+    }
+
+    if (Array.isArray(env.entities)) {
+        return env.entities.length;
+    }
+
+    if (Array.isArray(env.Entities)) {
+        return env.Entities.length;
+    }
+
+    return 0;
+}
+
 function extractRecord(payload, key) {
     const data = payload?.data ?? payload;
     return data?.[key] ?? data?.[key.charAt(0).toUpperCase() + key.slice(1)] ?? null;
@@ -157,8 +187,10 @@ function extractRecord(payload, key) {
 async function loadEnvironments() {
     listLoading.value = true;
     try {
-        const { data } = await api.get('/environments');
-        environments.value = data.data?.data ?? data.data ?? [];
+        const { data } = await api.get('/environments', {
+            params: { paginate: 'false' },
+        });
+        environments.value = extractEnvironments(data);
     } finally {
         listLoading.value = false;
     }

@@ -44,4 +44,9 @@ class Entity extends ModelBase
     {
         return $this->hasMany(User::class);
     }
+
+    public function operationalRiskRows(): HasMany
+    {
+        return $this->hasMany(OperationalRiskRow::class);
+    }
 }

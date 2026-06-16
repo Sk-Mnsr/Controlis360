@@ -24,9 +24,9 @@ class EnvironmentController extends APIController
     {
         parent::__construct();
 
-        $this->indexWithArray = ['entities'];
-
         $this->indexManualFilter = function ($query, $user) {
+            $query->withCount('entities');
+
             if ($user->isEnvironmentAdmin() && $user->environment_id) {
                 $query->where('id', $user->environment_id);
             }

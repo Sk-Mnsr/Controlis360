@@ -79,7 +79,8 @@ onMounted(async () => {
 
         scales.value = scalesRes.data.data ?? scalesRes.data;
         departments.value = deptRes.data.data ?? deptRes.data;
-        riskFamilies.value = familiesRes.data.data ?? familiesRes.data;
+        const familiesPayload = familiesRes.data.data ?? familiesRes.data;
+        riskFamilies.value = familiesPayload.categories ?? familiesPayload;
     } finally {
         loading.value = false;
     }

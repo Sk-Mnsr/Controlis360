@@ -46,25 +46,29 @@ defineProps({
 }
 
 .methodology-grid thead th {
-    background: #4a4a4a;
-    color: #ffffff;
+    background: #d1d5db;
+    color: #111111;
     font-weight: 700;
     text-transform: uppercase;
     font-size: 0.75rem;
     letter-spacing: 0.03em;
+    text-align: center;
 }
 
 .methodology-grid .grid-label {
     width: 7rem;
     font-weight: 700;
     white-space: nowrap;
+    text-align: center;
 }
 
 .methodology-grid td:nth-child(2) {
     width: 28%;
+    font-weight: 600;
 }
 
 .methodology-grid td:nth-child(3) {
     width: auto;
+    text-align: justify;
 }
 </style>

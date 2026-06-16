@@ -21,7 +21,7 @@ class UserController extends APIController
 
     protected array $storeRelationArray = [];
 
-    protected array $updateRelationArray = [];
+    protected array $updateRelationArray = ['environment', 'entity'];
 
     public function __construct()
     {
@@ -30,6 +30,8 @@ class UserController extends APIController
         $profileRule = 'required|in:super_admin,admin,controle,metier';
 
         $this->indexManualFilter = function ($query, $user) {
+            $query->with(['environment', 'entity']);
+
             if ($user->isEnvironmentAdmin() && $user->environment_id) {
                 $query->where('environment_id', $user->environment_id);
             }
@@ -52,8 +54,6 @@ class UserController extends APIController
             'activated' => 'sometimes|boolean',
             'password_change_required' => 'sometimes|boolean',
         ];
-
-        $this->indexWithArray = ['environment', 'entity'];
 
         $this->updateGetValidationArrayFunction = function (int $id) {
             return [
@@ -149,6 +149,16 @@ class UserController extends APIController
 
             return $requestData;
         };
+    }
+
+    public function show(Request $request, int $id)
+    {
+        $request->merge([
+            'with_environment' => 'true',
+            'with_entity' => 'true',
+        ]);
+
+        return parent::show($request, $id);
     }
 
     /**
