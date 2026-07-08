@@ -19,8 +19,8 @@ class MethodologyPagePolicy
 
     public function update($user, Model $page): Response
     {
-        return $user->isSuperAdmin()
+        return $user->canEditMethodology()
             ? Response::allow()
-            : Response::deny('Seul le super administrateur peut modifier ce contenu');
+            : Response::deny('Seuls le super administrateur et le responsable contrôle peuvent modifier ce contenu');
     }
 }

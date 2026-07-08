@@ -116,7 +116,7 @@
                 </div>
             </form>
 
-            <div v-if="isSuperAdmin && !editing" class="methodology-actions">
+            <div v-if="canEditMethodology && !editing" class="methodology-actions">
                 <button type="button" class="edit-btn-primary" @click="startEdit">Modifier le contenu</button>
             </div>
         </template>
@@ -127,13 +127,12 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../../api/client';
-import { useAuthStore } from '../../stores/auth';
+import { useCartographiePermissions } from '../../composables/useCartographiePermissions';
 
 const route = useRoute();
-const auth = useAuthStore();
+const { canEditMethodology } = useCartographiePermissions();
 
 const logoUrl = '/logo_Cofina.png';
-const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
 
 const loading = ref(true);
 const saving = ref(false);

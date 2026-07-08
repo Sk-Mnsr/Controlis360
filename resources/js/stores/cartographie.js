@@ -1,16 +1,26 @@
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { useRouter } from 'vue-router';
 
 export const useCartographieStore = defineStore('cartographie', () => {
     const selectedDepartment = ref('DASHBOARD');
     const selectedEntityCode = ref(null);
-    const departmentEntities = ref([]);
+    const selectedEntityId = ref(null);
+    const navigationEntities = ref([]);
     const statusMessage = ref('');
+
+    const departmentEntities = computed(() =>
+        navigationEntities.value.filter((entity) => entity.type === 'department'),
+    );
+
+    const agencyEntities = computed(() =>
+        navigationEntities.value.filter((entity) => entity.type === 'agency'),
+    );
 
     function resetDashboard() {
         selectedDepartment.value = 'DASHBOARD';
         selectedEntityCode.value = null;
+        selectedEntityId.value = null;
         statusMessage.value = '';
     }
 
@@ -22,11 +32,27 @@ export const useCartographieStore = defineStore('cartographie', () => {
     function selectEntity(entity) {
         selectedDepartment.value = entity.name;
         selectedEntityCode.value = entity.code;
+        selectedEntityId.value = entity.id;
         statusMessage.value = '';
     }
 
+    function setNavigationEntities(entities) {
+        const list = Array.isArray(entities) ? entities : [];
+        const unique = new Map();
+
+        for (const entity of list) {
+            const key = entity?.id ?? `${entity?.environment_id ?? 'env'}-${entity?.code ?? entity?.name}`;
+            if (!unique.has(key)) {
+                unique.set(key, entity);
+            }
+        }
+
+        navigationEntities.value = [...unique.values()];
+    }
+
+    /** @deprecated Utiliser setNavigationEntities */
     function setDepartmentEntities(entities) {
-        departmentEntities.value = entities;
+        setNavigationEntities(entities);
     }
 
     function openCartographie() {
@@ -40,11 +66,15 @@ export const useCartographieStore = defineStore('cartographie', () => {
     return {
         selectedDepartment,
         selectedEntityCode,
+        selectedEntityId,
+        navigationEntities,
         departmentEntities,
+        agencyEntities,
         statusMessage,
         resetDashboard,
         selectDepartment,
         selectEntity,
+        setNavigationEntities,
         setDepartmentEntities,
         openCartographie,
         openMethodologyPlaceholder,
@@ -81,6 +111,7 @@ export function useCartographieNavigation() {
         router.push({
             name: 'cartographie.departement-analyse',
             params: { code: entity.code },
+            query: entity.environment?.code ? { environment: entity.environment.code } : {},
         });
     }
 

@@ -4,6 +4,7 @@ use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\EntityController;
 use App\Http\Controllers\API\EnvironmentController;
 use App\Http\Controllers\API\MethodologyPageController;
+use App\Http\Controllers\API\OperationalRiskRowController;
 use App\Http\Controllers\API\ReferentialController;
 use App\Http\Controllers\API\ScaleLevelController;
 use App\Http\Controllers\API\UserController;
@@ -54,8 +55,23 @@ Route::controller(AuthController::class)->group(function () {
                 Route::get('top-risques', 'topRisques')->name('top-risques');
                 Route::put('top-risques', 'updateTopRisques')->name('top-risques.update');
                 Route::get('entities-departments', 'entitiesDepartments')->name('entities-departments');
+                Route::get('saisie-risques-context', 'saisieRisquesContext')->name('saisie-risques-context');
                 Route::get('analyse-risques/{code}', 'analyseRisques')->name('analyse-risques');
+                Route::get('analyse-risques/{code}/historique', 'analyseRisquesHistorique')->name('analyse-risques.historique');
                 Route::put('analyse-risques/{code}', 'updateAnalyseRisques')->name('analyse-risques.update');
+            });
+
+            Route::prefix('operational-risk-rows')->name('operational-risk-row.')->controller(OperationalRiskRowController::class)->group(function () {
+                Route::post('departments/{code}', 'createForDepartment')->name('store');
+                Route::put('{id}/phase1', 'updatePhase1')->name('phase1.update');
+                Route::post('{id}/submit', 'submit')->name('submit');
+                Route::post('{id}/request-revision', 'requestRevision')->name('request-revision');
+                Route::post('{id}/validate-assign', 'validateAndAssign')->name('validate-assign');
+                Route::put('{id}/phase2', 'updatePhase2')->name('phase2.update');
+                Route::post('{id}/submit-entity', 'submitEntityPhase2')->name('submit-entity');
+                Route::post('{id}/complete', 'completeEntityPhase2')->name('complete');
+                Route::post('{id}/request-entity-revision', 'requestEntityRevision')->name('request-entity-revision');
+                Route::delete('{id}', 'destroy')->name('destroy');
             });
 
             Route::prefix('environments')->name('environment.')->controller(EnvironmentController::class)->group(function () {

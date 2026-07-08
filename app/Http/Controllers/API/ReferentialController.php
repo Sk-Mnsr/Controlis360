@@ -12,6 +12,7 @@ use App\Models\RiskFamily;
 use App\Models\ScaleLevel;
 use App\Models\Subsidiary;
 use App\Models\TopRisk;
+use App\Models\OperationalRiskLog;
 use App\Models\OperationalRiskRow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -90,8 +91,8 @@ class ReferentialController extends APIController
      */
     public function updateEchellePg(Request $request)
     {
-        if (! $request->user()->isSuperAdmin()) {
-            return $this->responseError(['auth' => ['Action réservée au super administrateur']], 403);
+        if (! $request->user()->canEditMethodology()) {
+            return $this->responseError(['auth' => ['Action réservée au super administrateur ou au responsable contrôle']], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -146,8 +147,8 @@ class ReferentialController extends APIController
      */
     public function updateEchelleControle(Request $request)
     {
-        if (! $request->user()->isSuperAdmin()) {
-            return $this->responseError(['auth' => ['Action réservée au super administrateur']], 403);
+        if (! $request->user()->canEditMethodology()) {
+            return $this->responseError(['auth' => ['Action réservée au super administrateur ou au responsable contrôle']], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -289,8 +290,8 @@ class ReferentialController extends APIController
      */
     public function updateMatriceRisques(Request $request)
     {
-        if (! $request->user()->isSuperAdmin()) {
-            return $this->responseError(['auth' => ['Action réservée au super administrateur']], 403);
+        if (! $request->user()->canEditMethodology()) {
+            return $this->responseError(['auth' => ['Action réservée au super administrateur ou au responsable contrôle']], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -364,8 +365,8 @@ class ReferentialController extends APIController
      */
     public function updateLexiqueFamilles(Request $request)
     {
-        if (! $request->user()->isSuperAdmin()) {
-            return $this->responseError(['auth' => ['Action réservée au super administrateur']], 403);
+        if (! $request->user()->canEditMethodology()) {
+            return $this->responseError(['auth' => ['Action réservée au super administrateur ou au responsable contrôle']], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -497,8 +498,8 @@ class ReferentialController extends APIController
      */
     public function updateTopRisques(Request $request)
     {
-        if (! $request->user()->isSuperAdmin()) {
-            return $this->responseError(['auth' => ['Action réservée au super administrateur']], 403);
+        if (! $request->user()->canEditMethodology()) {
+            return $this->responseError(['auth' => ['Action réservée au super administrateur ou au responsable contrôle']], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -506,6 +507,7 @@ class ReferentialController extends APIController
             'rows.*.id' => 'nullable|exists:top_risks,id',
             'rows.*.process_name' => 'nullable|string|max:255',
             'rows.*.sub_process_name' => 'required|string|max:255',
+            'rows.*.line_date' => 'nullable|date',
             'rows.*.major_exceptions' => 'nullable|string',
             'rows.*.risk_family' => 'nullable|string|max:255',
             'rows.*.gravity' => 'nullable|integer|min:1|max:6',
@@ -580,29 +582,60 @@ class ReferentialController extends APIController
     }
 
     /**
-     * Entités de type département pour la cartographie.
+     * Entités (départements et agences) pour la navigation cartographie.
      */
     public function entitiesDepartments(Request $request)
     {
-        $query = Entity::query()
+        $user = $request->user();
+
+        $entities = Entity::query()
             ->with('environment')
-            ->where('type', 'department')
+            ->whereIn('type', ['department', 'agency'])
             ->where('is_active', true)
+            ->visibleToUser($user)
+            ->orderBy('environment_id')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get()
+            ->unique('id')
+            ->values();
+
+        return $this->responseOk($entities);
+    }
+
+    /**
+     * Données pour la saisie centralisée des risques opérationnels.
+     */
+    public function saisieRisquesContext(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->canCreateOperationalRiskRow()) {
+            return $this->responseError(['auth' => ['Action réservée au personnel du contrôle interne']], 403);
+        }
+
+        $entitiesQuery = Entity::query()
+            ->with('environment:id,code,name')
+            ->whereIn('type', ['department', 'agency'])
+            ->where('is_active', true)
+            ->orderBy('environment_id')
             ->orderBy('sort_order')
             ->orderBy('name');
 
-        $user = $request->user();
-
         if ($user->environment_id) {
-            $query->where('environment_id', $user->environment_id);
-        } elseif ($user->isSuperAdmin()) {
-            $environmentId = Environment::query()->orderBy('id')->value('id');
-            if ($environmentId) {
-                $query->where('environment_id', $environmentId);
-            }
+            $entitiesQuery->where('environment_id', $user->environment_id);
         }
 
-        return $this->responseOk($query->get());
+        return $this->responseOk([
+            'entities' => $entitiesQuery->get(['id', 'name', 'code', 'type', 'environment_id']),
+            'risk_families' => RiskFamily::query()
+                ->orderBy('sort_order')
+                ->pluck('name')
+                ->values(),
+            'risk_classifications' => RiskClassification::query()
+                ->orderBy('sort_order')
+                ->get(),
+        ]);
     }
 
     /**
@@ -616,7 +649,50 @@ class ReferentialController extends APIController
             return $this->responseError(['code' => ['Département introuvable']], 404);
         }
 
-        return $this->responseOk($this->buildAnalyseRisquesPayload($entity));
+        return $this->responseOk($this->buildAnalyseRisquesPayload(
+            $entity,
+            $request->boolean('include_drafts')
+                && $request->user()->canCreateOperationalRiskRow()
+        ));
+    }
+
+    public function analyseRisquesHistorique(Request $request, string $code)
+    {
+        $entity = $this->resolveDepartmentEntity($request, $code);
+
+        if (! $entity) {
+            return $this->responseError(['code' => ['Département introuvable']], 404);
+        }
+
+        $logs = OperationalRiskLog::query()
+            ->with(['user:id,name,email', 'row:id,sub_process_name,major_exceptions'])
+            ->where('entity_id', $entity->id)
+            ->orderByDesc('created_at')
+            ->limit(200)
+            ->get()
+            ->map(fn (OperationalRiskLog $log) => [
+                'id' => $log->id,
+                'action' => $log->action,
+                'action_label' => $log->actionLabel(),
+                'message' => $log->message,
+                'metadata' => $log->metadata,
+                'created_at' => $log->created_at?->format('Y-m-d H:i'),
+                'user' => $log->user ? [
+                    'id' => $log->user->id,
+                    'name' => $log->user->name,
+                ] : null,
+                'row' => $log->row ? [
+                    'id' => $log->row->id,
+                    'sub_process_name' => $log->row->sub_process_name,
+                    'major_exceptions' => $log->row->major_exceptions,
+                ] : null,
+            ]);
+
+        return $this->responseOk([
+            'entity' => $entity,
+            'title' => 'HISTORIQUE — '.$entity->name,
+            'logs' => $logs,
+        ]);
     }
 
     /**
@@ -641,6 +717,7 @@ class ReferentialController extends APIController
             'rows.*.process_name' => 'nullable|string|max:255',
             'rows.*.ratio' => 'nullable|numeric|min:0|max:100',
             'rows.*.sub_process_name' => 'required|string|max:255',
+            'rows.*.line_date' => 'nullable|date',
             'rows.*.major_exceptions' => 'nullable|string',
             'rows.*.correlated_risks' => 'nullable|string',
             'rows.*.risk_family' => 'nullable|string|max:255',
@@ -651,7 +728,7 @@ class ReferentialController extends APIController
             'rows.*.control_owner' => 'nullable|string|max:255',
             'rows.*.control_effectiveness' => 'nullable|integer|min:1|max:5',
             'rows.*.residual_gravity' => 'nullable|integer|min:1|max:6',
-            'rows.*.residual_probability' => 'nullable|integer|min:1|max:6',
+            'rows.*.residual_probability' => 'nullable|numeric|min:1|max:6',
         ]);
 
         if ($validator->fails()) {
@@ -665,69 +742,65 @@ class ReferentialController extends APIController
 
     private function resolveDepartmentEntity(Request $request, string $code): ?Entity
     {
-        $query = Entity::query()
-            ->with('environment')
-            ->where('type', 'department')
-            ->where('code', $code)
-            ->where('is_active', true);
-
-        $user = $request->user();
-
-        if ($user->environment_id) {
-            $query->where('environment_id', $user->environment_id);
-        } elseif ($user->isSuperAdmin()) {
-            $environmentId = Environment::query()->orderBy('id')->value('id');
-            if ($environmentId) {
-                $query->where('environment_id', $environmentId);
-            }
-        }
-
-        return $query->first();
+        return Entity::resolveDepartmentForUser(
+            $request->user(),
+            $code,
+            $request->query('environment'),
+            $request->integer('entity_id') ?: null
+        );
     }
 
-    private function buildAnalyseRisquesPayload(Entity $entity): array
+    private function buildAnalyseRisquesPayload(Entity $entity, bool $includeDrafts = false): array
     {
-        $rows = OperationalRiskRow::query()
-            ->where('entity_id', $entity->id)
-            ->orderBy('sort_order')
-            ->get()
-            ->map(function (OperationalRiskRow $row) {
-                $grossClassification = ($row->gravity && $row->probability)
-                    ? RiskClassification::forCell($row->gravity, $row->probability)
-                    : null;
-                $residualClassification = ($row->residual_gravity && $row->residual_probability)
-                    ? RiskClassification::forCell($row->residual_gravity, $row->residual_probability)
-                    : null;
+        $user = request()->user();
+        $formatter = app(OperationalRiskRowController::class);
 
-                return [
-                    'id' => $row->id,
-                    'process_number' => $row->process_number,
-                    'process_name' => $row->process_name,
-                    'ratio' => $row->ratio,
-                    'sub_process_name' => $row->sub_process_name,
-                    'major_exceptions' => $row->major_exceptions,
-                    'correlated_risks' => $row->correlated_risks,
-                    'risk_family' => $row->risk_family,
-                    'gravity' => $row->gravity,
-                    'probability' => $row->probability,
-                    'gross_risk' => $row->gross_risk,
-                    'gross_classification' => $grossClassification,
-                    'control_description' => $row->control_description,
-                    'control_exists' => $row->control_exists,
-                    'control_owner' => $row->control_owner,
-                    'control_effectiveness' => $row->control_effectiveness,
-                    'residual_gravity' => $row->residual_gravity,
-                    'residual_probability' => $row->residual_probability,
-                    'residual_risk' => $row->residual_risk,
-                    'residual_classification' => $residualClassification,
-                    'sort_order' => $row->sort_order,
-                ];
-            });
+        $rowsQuery = OperationalRiskRow::query()
+            ->with(['assignedEntity', 'entity'])
+            ->where('entity_id', $entity->id)
+            ->orderBy('sort_order');
+
+        if (! $includeDrafts) {
+            $rowsQuery->visibleInAnalyse();
+        }
+
+        if ($user->isEntityResponsable()) {
+            $rowsQuery->visibleToEntityResponsable($user);
+        }
+
+        $rows = $rowsQuery
+            ->get()
+            ->map(fn (OperationalRiskRow $row) => $formatter->formatRow($row));
+
+        $assignableEntities = Entity::query()
+            ->where('environment_id', $entity->environment_id)
+            ->whereIn('type', ['department', 'agency'])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'code']);
 
         return [
             'entity' => $entity,
             'title' => 'ANALYSE DES RISQUES OPERATIONNELS — '.$entity->name,
             'rows' => $rows,
+            'assignable_entities' => $assignableEntities,
+            'risk_families' => RiskFamily::query()
+                ->orderBy('sort_order')
+                ->pluck('name')
+                ->values(),
+            'risk_classifications' => RiskClassification::query()
+                ->orderBy('sort_order')
+                ->get(),
+            'permissions' => [
+                'can_create_row' => $user->canCreateOperationalRiskRow(),
+                'can_edit_methodology' => $user->canEditMethodology(),
+                'can_validate' => $user->isSuperAdmin() || $user->isControleResponsable(),
+                'can_complete_entity' => $user->isSuperAdmin() || $user->isControleResponsable(),
+                'is_entity_responsable' => $user->isEntityResponsable(),
+                'is_super_admin' => $user->isSuperAdmin(),
+                'entity_id' => $user->entity_id,
+            ],
         ];
     }
 
@@ -742,6 +815,7 @@ class ReferentialController extends APIController
                 'process_name' => $row['process_name'] ?? null,
                 'ratio' => $row['ratio'] ?? null,
                 'sub_process_name' => $row['sub_process_name'],
+                'line_date' => $row['line_date'] ?? null,
                 'major_exceptions' => $row['major_exceptions'] ?? null,
                 'correlated_risks' => $row['correlated_risks'] ?? null,
                 'risk_family' => $row['risk_family'] ?? null,
@@ -751,8 +825,11 @@ class ReferentialController extends APIController
                 'control_exists' => $row['control_exists'] ?? null,
                 'control_owner' => $row['control_owner'] ?? null,
                 'control_effectiveness' => $row['control_effectiveness'] ?? null,
-                'residual_gravity' => $row['residual_gravity'] ?? null,
-                'residual_probability' => $row['residual_probability'] ?? null,
+                'residual_gravity' => $row['gravity'] ?? null,
+                'residual_probability' => OperationalRiskRow::computeResidualProbability(
+                    $row['probability'] ?? null,
+                    $row['control_effectiveness'] ?? null
+                ),
                 'sort_order' => $index + 1,
             ];
 

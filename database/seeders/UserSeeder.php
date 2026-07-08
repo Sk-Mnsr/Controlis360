@@ -12,10 +12,14 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $togo = Environment::query()->where('code', 'TOGO')->first();
+        $togo = Environment::query()->where('code', 'TG')->first();
         $credit = Entity::query()
             ->where('environment_id', $togo?->id)
             ->where('code', 'CREDIT')
+            ->first();
+        $it = Entity::query()
+            ->where('environment_id', $togo?->id)
+            ->where('code', 'IT')
             ->first();
 
         $users = [
@@ -40,14 +44,34 @@ class UserSeeder extends Seeder
                 'job_title' => 'Responsable Contrôle permanent & risques opérationnels',
             ],
             [
-                'name' => 'Ibrahim KOFFI',
-                'email' => 'ibrahim.koffi@cofinacorp.com',
+                'name' => ' Aida NDIAYE',
+                'email' => 'aida.ndiaye@cofinacorp.com',
                 'profile' => 'controle',
                 'metier_role' => null,
                 'controle_role' => 'agent_controle_interne',
                 'environment_id' => $togo?->id,
                 'entity_id' => null,
                 'job_title' => 'Agent du contrôle interne',
+            ],
+            [
+                'name' => 'Amadou Mar DIOP',
+                'email' => 'amadou.diop@cofinacorp.com',
+                'profile' => 'metier',
+                'metier_role' => 'responsable_entite',
+                'controle_role' => null,
+                'environment_id' => $togo?->id,
+                'entity_id' => $it?->id,
+                'job_title' => 'Responsable entité IT',
+            ],
+            [
+                'name' => 'Modou NGOM',
+                'email' => 'modou.ngom@cofinacorp.com',
+                'profile' => 'metier',
+                'metier_role' => 'responsable_entite',
+                'controle_role' => null,
+                'environment_id' => $togo?->id,
+                'entity_id' => $it?->id,
+                'job_title' => 'Responsable entité IT',
             ],
         ];
 

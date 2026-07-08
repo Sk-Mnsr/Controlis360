@@ -153,9 +153,20 @@ const routes = [
                         component: () => import('../views/cartographie/PlusGrosRisquesView.vue'),
                     },
                     {
+                        path: 'saisie-risques',
+                        name: 'cartographie.saisie-risques',
+                        component: () => import('../views/cartographie/SaisieRisquesView.vue'),
+                        meta: { canCreateRiskRow: true },
+                    },
+                    {
                         path: 'departements/:code',
                         name: 'cartographie.departement-analyse',
                         component: () => import('../views/cartographie/DepartementAnalyseView.vue'),
+                    },
+                    {
+                        path: 'departements/:code/historique',
+                        name: 'cartographie.departement-historique',
+                        component: () => import('../views/cartographie/HistoriqueView.vue'),
                     },
                 ],
             },
@@ -181,6 +192,8 @@ const routes = [
         ],
     },
 ];
+
+import { canCreateOperationalRiskRow } from '../utils/cartographiePermissions';
 
 const router = createRouter({
     history: createWebHistory(),
@@ -231,6 +244,10 @@ router.beforeEach(async (to, from, next) => {
         if (!canAccessEnvironment(auth, to.params.id)) {
             return next({ name: 'portal' });
         }
+    }
+
+    if (to.meta.canCreateRiskRow && !canCreateOperationalRiskRow(auth.user)) {
+        return next({ name: 'cartographie.home' });
     }
 
     return next();

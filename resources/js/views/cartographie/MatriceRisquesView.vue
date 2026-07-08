@@ -6,7 +6,7 @@
             </RouterLink>
 
             <button
-                v-if="isSuperAdmin && !editing"
+                v-if="canEditMethodology && !editing"
                 type="button"
                 class="matrice-risques-edit-btn"
                 @click="startEdit"
@@ -52,15 +52,14 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import api from '../../api/client';
-import { useAuthStore } from '../../stores/auth';
+import { useCartographiePermissions } from '../../composables/useCartographiePermissions';
 import RiskMatrixGrid from '../../components/cartographie/RiskMatrixGrid.vue';
 import RiskLexiconTable from '../../components/cartographie/RiskLexiconTable.vue';
 import RiskLexiconEditor from '../../components/cartographie/RiskLexiconEditor.vue';
 
-const auth = useAuthStore();
-const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
+const { canEditMethodology } = useCartographiePermissions();
 
 const loading = ref(true);
 const saving = ref(false);

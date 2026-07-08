@@ -72,6 +72,22 @@
                     </div>
 
                     <div class="nav-group">
+                        <p class="nav-group-label" :class="{ 'nav-group-label-active': isSaisieSection }">
+                            Saisie
+                        </p>
+                        <div class="nav-group-children">
+                            <RouterLink
+                                v-if="canSaisirRisques"
+                                class="nav-sublink"
+                                :class="{ 'nav-sublink-active': route.name === 'cartographie.saisie-risques' }"
+                                :to="{ name: 'cartographie.saisie-risques' }"
+                            >
+                                Nouvelle ligne
+                            </RouterLink>
+                        </div>
+                    </div>
+
+                    <div class="nav-group">
                         <button
                             type="button"
                             class="nav-group-toggle"
@@ -92,16 +108,53 @@
                             </svg>
                         </button>
                         <div v-show="departmentsOpen" class="nav-group-children">
-                            <p v-if="departmentsLoading" class="nav-sublink nav-dept-loading">Chargement...</p>
+                            <p v-if="entitiesLoading" class="nav-sublink nav-dept-loading">Chargement...</p>
+                            <p v-else-if="!cartographie.departmentEntities.length" class="nav-sublink nav-dept-loading">Aucun département</p>
                             <button
                                 v-for="entity in cartographie.departmentEntities"
-                                :key="entity.id"
+                                :key="`${entity.environment_id ?? 'env'}-${entity.id}`"
                                 type="button"
                                 class="nav-sublink nav-sublink-btn nav-dept"
-                                :class="{ 'nav-sublink-active': isDepartmentActive(entity) }"
+                                :class="{ 'nav-sublink-active': isEntityActive(entity) }"
                                 @click="selectDepartmentEntity(entity)"
                             >
-                                {{ entity.name }}
+                                {{ entityNavLabel(entity) }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="nav-group">
+                        <button
+                            type="button"
+                            class="nav-group-toggle"
+                            :class="{ 'nav-group-toggle-active': isAgenciesSection }"
+                            :aria-expanded="agenciesOpen"
+                            @click="agenciesOpen = !agenciesOpen"
+                        >
+                            <span>Agences</span>
+                            <svg
+                                class="nav-group-chevron"
+                                :class="{ 'nav-group-chevron-open': agenciesOpen }"
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                aria-hidden="true"
+                            >
+                                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                        <div v-show="agenciesOpen" class="nav-group-children">
+                            <p v-if="entitiesLoading" class="nav-sublink nav-dept-loading">Chargement...</p>
+                            <p v-else-if="!cartographie.agencyEntities.length" class="nav-sublink nav-dept-loading">Aucune agence</p>
+                            <button
+                                v-for="entity in cartographie.agencyEntities"
+                                :key="`${entity.environment_id ?? 'env'}-${entity.id}`"
+                                type="button"
+                                class="nav-sublink nav-sublink-btn nav-dept"
+                                :class="{ 'nav-sublink-active': isEntityActive(entity) }"
+                                @click="selectDepartmentEntity(entity)"
+                            >
+                                {{ entityNavLabel(entity) }}
                             </button>
                         </div>
                     </div>
@@ -192,9 +245,11 @@ import { methodologyItems } from '../config/cartographie-nav';
 import { getModuleFromRoute } from '../config/modules';
 import { useCartographieNavigation } from '../stores/cartographie';
 import { useAuthStore } from '../stores/auth';
+import { useCartographiePermissions } from '../composables/useCartographiePermissions';
 import api from '../api/client';
 
 const auth = useAuthStore();
+const { canCreateRiskRow } = useCartographiePermissions();
 const route = useRoute();
 const router = useRouter();
 const { cartographie, navigateMethodology, goToDashboard, selectDepartmentEntity } = useCartographieNavigation();
@@ -205,41 +260,78 @@ const activeModule = computed(() => getModuleFromRoute(route));
 const isFullBleedPage = computed(() =>
     route.name === 'cartographie.home'
     || route.name === 'cartographie.methodology.show'
-    || route.name === 'cartographie.departement-analyse',
+    || route.name === 'cartographie.departement-analyse'
+    || route.name === 'cartographie.departement-historique'
+    || route.name === 'cartographie.saisie-risques',
 );
 const isDashboardActive = computed(() =>
     route.name === 'cartographie.home' && cartographie.selectedDepartment === 'DASHBOARD',
 );
 const isMethodologySection = computed(() => route.name === 'cartographie.methodology.show');
-const isDepartmentsSection = computed(() => route.name === 'cartographie.departement-analyse');
+const isSaisieSection = computed(() => route.name === 'cartographie.saisie-risques');
+const isDepartmentsSection = computed(() =>
+    (route.name === 'cartographie.departement-analyse' || route.name === 'cartographie.departement-historique')
+    && activeEntityType.value === 'department',
+);
+const isAgenciesSection = computed(() =>
+    (route.name === 'cartographie.departement-analyse' || route.name === 'cartographie.departement-historique')
+    && activeEntityType.value === 'agency',
+);
 const isEnvironmentsSection = computed(() => route.path.startsWith('/environments'));
 const isUsersSection = computed(() => route.path.startsWith('/users'));
 const isUsersCreateSection = computed(() => route.name === 'users.create');
 const isUsersHistorySection = computed(() => route.name === 'users.history' || route.name === 'users.edit');
 const canManageUsers = computed(() => ['super_admin', 'admin'].includes(auth.user?.profile));
+const canSaisirRisques = canCreateRiskRow;
 const departmentsOpen = ref(false);
-const departmentsLoading = ref(false);
+const agenciesOpen = ref(false);
+const entitiesLoading = ref(false);
 
-async function loadDepartmentEntities() {
+const activeEntityType = computed(() => {
+    if (route.name !== 'cartographie.departement-analyse' && route.name !== 'cartographie.departement-historique') {
+        return null;
+    }
+
+    const entity = cartographie.navigationEntities.find((item) => item.code === route.params.code);
+    return entity?.type ?? null;
+});
+
+function normalizeEntitiesPayload(payload) {
+    if (Array.isArray(payload)) {
+        return payload;
+    }
+
+    if (Array.isArray(payload?.data)) {
+        return payload.data;
+    }
+
+    return [];
+}
+
+async function loadNavigationEntities() {
     if (!activeModule.value || activeModule.value.slug !== 'cartographie') {
         return;
     }
 
-    departmentsLoading.value = true;
+    if (entitiesLoading.value) {
+        return;
+    }
+
+    entitiesLoading.value = true;
 
     try {
         const { data } = await api.get('/referentials/entities-departments');
-        cartographie.setDepartmentEntities(data.data ?? data ?? []);
+        cartographie.setNavigationEntities(normalizeEntitiesPayload(data));
     } catch {
-        cartographie.setDepartmentEntities([]);
+        cartographie.setNavigationEntities([]);
     } finally {
-        departmentsLoading.value = false;
+        entitiesLoading.value = false;
     }
 }
 
 watch(activeModule, (module) => {
     if (module?.slug === 'cartographie') {
-        loadDepartmentEntities();
+        loadNavigationEntities();
     }
 }, { immediate: true });
 
@@ -249,13 +341,46 @@ watch(isDepartmentsSection, (active) => {
     }
 }, { immediate: true });
 
+watch(isAgenciesSection, (active) => {
+    if (active) {
+        agenciesOpen.value = true;
+    }
+}, { immediate: true });
+
 function isMethodologyItemActive(item) {
     return route.name === 'cartographie.methodology.show' && route.params.slug === item.slug;
 }
 
-function isDepartmentActive(entity) {
-    return route.name === 'cartographie.departement-analyse'
-        && route.params.code === entity.code;
+function isEntityActive(entity) {
+    const onEntityRoute = route.name === 'cartographie.departement-analyse'
+        || route.name === 'cartographie.departement-historique';
+
+    if (!onEntityRoute || route.params.code !== entity.code) {
+        return false;
+    }
+
+    if (cartographie.selectedEntityId) {
+        return cartographie.selectedEntityId === entity.id;
+    }
+
+    const routeEnvironment = route.query.environment;
+    const entityEnvironment = entity.environment?.code;
+
+    if (routeEnvironment && entityEnvironment) {
+        return routeEnvironment === entityEnvironment;
+    }
+
+    return true;
+}
+
+function entityNavLabel(entity) {
+    const user = auth.user;
+
+    if (user?.profile === 'super_admin' && !user?.environment_id && entity.environment?.code) {
+        return `${entity.environment.code} — ${entity.name}`;
+    }
+
+    return entity.name;
 }
 
 function openCartographie() {

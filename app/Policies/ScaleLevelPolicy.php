@@ -19,22 +19,22 @@ class ScaleLevelPolicy
 
     public function create($user): Response
     {
-        return $user->isSuperAdmin()
+        return $user->canEditMethodology()
             ? Response::allow()
-            : Response::deny('Seul le super administrateur peut modifier les échelles');
+            : Response::deny('Seuls le super administrateur et le responsable contrôle peuvent modifier les échelles');
     }
 
     public function update($user, Model $level): Response
     {
-        return $user->isSuperAdmin()
+        return $user->canEditMethodology()
             ? Response::allow()
-            : Response::deny('Seul le super administrateur peut modifier les échelles');
+            : Response::deny('Seuls le super administrateur et le responsable contrôle peuvent modifier les échelles');
     }
 
     public function delete($user, Model $level): Response
     {
-        return $user->isSuperAdmin()
+        return $user->canEditMethodology()
             ? Response::allow()
-            : Response::deny('Seul le super administrateur peut modifier les échelles');
+            : Response::deny('Seuls le super administrateur et le responsable contrôle peuvent modifier les échelles');
     }
 }

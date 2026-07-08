@@ -6,7 +6,7 @@
             </RouterLink>
 
             <button
-                v-if="isSuperAdmin && !editing"
+                v-if="canEditMethodology && !editing"
                 type="button"
                 class="echelle-pg-edit-btn"
                 @click="startEdit"
@@ -71,14 +71,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import api from '../../api/client';
-import { useAuthStore } from '../../stores/auth';
+import { useCartographiePermissions } from '../../composables/useCartographiePermissions';
 import ScaleTable from '../../components/cartographie/ScaleTable.vue';
 import ScaleTableEditor from '../../components/cartographie/ScaleTableEditor.vue';
 
-const auth = useAuthStore();
-const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
+const { canEditMethodology } = useCartographiePermissions();
 
 const loading = ref(true);
 const saving = ref(false);

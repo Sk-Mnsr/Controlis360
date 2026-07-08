@@ -4,15 +4,16 @@
             <RouterLink :to="{ name: 'cartographie.home' }" class="departement-analyse-back">
                 ← Dashboard
             </RouterLink>
-
-            <button
-                v-if="isSuperAdmin && !editing && entity"
-                type="button"
-                class="departement-analyse-edit-btn"
-                @click="startEdit"
+            <RouterLink
+                :to="{
+                    name: 'cartographie.departement-historique',
+                    params: { code: route.params.code },
+                    query: environmentQueryParams(route),
+                }"
+                class="departement-analyse-historique"
             >
-                Modifier
-            </button>
+                Historique
+            </RouterLink>
         </div>
 
         <div v-if="loading" class="departement-analyse-loading">Chargement...</div>
@@ -20,56 +21,159 @@
         <template v-else>
             <p v-if="error && !entity" class="departement-analyse-error">{{ error }}</p>
 
-            <div v-else-if="!editing" class="departement-analyse-content">
-                <OperationalRiskTable :title="title" :rows="rows" />
-            </div>
+            <template v-else>
+                <nav v-if="showValidationTabs" class="departement-analyse-tabs" aria-label="Files de validation">
+                    <button
+                        type="button"
+                        class="departement-analyse-tab"
+                        :class="{ active: activeTab === 'all' }"
+                        @click="activeTab = 'all'"
+                    >
+                        Cartographie complète
+                    </button>
+                    <button
+                        type="button"
+                        class="departement-analyse-tab"
+                        :class="{ active: activeTab === 'agent' }"
+                        @click="activeTab = 'agent'"
+                    >
+                        Soumissions agent
+                        <span v-if="agentQueueCount" class="departement-analyse-tab-badge">{{ agentQueueCount }}</span>
+                    </button>
+                    <button
+                        type="button"
+                        class="departement-analyse-tab"
+                        :class="{ active: activeTab === 'entity' }"
+                        @click="activeTab = 'entity'"
+                    >
+                        Soumissions entité
+                        <span v-if="entityQueueCount" class="departement-analyse-tab-badge">{{ entityQueueCount }}</span>
+                    </button>
+                </nav>
 
-            <form v-else class="departement-analyse-form" @submit.prevent="save">
-                <OperationalRiskTableEditor
-                    :rows="form.rows"
-                    @add-row="addRow"
-                    @remove-row="removeRow"
+                <OperationalRiskTable
+                    :title="tableTitle"
+                    :rows="displayedRows"
+                    :department-code="route.params.code"
+                    :department-environment="route.query.environment"
+                    :permissions="permissions"
+                    :empty-message="emptyMessage"
+                    @edit="openEditModal"
+                    @delete="deleteRow"
+                    @submit="submitRow"
+                    @submit-entity="submitEntityRow"
+                    @complete="completeEntityRow"
+                    @request-entity-revision="requestEntityRevisionRow"
+                    @validate="openValidateModal"
+                    @request-agent-revision="requestAgentRevisionRow"
                 />
-
-                <p v-if="error" class="departement-analyse-error">{{ error }}</p>
-
-                <div class="departement-analyse-form-actions">
-                    <button type="button" class="departement-analyse-btn-secondary" @click="cancelEdit">
-                        Annuler
-                    </button>
-                    <button type="submit" class="departement-analyse-btn-primary" :disabled="saving">
-                        {{ saving ? 'Enregistrement...' : 'Enregistrer' }}
-                    </button>
-                </div>
-            </form>
+            </template>
         </template>
+
+        <OperationalRiskValidateModal
+            v-model:open="validateModalOpen"
+            :row="validatingRow"
+            @saved="loadAnalyse"
+        />
+
+        <OperationalRiskRevisionModal
+            v-model:open="revisionModalOpen"
+            :row="revisionRow"
+            :target="revisionTarget"
+            @saved="loadAnalyse"
+        />
+
+        <OperationalRiskRowEditModal
+            v-model:open="editModalOpen"
+            :row="editingRow"
+            :group="editingGroup"
+            :permissions="permissions"
+            :risk-families="riskFamilies"
+            :risk-classifications="riskClassifications"
+            :department-name="entity?.name ?? ''"
+            @saved="loadAnalyse"
+            @submitted="loadAnalyse"
+        />
     </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../../api/client';
-import { useAuthStore } from '../../stores/auth';
 import { useCartographieStore } from '../../stores/cartographie';
+import { environmentQueryParams } from '../../utils/entityEnvironment';
 import OperationalRiskTable from '../../components/cartographie/OperationalRiskTable.vue';
-import OperationalRiskTableEditor from '../../components/cartographie/OperationalRiskTableEditor.vue';
+import OperationalRiskRowEditModal from '../../components/cartographie/OperationalRiskRowEditModal.vue';
+import OperationalRiskValidateModal from '../../components/cartographie/OperationalRiskValidateModal.vue';
+import OperationalRiskRevisionModal from '../../components/cartographie/OperationalRiskRevisionModal.vue';
 
 const route = useRoute();
-const auth = useAuthStore();
 const cartographie = useCartographieStore();
-const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
 
 const loading = ref(true);
-const saving = ref(false);
-const editing = ref(false);
 const error = ref('');
 const entity = ref(null);
 const title = ref('');
 const rows = ref([]);
+const permissions = ref({});
+const assignableEntities = ref([]);
+const riskFamilies = ref([]);
+const riskClassifications = ref([]);
+const editModalOpen = ref(false);
+const validateModalOpen = ref(false);
+const editingRow = ref(null);
+const editingGroup = ref(null);
+const validatingRow = ref(null);
+const revisionModalOpen = ref(false);
+const revisionRow = ref(null);
+const revisionTarget = ref('agent');
+const activeTab = ref('all');
 
-const form = reactive({
-    rows: [],
+const showValidationTabs = computed(() => Boolean(permissions.value.can_validate));
+
+const agentQueueCount = computed(() =>
+    rows.value.filter((row) => row.status === 'submitted').length,
+);
+
+const entityQueueCount = computed(() =>
+    rows.value.filter((row) => row.status === 'entity_submitted').length,
+);
+
+const displayedRows = computed(() => {
+    if (!showValidationTabs.value || activeTab.value === 'all') {
+        return rows.value;
+    }
+
+    if (activeTab.value === 'agent') {
+        return rows.value.filter((row) => row.status === 'submitted');
+    }
+
+    return rows.value.filter((row) => row.status === 'entity_submitted');
+});
+
+const tableTitle = computed(() => {
+    if (!showValidationTabs.value || activeTab.value === 'all') {
+        return title.value;
+    }
+
+    if (activeTab.value === 'agent') {
+        return `${title.value} — Soumissions agent`;
+    }
+
+    return `${title.value} — Soumissions entité`;
+});
+
+const emptyMessage = computed(() => {
+    if (!showValidationTabs.value || activeTab.value === 'all') {
+        return 'Aucune ligne d\'analyse pour ce département.';
+    }
+
+    if (activeTab.value === 'agent') {
+        return 'Aucune soumission en attente de validation par l\'agent du contrôle.';
+    }
+
+    return 'Aucune soumission en attente de validation par le responsable d\'entité.';
 });
 
 function extractPayload(data) {
@@ -79,6 +183,10 @@ function extractPayload(data) {
         entity: root?.entity ?? null,
         title: root?.title ?? '',
         rows: root?.rows ?? [],
+        permissions: root?.permissions ?? {},
+        assignableEntities: root?.assignable_entities ?? [],
+        riskFamilies: root?.risk_families ?? [],
+        riskClassifications: root?.risk_classifications ?? [],
     };
 }
 
@@ -87,12 +195,19 @@ async function loadAnalyse() {
     error.value = '';
 
     try {
-        const { data } = await api.get(`/referentials/analyse-risques/${route.params.code}`);
+        const { data } = await api.get(`/referentials/analyse-risques/${route.params.code}`, {
+            params: environmentQueryParams(route),
+        });
         const payload = extractPayload(data);
         entity.value = payload.entity;
         title.value = payload.title;
         rows.value = payload.rows;
+        permissions.value = payload.permissions;
+        assignableEntities.value = payload.assignableEntities;
+        riskFamilies.value = payload.riskFamilies;
+        riskClassifications.value = payload.riskClassifications;
         cartographie.selectedEntityCode = route.params.code;
+        cartographie.selectedEntityId = payload.entity?.id ?? null;
     } catch {
         error.value = 'Impossible de charger l\'analyse des risques du département.';
     } finally {
@@ -100,102 +215,89 @@ async function loadAnalyse() {
     }
 }
 
-function startEdit() {
-    form.rows = rows.value.map((row) => ({
-        id: row.id,
-        process_number: row.process_number,
-        process_name: row.process_name ?? '',
-        ratio: row.ratio,
-        sub_process_name: row.sub_process_name ?? '',
-        major_exceptions: row.major_exceptions ?? '',
-        correlated_risks: row.correlated_risks ?? '',
-        risk_family: row.risk_family ?? '',
-        gravity: row.gravity,
-        probability: row.probability,
-        control_description: row.control_description ?? '',
-        control_exists: row.control_exists,
-        control_owner: row.control_owner ?? '',
-        control_effectiveness: row.control_effectiveness,
-        residual_gravity: row.residual_gravity,
-        residual_probability: row.residual_probability,
-    }));
-    editing.value = true;
-    error.value = '';
+function openEditModal({ row, group }) {
+    editingRow.value = row;
+    editingGroup.value = group;
+    editModalOpen.value = true;
 }
 
-function cancelEdit() {
-    editing.value = false;
-    error.value = '';
-}
-
-function addRow() {
-    form.rows.push({
-        id: null,
-        process_number: entity.value?.code === 'IT' ? 3 : null,
-        process_name: entity.value?.name ?? '',
-        ratio: null,
-        sub_process_name: '',
-        major_exceptions: '',
-        correlated_risks: '',
-        risk_family: '',
-        gravity: null,
-        probability: null,
-        control_description: '',
-        control_exists: null,
-        control_owner: '',
-        control_effectiveness: null,
-        residual_gravity: null,
-        residual_probability: null,
-    });
-}
-
-function removeRow(index) {
-    if (form.rows.length <= 1) return;
-    form.rows.splice(index, 1);
-}
-
-async function save() {
-    saving.value = true;
-    error.value = '';
+async function deleteRow(row) {
+    if (!confirm('Supprimer ce risque ?')) {
+        return;
+    }
 
     try {
-        const { data } = await api.put(`/referentials/analyse-risques/${route.params.code}`, {
-            rows: form.rows.map((row) => ({
-                id: row.id,
-                process_number: row.process_number || null,
-                process_name: row.process_name || null,
-                ratio: row.ratio ?? null,
-                sub_process_name: row.sub_process_name,
-                major_exceptions: row.major_exceptions || null,
-                correlated_risks: row.correlated_risks || null,
-                risk_family: row.risk_family || null,
-                gravity: row.gravity || null,
-                probability: row.probability || null,
-                control_description: row.control_description || null,
-                control_exists: row.control_exists,
-                control_owner: row.control_owner || null,
-                control_effectiveness: row.control_effectiveness || null,
-                residual_gravity: row.residual_gravity || null,
-                residual_probability: row.residual_probability || null,
-            })),
-        });
-
-        const payload = extractPayload(data);
-        entity.value = payload.entity;
-        title.value = payload.title;
-        rows.value = payload.rows;
-        editing.value = false;
-    } catch (err) {
-        const errors = err.response?.data?.errors ?? err.response?.data?.data;
-        error.value = errors
-            ? Object.values(errors).flat().join(' ')
-            : 'Erreur lors de l\'enregistrement.';
-    } finally {
-        saving.value = false;
+        await api.delete(`/operational-risk-rows/${row.id}`);
+        await loadAnalyse();
+    } catch {
+        alert('Impossible de supprimer cette ligne.');
     }
 }
 
-watch(() => route.params.code, loadAnalyse);
+function openValidateModal(row) {
+    validatingRow.value = row;
+    validateModalOpen.value = true;
+}
+
+function openRevisionModal(row, target) {
+    revisionRow.value = row;
+    revisionTarget.value = target;
+    revisionModalOpen.value = true;
+}
+
+function requestAgentRevisionRow(row) {
+    openRevisionModal(row, 'agent');
+}
+
+function requestEntityRevisionRow(row) {
+    openRevisionModal(row, 'entity');
+}
+
+async function submitRow(row) {
+    if (!confirm('Envoyer cette ligne pour validation par le contrôle ?')) {
+        return;
+    }
+
+    try {
+        await api.post(`/operational-risk-rows/${row.id}/submit`);
+        await loadAnalyse();
+    } catch {
+        alert('Impossible d\'envoyer cette ligne.');
+    }
+}
+
+async function submitEntityRow(row) {
+    if (!confirm('Envoyer cette ligne au contrôle pour validation ?')) {
+        return;
+    }
+
+    try {
+        await api.post(`/operational-risk-rows/${row.id}/submit-entity`, {
+            control_description: row.control_description,
+            control_exists: row.control_exists,
+            control_owner: row.control_owner,
+            control_effectiveness: row.control_effectiveness,
+        });
+        await loadAnalyse();
+    } catch {
+        alert('Impossible d\'envoyer la ligne au contrôle.');
+    }
+}
+
+async function completeEntityRow(row) {
+    if (!confirm('Valider définitivement cette ligne ?')) {
+        return;
+    }
+
+    try {
+        await api.post(`/operational-risk-rows/${row.id}/complete`);
+        await loadAnalyse();
+    } catch {
+        alert('Impossible de valider cette ligne.');
+    }
+}
+
+watch(() => [route.params.code, route.query.environment], loadAnalyse);
 
 onMounted(loadAnalyse);
 </script>
@@ -204,6 +306,9 @@ onMounted(loadAnalyse);
 .departement-analyse-page {
     max-width: 100%;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
 }
 
 .departement-analyse-actions {
@@ -211,7 +316,6 @@ onMounted(loadAnalyse);
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1.25rem;
 }
 
 .departement-analyse-back {
@@ -224,26 +328,19 @@ onMounted(loadAnalyse);
     color: #0f172a;
 }
 
-.departement-analyse-edit-btn,
-.departement-analyse-btn-primary {
-    border: none;
+.departement-analyse-historique {
+    border: 1px solid #cbd5e1;
     border-radius: 0.5rem;
-    background: #c00000;
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
-    font-weight: 600;
-    color: #ffffff;
-    cursor: pointer;
+    font-weight: 500;
+    color: #334155;
+    background: #fff;
+    transition: background 0.15s;
 }
 
-.departement-analyse-edit-btn:hover,
-.departement-analyse-btn-primary:hover {
-    opacity: 0.92;
-}
-
-.departement-analyse-btn-primary:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+.departement-analyse-historique:hover {
+    background: #f8fafc;
 }
 
 .departement-analyse-loading {
@@ -251,13 +348,6 @@ onMounted(loadAnalyse);
     text-align: center;
     font-size: 0.9rem;
     color: #64748b;
-}
-
-.departement-analyse-content,
-.departement-analyse-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
 }
 
 .departement-analyse-error {
@@ -268,20 +358,51 @@ onMounted(loadAnalyse);
     color: #b91c1c;
 }
 
-.departement-analyse-form-actions {
+.departement-analyse-tabs {
     display: flex;
-    justify-content: flex-end;
-    gap: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.25rem;
 }
 
-.departement-analyse-btn-secondary {
-    border: 1px solid #cbd5e1;
-    border-radius: 0.5rem;
-    background: #ffffff;
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #334155;
+.departement-analyse-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 0.5rem 0.85rem;
+    background: transparent;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #64748b;
     cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.departement-analyse-tab:hover {
+    color: #0f172a;
+}
+
+.departement-analyse-tab.active {
+    color: #0f172a;
+    border-bottom-color: #c00000;
+}
+
+.departement-analyse-tab-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.25rem;
+    height: 1.25rem;
+    padding: 0 0.35rem;
+    border-radius: 999px;
+    background: #c00000;
+    color: #ffffff;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1;
 }
 </style>
