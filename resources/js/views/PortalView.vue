@@ -53,6 +53,9 @@
                 <RouterLink :to="{ name: 'users.create' }" class="portal-admin-link">
                     Utilisateurs
                 </RouterLink>
+                <RouterLink :to="{ name: 'entities.members' }" class="portal-admin-link">
+                    Entités
+                </RouterLink>
             </div>
         </section>
     </div>
@@ -62,6 +65,7 @@
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { modules } from '../config/modules';
+import { canAccessModule } from '../config/module-access';
 import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
@@ -71,6 +75,10 @@ const canManagePlatform = computed(() => ['super_admin', 'admin'].includes(auth.
 
 function openModule(module) {
     if (!module.active || !module.entryRoute) {
+        return;
+    }
+
+    if (!canAccessModule(auth.user?.profile, module.slug, auth.user)) {
         return;
     }
 

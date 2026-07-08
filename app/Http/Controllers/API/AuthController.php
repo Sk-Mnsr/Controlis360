@@ -35,7 +35,7 @@ class AuthController extends APIController
         } else {
             $user = User::where('email', $request->email)->first();
             if ($user && Hash::check($request->password, $user->password)) {
-                $user->load(['environment', 'entity', 'subsidiary.country', 'department']);
+                $user->load(['environments', 'entities', 'subsidiary.country', 'department']);
 
                 return $this->responseOk([
                     "userToken" => $user->createToken($request->email)->plainTextToken,
@@ -55,7 +55,7 @@ class AuthController extends APIController
      */
     public function data(Request $request)
     {
-        $user = $request->user()->load(['environment', 'entity', 'subsidiary.country', 'department']);
+        $user = $request->user()->load(['environments', 'entities', 'subsidiary.country', 'department']);
 
         return $this->responseOk([
             'user' => $user,

@@ -27,8 +27,11 @@ class EnvironmentController extends APIController
         $this->indexManualFilter = function ($query, $user) {
             $query->withCount('entities');
 
-            if ($user->isEnvironmentAdmin() && $user->environment_id) {
-                $query->where('id', $user->environment_id);
+            if ($user->isEnvironmentAdmin()) {
+                $environmentIds = $user->environment_ids;
+                if (! empty($environmentIds)) {
+                    $query->whereIn('id', $environmentIds);
+                }
             }
 
             return $query;

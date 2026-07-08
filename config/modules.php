@@ -12,9 +12,9 @@ return [
         'slug' => 'audit',
         'name' => 'Suivi des reco',
         'description' => 'Planification et suivi des recommandations.',
-        'active' => false,
-        'coming_soon' => true,
-        'entry_route' => null,
+        'active' => true,
+        'coming_soon' => false,
+        'entry_route' => 'audit.home',
     ],
     'conformite' => [
         'slug' => 'conformite',

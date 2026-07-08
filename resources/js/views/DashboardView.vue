@@ -12,12 +12,12 @@
                     <p class="mt-1 text-lg font-semibold capitalize">{{ auth.workspace }}</p>
                 </div>
                 <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs uppercase tracking-wide text-slate-500">Environnement</p>
-                    <p class="mt-1 text-lg font-semibold">{{ auth.user?.environment?.name ?? '—' }}</p>
+                    <p class="text-xs uppercase tracking-wide text-slate-500">Environnements</p>
+                    <p class="mt-1 text-lg font-semibold">{{ environmentLabels }}</p>
                 </div>
                 <div class="rounded-xl bg-slate-50 p-4">
-                    <p class="text-xs uppercase tracking-wide text-slate-500">Entité</p>
-                    <p class="mt-1 text-lg font-semibold">{{ auth.user?.entity?.name ?? '—' }}</p>
+                    <p class="text-xs uppercase tracking-wide text-slate-500">Entités</p>
+                    <p class="mt-1 text-lg font-semibold">{{ entityLabels }}</p>
                 </div>
                 <div class="rounded-xl bg-slate-50 p-4">
                     <p class="text-xs uppercase tracking-wide text-slate-500">Phase</p>
@@ -30,7 +30,9 @@
             <h3 class="font-semibold text-emerald-900">Prochaines étapes</h3>
             <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-emerald-900">
                 <li v-if="auth.workspace === 'controle'">Saisie et validation des évaluations de risques</li>
+                <li v-if="auth.workspace === 'audit'">Planification et suivi des missions d'audit</li>
                 <li v-if="auth.workspace === 'metier'">Consultation selon votre rôle métier</li>
+                <li v-if="auth.workspace === 'superviseur'">Supervision des évaluations sur vos périmètres</li>
                 <li v-if="auth.user?.profile === 'super_admin'">Configuration globale des environnements</li>
                 <li v-if="auth.user?.profile === 'admin'">Gestion de votre environnement et de vos utilisateurs</li>
                 <li>Consultez les référentiels (échelles, familles de risques, matrice)</li>
@@ -40,7 +42,26 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
+
+const environmentLabels = computed(() => {
+    const items = auth.user?.environments ?? [];
+    if (items.length) {
+        return items.map((environment) => environment.name).join(', ');
+    }
+
+    return auth.user?.environment?.name ?? '—';
+});
+
+const entityLabels = computed(() => {
+    const items = auth.user?.entities ?? [];
+    if (items.length) {
+        return items.map((entity) => entity.name).join(', ');
+    }
+
+    return auth.user?.entity?.name ?? '—';
+});
 </script>

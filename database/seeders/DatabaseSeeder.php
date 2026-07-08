@@ -23,6 +23,8 @@ class DatabaseSeeder extends Seeder
             TopRiskSeeder::class,
             OperationalRiskSeeder::class,
             UserSeeder::class,
+            MissionFlowTestSeeder::class,
+            MissionTypeSeeder::class,
         ]);
     }
 }

@@ -582,6 +582,26 @@ class ReferentialController extends APIController
     }
 
     /**
+     * Environnements disponibles pour la création de mission (audit / contrôle).
+     */
+    public function missionEnvironments(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->isSuperAdmin() && ! in_array($user->profile, ['controle', 'audit'], true)) {
+            return $this->responseError(['auth' => ['Accès non autorisé.']], 403);
+        }
+
+        $query = Environment::query()
+            ->where('is_active', true)
+            ->orderBy('name');
+
+        return $this->responseOk(
+            $query->get(['id', 'name', 'code'])
+        );
+    }
+
+    /**
      * Entités (départements et agences) pour la navigation cartographie.
      */
     public function entitiesDepartments(Request $request)
@@ -622,20 +642,18 @@ class ReferentialController extends APIController
             ->orderBy('sort_order')
             ->orderBy('name');
 
+        $user = $request->user();
+
         if ($user->environment_id) {
-            $entitiesQuery->where('environment_id', $user->environment_id);
+            $query->where('environment_id', $user->environment_id);
+        } elseif ($user->isSuperAdmin()) {
+            $environmentId = Environment::query()->orderBy('id')->value('id');
+            if ($environmentId) {
+                $query->where('environment_id', $environmentId);
+            }
         }
 
-        return $this->responseOk([
-            'entities' => $entitiesQuery->get(['id', 'name', 'code', 'type', 'environment_id']),
-            'risk_families' => RiskFamily::query()
-                ->orderBy('sort_order')
-                ->pluck('name')
-                ->values(),
-            'risk_classifications' => RiskClassification::query()
-                ->orderBy('sort_order')
-                ->get(),
-        ]);
+        return $this->responseOk($query->get());
     }
 
     /**
@@ -742,12 +760,24 @@ class ReferentialController extends APIController
 
     private function resolveDepartmentEntity(Request $request, string $code): ?Entity
     {
-        return Entity::resolveDepartmentForUser(
-            $request->user(),
-            $code,
-            $request->query('environment'),
-            $request->integer('entity_id') ?: null
-        );
+        $query = Entity::query()
+            ->with('environment')
+            ->where('type', 'department')
+            ->where('code', $code)
+            ->where('is_active', true);
+
+        $user = $request->user();
+
+        if ($user->environment_id) {
+            $query->where('environment_id', $user->environment_id);
+        } elseif ($user->isSuperAdmin()) {
+            $environmentId = Environment::query()->orderBy('id')->value('id');
+            if ($environmentId) {
+                $query->where('environment_id', $environmentId);
+            }
+        }
+
+        return $query->first();
     }
 
     private function buildAnalyseRisquesPayload(Entity $entity, bool $includeDrafts = false): array

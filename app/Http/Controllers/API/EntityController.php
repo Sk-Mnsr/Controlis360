@@ -23,8 +23,11 @@ class EntityController extends APIController
         $this->indexWithArray = ['environment'];
 
         $this->indexManualFilter = function ($query, $user) {
-            if ($user->isEnvironmentAdmin() && $user->environment_id) {
-                $query->where('environment_id', $user->environment_id);
+            if ($user->isEnvironmentAdmin()) {
+                $environmentIds = $user->environment_ids;
+                if (! empty($environmentIds)) {
+                    $query->whereIn('environment_id', $environmentIds);
+                }
             }
 
             return $query;
@@ -53,9 +56,9 @@ class EntityController extends APIController
         $this->storeManualValidationsFunction = function (array $requestData) {
             $user = auth()->user();
 
-            if ($user?->isEnvironmentAdmin() && (int) $requestData['environment_id'] !== (int) $user->environment_id) {
+            if ($user?->isEnvironmentAdmin() && ! $user->belongsToEnvironment((int) $requestData['environment_id'])) {
                 return [
-                    'errors' => ['environment_id' => ['Vous ne pouvez gérer que votre environnement']],
+                    'errors' => ['environment_id' => ['Vous ne pouvez gérer que vos environnements']],
                     'status' => 403,
                 ];
             }
@@ -89,6 +92,58 @@ class EntityController extends APIController
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
+
+        return $this->responseOk($entities);
+    }
+
+    /**
+     * Entités avec leurs membres métier (responsable et agent).
+     */
+    public function withMembers(Request $request)
+    {
+        $this->authorize('viewAny', Entity::class);
+
+        $user = $request->user();
+
+        $query = Entity::query()
+            ->with([
+                'environment',
+                'users' => function ($memberQuery) {
+                    $memberQuery
+                        ->where('profile', 'metier')
+                        ->whereIn('metier_role', ['responsable_entite', 'agent'])
+                        ->where('activated', true)
+                        ->orderBy('name');
+                },
+            ])
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('name');
+
+        if ($user->isEnvironmentAdmin()) {
+            $environmentIds = $user->environment_ids;
+            if (! empty($environmentIds)) {
+                $query->whereIn('environment_id', $environmentIds);
+            }
+        }
+
+        $entities = $query->get()->map(function (Entity $entity) {
+            return [
+                'id' => $entity->id,
+                'name' => $entity->name,
+                'code' => $entity->code,
+                'type' => $entity->type,
+                'type_fr' => $entity->type_fr,
+                'environment' => $entity->environment,
+                'members' => $entity->users->map(fn ($member) => [
+                    'id' => $member->id,
+                    'name' => $member->name,
+                    'email' => $member->email,
+                    'metier_role' => $member->metier_role,
+                    'metier_role_fr' => $member->metier_role_fr,
+                ])->values(),
+            ];
+        });
 
         return $this->responseOk($entities);
     }

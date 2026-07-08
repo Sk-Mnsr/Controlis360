@@ -1,6 +1,7 @@
 <template>
     <div class="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
         <aside
+            v-if="!hideSidebar"
             class="flex h-screen shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white"
             :class="activeModule ? 'w-72' : 'w-64'"
         >
@@ -23,7 +24,7 @@
                     Modules
                 </RouterLink>
 
-                <template v-else-if="activeModule">
+                <template v-else-if="activeModule?.slug === 'cartographie'">
                     <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
                         ← Tous les modules
                     </RouterLink>
@@ -168,6 +169,55 @@
                     </button>
                 </template>
 
+                <template v-else-if="activeModule?.slug === 'audit'">
+                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
+                        ← Tous les modules
+                    </RouterLink>
+
+                    <RouterLink
+                        class="nav-link"
+                        :class="{ 'nav-link-active': route.name === 'audit.home' }"
+                        :to="{ name: 'audit.home' }"
+                    >
+                        Modules
+                    </RouterLink>
+
+                    <RouterLink
+                        v-if="showRegulatorNav"
+                        class="nav-link"
+                        :class="{ 'nav-link-active': isAuditRegulatorSection }"
+                        :to="{ name: 'audit.regulator' }"
+                    >
+                        Régulateur
+                    </RouterLink>
+
+                    <template v-if="!isRegulatorOnly">
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': isAuditMissionsSection }"
+                            :to="{ name: 'audit.missions' }"
+                        >
+                        Dashboard
+                        </RouterLink>
+
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': isAuditHistorySection }"
+                            :to="{ name: 'audit.missions.history' }"
+                        >
+                            Missions
+                        </RouterLink>
+
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': route.name === 'audit.home' }"
+                            :to="{ name: 'audit.home' }"
+                        >
+                            Historiques
+                        </RouterLink>
+                    </template>
+                </template>
+
                 <template v-else>
                     <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
                         ← Tous les modules
@@ -182,12 +232,12 @@
                         Environnements
                     </RouterLink>
                     <RouterLink
-                        v-else-if="auth.user?.profile === 'admin' && auth.user?.environment_id"
+                        v-else-if="auth.user?.profile === 'admin' && adminEnvironmentIds.length"
                         class="nav-link"
-                        :to="{ name: 'environments.detail', params: { id: auth.user.environment_id } }"
+                        :to="adminEnvironmentRoute"
                         active-class="nav-link-active"
                     >
-                        Mon environnement
+                        {{ adminEnvironmentIds.length > 1 ? 'Mes environnements' : 'Mon environnement' }}
                     </RouterLink>
 
                     <div v-if="canManageUsers" class="nav-group">
@@ -211,6 +261,15 @@
                             </RouterLink>
                         </div>
                     </div>
+
+                    <RouterLink
+                        v-if="canManageUsers"
+                        class="nav-link"
+                        :class="{ 'nav-link-active': isEntitiesSection }"
+                        :to="{ name: 'entities.members' }"
+                    >
+                        Entités
+                    </RouterLink>
                 </template>
             </nav>
 
@@ -231,7 +290,7 @@
         </aside>
 
         <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <main class="min-h-0 flex-1 overflow-y-auto" :class="isFullBleedPage ? '' : 'p-6 lg:p-8'">
+            <main class="min-h-0 flex-1 overflow-y-auto" :class="isFullBleedPage ? 'flex flex-col' : 'p-6 lg:p-8'">
                 <RouterView />
             </main>
         </div>
@@ -243,6 +302,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { methodologyItems } from '../config/cartographie-nav';
 import { getModuleFromRoute } from '../config/modules';
+import { isRegulatorProfile } from '../config/module-access';
 import { useCartographieNavigation } from '../stores/cartographie';
 import { useAuthStore } from '../stores/auth';
 import { useCartographiePermissions } from '../composables/useCartographiePermissions';
@@ -260,10 +320,9 @@ const activeModule = computed(() => getModuleFromRoute(route));
 const isFullBleedPage = computed(() =>
     route.name === 'cartographie.home'
     || route.name === 'cartographie.methodology.show'
-    || route.name === 'cartographie.departement-analyse'
-    || route.name === 'cartographie.departement-historique'
-    || route.name === 'cartographie.saisie-risques',
+    || route.name === 'cartographie.departement-analyse',
 );
+const hideSidebar = computed(() => route.name === 'audit.missions.show');
 const isDashboardActive = computed(() =>
     route.name === 'cartographie.home' && cartographie.selectedDepartment === 'DASHBOARD',
 );
@@ -279,10 +338,29 @@ const isAgenciesSection = computed(() =>
 );
 const isEnvironmentsSection = computed(() => route.path.startsWith('/environments'));
 const isUsersSection = computed(() => route.path.startsWith('/users'));
+const isEntitiesSection = computed(() => route.name === 'entities.members');
 const isUsersCreateSection = computed(() => route.name === 'users.create');
 const isUsersHistorySection = computed(() => route.name === 'users.history' || route.name === 'users.edit');
+const isAuditMissionsSection = computed(() =>
+    route.name === 'audit.missions'
+    || route.name === 'audit.missions.create'
+    || route.name === 'audit.missions.edit'
+    || (route.name === 'audit.missions.show' && route.query.from === 'missions'),
+);
+const isAuditHistorySection = computed(() =>
+    route.name === 'audit.missions.history'
+    || route.name === 'audit.missions.history.byType'
+    || route.name === 'audit.missions.recommendation.create'
+    || route.name === 'audit.missions.recommendation.edit'
+    || (route.name === 'audit.missions.show' && route.query.from === 'history'),
+);
+const isAuditRegulatorSection = computed(() =>
+    route.name === 'audit.regulator'
+    || route.name === 'audit.regulator.show',
+);
+const isRegulatorOnly = computed(() => auth.user?.profile === 'regulateur');
+const showRegulatorNav = computed(() => isRegulatorProfile(auth.user?.profile));
 const canManageUsers = computed(() => ['super_admin', 'admin'].includes(auth.user?.profile));
-const canSaisirRisques = canCreateRiskRow;
 const departmentsOpen = ref(false);
 const agenciesOpen = ref(false);
 const entitiesLoading = ref(false);
@@ -394,6 +472,10 @@ const userRoleLabel = computed(() => {
 
     if (user.controle_role_fr) {
         return `${user.profile_fr} — ${user.controle_role_fr}`;
+    }
+
+    if (user.audit_role_fr) {
+        return `${user.profile_fr} — ${user.audit_role_fr}`;
     }
 
     if (user.metier_role_fr) {

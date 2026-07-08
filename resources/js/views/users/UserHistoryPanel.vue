@@ -43,10 +43,11 @@
                     <td class="px-4 py-3">
                         {{ user.profile_fr }}
                         <span v-if="user.controle_role_fr" class="text-slate-500">({{ user.controle_role_fr }})</span>
+                        <span v-else-if="user.audit_role_fr" class="text-slate-500">({{ user.audit_role_fr }})</span>
                         <span v-else-if="user.metier_role_fr" class="text-slate-500">({{ user.metier_role_fr }})</span>
                     </td>
-                    <td v-if="isSuperAdmin" class="px-4 py-3">{{ environmentName(user) }}</td>
-                    <td class="px-4 py-3">{{ entityName(user) }}</td>
+                    <td v-if="isSuperAdmin" class="px-4 py-3">{{ environmentNames(user) }}</td>
+                    <td class="px-4 py-3">{{ entityNames(user) }}</td>
                     <td class="px-4 py-3">
                         <span
                             class="rounded-full px-2 py-0.5 text-xs"
@@ -100,11 +101,21 @@ function extractUsers(responseData) {
     return [];
 }
 
-function environmentName(user) {
+function environmentNames(user) {
+    const items = user.environments ?? user.Environments ?? [];
+    if (items.length) {
+        return items.map((environment) => environment.name).join(', ');
+    }
+
     return user.environment?.name ?? user.Environment?.name ?? '—';
 }
 
-function entityName(user) {
+function entityNames(user) {
+    const items = user.entities ?? user.Entities ?? [];
+    if (items.length) {
+        return items.map((entity) => entity.name).join(', ');
+    }
+
     return user.entity?.name ?? user.Entity?.name ?? '—';
 }
 
@@ -118,6 +129,7 @@ const filteredUsers = computed(() => {
             || user.email.toLowerCase().includes(term)
             || user.profile_fr?.toLowerCase().includes(term)
             || user.controle_role_fr?.toLowerCase().includes(term)
+            || user.audit_role_fr?.toLowerCase().includes(term)
             || user.metier_role_fr?.toLowerCase().includes(term),
     );
 });
@@ -125,14 +137,8 @@ const filteredUsers = computed(() => {
 async function loadUsers() {
     loading.value = true;
     try {
-        const params = {};
-        if (!isSuperAdmin.value && auth.user?.environment_id) {
-            params.environment_id = auth.user.environment_id;
-        }
-
         const { data } = await api.get('/users', {
             params: {
-                ...params,
                 paginate: 'false',
             },
         });

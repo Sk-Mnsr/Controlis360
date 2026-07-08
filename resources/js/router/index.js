@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { canAccessModule, canCreateMission } from '../config/module-access';
 import { useAuthStore } from '../stores/auth';
 
 const routes = [
@@ -27,7 +28,7 @@ const routes = [
                 path: 'environments',
                 name: 'environments',
                 component: () => import('../views/environments/EnvironmentWorkspaceView.vue'),
-                meta: { superAdminOnly: true },
+                meta: { requiresEnvironmentManagement: true },
             },
             {
                 path: 'environments/create',
@@ -72,6 +73,12 @@ const routes = [
                         component: () => import('../views/users/UserEditPanel.vue'),
                     },
                 ],
+            },
+            {
+                path: 'entities',
+                name: 'entities.members',
+                component: () => import('../views/entities/EntityMembersView.vue'),
+                meta: { canManageUsers: true },
             },
             {
                 path: 'cartographie',
@@ -171,6 +178,78 @@ const routes = [
                 ],
             },
             {
+                path: 'suivi-reco',
+                meta: { module: 'audit' },
+                children: [
+                    {
+                        path: '',
+                        redirect: { name: 'audit.home' },
+                    },
+                    {
+                        path: 'home',
+                        name: 'audit.home',
+                        component: () => import('../views/audit/AuditHomeView.vue'),
+                    },
+                    {
+                        path: 'missions',
+                        name: 'audit.missions',
+                        component: () => import('../views/audit/MissionsView.vue'),
+                    },
+                    {
+                        path: 'missions/historique',
+                        name: 'audit.missions.history',
+                        component: () => import('../views/audit/MissionTypeSelectView.vue'),
+                    },
+                    {
+                        path: 'missions/historique/:missionType',
+                        name: 'audit.missions.history.byType',
+                        component: () => import('../views/audit/MissionHistoryView.vue'),
+                    },
+                    {
+                        path: 'missions/:id/recommandation/nouvelle',
+                        name: 'audit.missions.recommendation.create',
+                        component: () => import('../views/audit/MissionRecommendationCreateView.vue'),
+                    },
+                    {
+                        path: 'missions/:id/recommandations/:recoId/modifier',
+                        name: 'audit.missions.recommendation.edit',
+                        component: () => import('../views/audit/MissionRecommendationEditView.vue'),
+                    },
+                    {
+                        path: 'missions/:id/recommandations/:recoId',
+                        name: 'audit.missions.recommendation.show',
+                        component: () => import('../views/audit/MissionRecommendationDetailView.vue'),
+                    },
+                    {
+                        path: 'missions/:id',
+                        name: 'audit.missions.show',
+                        component: () => import('../views/audit/MissionDetailView.vue'),
+                    },
+                    {
+                        path: 'missions/nouvelle',
+                        name: 'audit.missions.create',
+                        component: () => import('../views/audit/MissionCreateView.vue'),
+                        meta: { canCreateMission: true },
+                    },
+                    {
+                        path: 'missions/:id/modifier',
+                        name: 'audit.missions.edit',
+                        component: () => import('../views/audit/MissionEditView.vue'),
+                        meta: { canCreateMission: true },
+                    },
+                    {
+                        path: 'regulateur',
+                        name: 'audit.regulator',
+                        component: () => import('../views/audit/RegulatorQueueView.vue'),
+                    },
+                    {
+                        path: 'regulateur/recommandations/:recoId',
+                        name: 'audit.regulator.show',
+                        component: () => import('../views/audit/RegulatorDetailView.vue'),
+                    },
+                ],
+            },
+            {
                 path: 'home',
                 redirect: { name: 'cartographie.home' },
             },
@@ -203,9 +282,14 @@ const router = createRouter({
 function canAccessEnvironment(auth, environmentId) {
     if (auth.user?.profile === 'super_admin') return true;
     if (auth.user?.profile === 'admin') {
-        return String(auth.user.environment_id) === String(environmentId);
+        const environmentIds = auth.user.environment_ids ?? [];
+        return environmentIds.map(String).includes(String(environmentId));
     }
     return false;
+}
+
+function getAdminEnvironmentIds(auth) {
+    return auth.user?.environment_ids ?? [];
 }
 
 function canManageUsers(profile) {
@@ -233,9 +317,23 @@ router.beforeEach(async (to, from, next) => {
         }
     }
 
+    if (to.meta.requiresEnvironmentManagement) {
+        if (auth.user?.profile === 'super_admin') {
+            return next();
+        }
+        if (auth.user?.profile === 'admin' && getAdminEnvironmentIds(auth).length) {
+            return next();
+        }
+        return next({ name: 'portal' });
+    }
+
     if (to.meta.superAdminOnly && auth.user?.profile !== 'super_admin') {
-        if (auth.user?.profile === 'admin' && auth.user.environment_id) {
-            return next({ name: 'environments.detail', params: { id: auth.user.environment_id } });
+        const adminEnvironmentIds = getAdminEnvironmentIds(auth);
+        if (auth.user?.profile === 'admin' && adminEnvironmentIds.length === 1) {
+            return next({ name: 'environments.detail', params: { id: adminEnvironmentIds[0] } });
+        }
+        if (auth.user?.profile === 'admin' && adminEnvironmentIds.length > 1 && to.name === 'environments') {
+            return next();
         }
         return next({ name: 'portal' });
     }
@@ -244,10 +342,6 @@ router.beforeEach(async (to, from, next) => {
         if (!canAccessEnvironment(auth, to.params.id)) {
             return next({ name: 'portal' });
         }
-    }
-
-    if (to.meta.canCreateRiskRow && !canCreateOperationalRiskRow(auth.user)) {
-        return next({ name: 'cartographie.home' });
     }
 
     return next();
