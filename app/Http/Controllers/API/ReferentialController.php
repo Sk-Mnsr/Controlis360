@@ -580,6 +580,26 @@ class ReferentialController extends APIController
     }
 
     /**
+     * Environnements disponibles pour la création de mission (audit / contrôle).
+     */
+    public function missionEnvironments(Request $request)
+    {
+        $user = $request->user();
+
+        if (! $user->isSuperAdmin() && ! in_array($user->profile, ['controle', 'audit'], true)) {
+            return $this->responseError(['auth' => ['Accès non autorisé.']], 403);
+        }
+
+        $query = Environment::query()
+            ->where('is_active', true)
+            ->orderBy('name');
+
+        return $this->responseOk(
+            $query->get(['id', 'name', 'code'])
+        );
+    }
+
+    /**
      * Entités de type département pour la cartographie.
      */
     public function entitiesDepartments(Request $request)
@@ -593,8 +613,23 @@ class ReferentialController extends APIController
 
         $user = $request->user();
 
-        if ($user->environment_id) {
-            $query->where('environment_id', $user->environment_id);
+        if ($request->filled('environment_id')) {
+            $environmentId = (int) $request->environment_id;
+
+            $canAccessAnyEnvironment = $user->isSuperAdmin()
+                || in_array($user->profile, ['controle', 'audit'], true);
+
+            if (
+                ! $canAccessAnyEnvironment
+                && ! empty($user->environment_ids)
+                && ! in_array($environmentId, $user->environment_ids, true)
+            ) {
+                return $this->responseError(['auth' => ['Accès non autorisé à cet environnement.']], 403);
+            }
+
+            $query->where('environment_id', $environmentId);
+        } elseif (! empty($user->environment_ids)) {
+            $query->whereIn('environment_id', $user->environment_ids);
         } elseif ($user->isSuperAdmin()) {
             $environmentId = Environment::query()->orderBy('id')->value('id');
             if ($environmentId) {
@@ -602,7 +637,23 @@ class ReferentialController extends APIController
             }
         }
 
-        return $this->responseOk($query->get());
+        $entities = $query
+            ->with([
+                'environment',
+                'responsables:id,name',
+            ])
+            ->get()
+            ->map(function (Entity $entity) {
+                $entity->setAttribute(
+                    'responsible_name',
+                    $entity->responsables->pluck('name')->filter()->unique()->implode(', ')
+                );
+                $entity->makeHidden(['responsables']);
+
+                return $entity;
+            });
+
+        return $this->responseOk($entities);
     }
 
     /**
@@ -673,8 +724,8 @@ class ReferentialController extends APIController
 
         $user = $request->user();
 
-        if ($user->environment_id) {
-            $query->where('environment_id', $user->environment_id);
+        if (! empty($user->environment_ids)) {
+            $query->whereIn('environment_id', $user->environment_ids);
         } elseif ($user->isSuperAdmin()) {
             $environmentId = Environment::query()->orderBy('id')->value('id');
             if ($environmentId) {

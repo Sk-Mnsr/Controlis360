@@ -22,13 +22,13 @@ class UserPolicy extends BasePolicy
     private function adminManagesUser($admin, Model $user): bool
     {
         return $admin->isEnvironmentAdmin()
-            && $admin->belongsToEnvironment($user->environment_id)
+            && $admin->sharesEnvironmentWith($user)
             && $user->profile !== 'super_admin';
     }
 
     public function viewAny($connectedUser)
     {
-        if ($connectedUser->isEnvironmentAdmin() && $connectedUser->environment_id) {
+        if ($connectedUser->isEnvironmentAdmin() && ! empty($connectedUser->environment_ids)) {
             return Response::allow();
         }
 
@@ -50,7 +50,7 @@ class UserPolicy extends BasePolicy
 
     public function create($connectedUser)
     {
-        if ($connectedUser->isEnvironmentAdmin() && $connectedUser->environment_id) {
+        if ($connectedUser->isEnvironmentAdmin() && ! empty($connectedUser->environment_ids)) {
             return Response::allow();
         }
 

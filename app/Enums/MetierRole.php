@@ -7,6 +7,7 @@ enum MetierRole: string
     case ResponsableEntite = 'responsable_entite';
     case Groupe = 'groupe';
     case Visiteur = 'visiteur';
+    case Agent = 'agent';
 
     public function label(): string
     {
@@ -14,6 +15,7 @@ enum MetierRole: string
             self::ResponsableEntite => 'Responsable entité',
             self::Groupe => 'Groupe',
             self::Visiteur => 'Visiteur',
+            self::Agent => 'Agent',
         };
     }
 

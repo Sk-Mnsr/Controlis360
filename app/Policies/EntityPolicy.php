@@ -27,7 +27,7 @@ class EntityPolicy extends BasePolicy
 
     public function viewAny($connectedUser)
     {
-        if ($connectedUser->isEnvironmentAdmin() && $connectedUser->environment_id) {
+        if ($connectedUser->isEnvironmentAdmin() && ! empty($connectedUser->environment_ids)) {
             return Response::allow();
         }
 
@@ -45,7 +45,7 @@ class EntityPolicy extends BasePolicy
 
     public function create($connectedUser)
     {
-        if ($connectedUser->isEnvironmentAdmin() && $connectedUser->environment_id) {
+        if ($connectedUser->isEnvironmentAdmin() && ! empty($connectedUser->environment_ids)) {
             return Response::allow();
         }
 

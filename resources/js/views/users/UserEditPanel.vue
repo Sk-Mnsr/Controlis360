@@ -33,7 +33,10 @@
                 >
                     <option v-if="isSuperAdmin" value="super_admin">Super administrateur</option>
                     <option value="admin">Administrateur</option>
+                    <option value="superviseur">Superviseur</option>
+                    <option value="regulateur">Régulateur</option>
                     <option value="controle">Contrôle</option>
+                    <option value="audit">Audit</option>
                     <option value="metier">Métier</option>
                 </select>
             </div>
@@ -44,33 +47,31 @@
                     <option value="responsable_controle_permanent">Responsable Contrôle permanent &amp; risques opérationnels</option>
                 </select>
             </div>
+            <div v-if="form.profile === 'audit'">
+                <label class="mb-1 block text-sm font-medium">Rôle audit</label>
+                <select v-model="form.audit_role" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <option value="agent_audit">Agent audit</option>
+                    <option value="responsable_audit">Responsable audit</option>
+                </select>
+            </div>
             <div v-if="form.profile === 'metier'">
                 <label class="mb-1 block text-sm font-medium">Rôle métier</label>
                 <select v-model="form.metier_role" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
                     <option value="responsable_entite">Responsable entité</option>
                     <option value="groupe">Groupe</option>
                     <option value="visiteur">Visiteur</option>
+                    <option value="agent">Agent</option>
                 </select>
             </div>
-            <div v-if="needsEnvironment">
-                <label class="mb-1 block text-sm font-medium">Environnement</label>
-                <select
-                    v-model="form.environment_id"
-                    required
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                    :disabled="!isSuperAdmin"
-                    @change="loadEntities"
-                >
-                    <option v-for="env in environments" :key="env.id" :value="env.id">{{ env.name }}</option>
-                </select>
-            </div>
-            <div v-if="needsEnvironment">
-                <label class="mb-1 block text-sm font-medium">Entité</label>
-                <select v-model="form.entity_id" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                    <option :value="null">Aucune</option>
-                    <option v-for="entity in entities" :key="entity.id" :value="entity.id">{{ entity.name }}</option>
-                </select>
-            </div>
+
+            <UserScopeFields
+                :visible="needsEnvironment"
+                v-model:environment-ids="form.environment_ids"
+                v-model:entity-ids="form.entity_ids"
+                :environments="selectableEnvironments"
+                :entities="entities"
+            />
+
             <div>
                 <label class="mb-1 block text-sm font-medium">Nouveau mot de passe</label>
                 <input
@@ -107,6 +108,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import { useAuthStore } from '../../stores/auth';
+import UserScopeFields from './UserScopeFields.vue';
 
 const auth = useAuthStore();
 const route = useRoute();
@@ -117,6 +119,14 @@ const needsEnvironment = computed(() => form.profile !== 'super_admin');
 const canChangeProfile = computed(() => {
     if (isSuperAdmin.value) return true;
     return form.profile !== 'super_admin';
+});
+const selectableEnvironments = computed(() => {
+    if (isSuperAdmin.value) {
+        return environments.value;
+    }
+
+    const allowedIds = auth.user?.environment_ids ?? [];
+    return environments.value.filter((environment) => allowedIds.includes(environment.id));
 });
 
 const loading = ref(true);
@@ -131,9 +141,10 @@ const form = reactive({
     email: '',
     profile: 'controle',
     controle_role: 'agent_controle_interne',
+    audit_role: 'agent_audit',
     metier_role: 'visiteur',
-    environment_id: null,
-    entity_id: null,
+    environment_ids: [],
+    entity_ids: [],
     password: '',
     activated: true,
 });
@@ -155,29 +166,43 @@ function extractError(err) {
     return data.message ?? 'Erreur lors de la mise à jour';
 }
 
+function extractScopeIds(user, relationKey, legacyKey) {
+    const relation = user[relationKey] ?? user[relationKey.charAt(0).toUpperCase() + relationKey.slice(1)] ?? [];
+    if (Array.isArray(relation) && relation.length) {
+        return relation.map((item) => item.id);
+    }
+
+    const idsKey = legacyKey === 'environment' ? 'environment_ids' : 'entity_ids';
+    if (Array.isArray(user[idsKey])) {
+        return user[idsKey];
+    }
+
+    const legacyId = user[`${legacyKey}_id`];
+    return legacyId ? [legacyId] : [];
+}
+
 async function loadEnvironments() {
     const { data } = await api.get('/environments');
     environments.value = data.data?.data ?? data.data ?? [];
 }
 
-async function loadEntities(preserveSelection = false) {
-    if (!form.environment_id) {
+async function loadEntities() {
+    const environmentIds = isSuperAdmin.value
+        ? environments.value.map((environment) => environment.id)
+        : (auth.user?.environment_ids ?? []);
+
+    if (!environmentIds.length) {
         entities.value = [];
-        if (!preserveSelection) {
-            form.entity_id = null;
-        }
         return;
     }
 
-    const previousEntityId = form.entity_id;
-    const { data } = await api.get(`/entities/by-environment/${form.environment_id}`);
-    entities.value = data.data ?? data ?? [];
+    const responses = await Promise.all(
+        environmentIds.map((environmentId) => api.get(`/entities/by-environment/${environmentId}`)),
+    );
 
-    if (preserveSelection && previousEntityId) {
-        form.entity_id = previousEntityId;
-    } else if (!preserveSelection) {
-        form.entity_id = null;
-    }
+    const merged = responses.flatMap(({ data: responseData }) => responseData.data ?? responseData ?? []);
+    const unique = new Map(merged.map((entity) => [entity.id, entity]));
+    entities.value = [...unique.values()];
 }
 
 async function loadUser() {
@@ -192,13 +217,12 @@ async function loadUser() {
         form.email = user.email ?? '';
         form.profile = user.profile ?? 'metier';
         form.controle_role = user.controle_role ?? 'agent_controle_interne';
+        form.audit_role = user.audit_role ?? 'agent_audit';
         form.metier_role = user.metier_role ?? 'visiteur';
-        form.environment_id = user.environment_id ?? null;
-        form.entity_id = user.entity_id ?? null;
+        form.environment_ids = extractScopeIds(user, 'environments', 'environment');
+        form.entity_ids = extractScopeIds(user, 'entities', 'entity');
         form.activated = Boolean(user.activated);
         form.password = '';
-
-        await loadEntities(true);
     } catch (err) {
         error.value = extractError(err);
     } finally {
@@ -216,10 +240,11 @@ async function updateUser() {
             name: form.name,
             email: form.email,
             profile: form.profile,
-            environment_id: needsEnvironment.value ? form.environment_id : null,
-            entity_id: needsEnvironment.value ? form.entity_id : null,
+            environment_ids: needsEnvironment.value ? form.environment_ids : [],
+            entity_ids: needsEnvironment.value ? form.entity_ids : [],
             metier_role: form.profile === 'metier' ? form.metier_role : null,
             controle_role: form.profile === 'controle' ? form.controle_role : null,
+            audit_role: form.profile === 'audit' ? form.audit_role : null,
             activated: form.activated,
         };
 
@@ -242,18 +267,18 @@ async function updateUser() {
 
 watch(() => form.profile, (profile) => {
     if (profile === 'super_admin') {
-        form.environment_id = null;
-        form.entity_id = null;
-    } else if (!form.environment_id) {
-        if (!isSuperAdmin.value && auth.user?.environment_id) {
-            form.environment_id = auth.user.environment_id;
-        }
-        loadEntities();
+        form.environment_ids = [];
+        form.entity_ids = [];
+    } else if (!form.environment_ids.length) {
+        form.environment_ids = isSuperAdmin.value
+            ? []
+            : [...(auth.user?.environment_ids ?? [])];
     }
 });
 
 onMounted(async () => {
     await loadEnvironments();
+    await loadEntities();
     await loadUser();
 });
 </script>

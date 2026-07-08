@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Maravel\Models\ModelBase;
 
@@ -40,9 +41,17 @@ class Entity extends ModelBase
         return $this->belongsTo(Environment::class);
     }
 
-    public function users(): HasMany
+    public function users(): BelongsToMany
     {
-        return $this->hasMany(User::class);
+        return $this->belongsToMany(User::class)->withTimestamps();
+    }
+
+    public function responsables(): BelongsToMany
+    {
+        return $this->users()
+            ->where('profile', 'metier')
+            ->where('metier_role', 'responsable_entite')
+            ->where('activated', true);
     }
 
     public function operationalRiskRows(): HasMany

@@ -11,10 +11,10 @@ export const modules = [
     {
         slug: 'audit',
         name: 'Suivi des reco',
-        description: 'Planification et suivi des missions d\'audit.',
-        entryRoute: null,
-        active: false,
-        comingSoon: true,
+        description: 'Planification et suivi des recommandations et missions.',
+        entryRoute: 'audit.home',
+        active: true,
+        comingSoon: false,
         accent: '#047857',
     },
     {
