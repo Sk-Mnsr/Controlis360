@@ -227,6 +227,14 @@ class RecommendationController extends APIController
 
         $data = $validator->validated();
         $entityIds = array_values(array_unique(array_map('intval', $data['entity_ids'])));
+        $primaryEntityId = (int) $data['primary_entity_id'];
+
+        if (! in_array($primaryEntityId, $entityIds, true)) {
+            return $this->responseError([
+                'primary_entity_id' => ['Le owner principal doit faire partie des départements concernés.'],
+            ], 422);
+        }
+
         $entities = \App\Models\Entity::query()->whereIn('id', $entityIds)->get();
 
         if ($entities->count() !== count($entityIds)) {
@@ -241,9 +249,9 @@ class RecommendationController extends APIController
         }
 
         $newAttachmentPaths = $this->storeAttachments($request, $mission->id);
-        $responsibleNames = $this->recipientResolver->resolveResponsibleNames($entityIds);
+        $primaryOwnerName = $this->recipientResolver->resolveResponsibleNames([$primaryEntityId]);
 
-        $recommendation = DB::transaction(function () use ($recommendation, $mission, $data, $entityIds, $responsibleNames, $newAttachmentPaths) {
+        $recommendation = DB::transaction(function () use ($recommendation, $mission, $data, $entityIds, $primaryEntityId, $primaryOwnerName, $newAttachmentPaths) {
             $existingPaths = $recommendation->attachment_paths ?? [];
             $attachmentPaths = $newAttachmentPaths
                 ? array_values(array_merge($existingPaths, $newAttachmentPaths))
@@ -253,13 +261,14 @@ class RecommendationController extends APIController
                 'name' => array_key_exists('name', $data)
                     ? (trim((string) $data['name']) ?: null)
                     : $recommendation->name,
+                'primary_entity_id' => $primaryEntityId,
                 'theme' => $data['theme'],
                 'recommendation_date' => $data['recommendation_date'],
                 'risk_level' => $data['risk_level'],
                 'risk_type' => $data['risk_type'],
                 'priority' => $data['priority'],
                 'status' => $recommendation->status,
-                'responsible_name' => $responsibleNames ?: null,
+                'responsible_name' => $primaryOwnerName ?: null,
                 'due_date' => $data['due_date'] ?? null,
                 'recommendation_label' => $data['recommendation_label'],
                 'comments' => $data['comments'] ?? null,
@@ -278,7 +287,7 @@ class RecommendationController extends APIController
 
             $this->recommendationStatusService->syncMissionStatus($mission->fresh('recommendations'));
 
-            return $recommendation->fresh(['mission.entities.environment', 'entities']);
+            return $recommendation->fresh(['mission.entities.environment', 'entities', 'primaryEntity']);
         });
 
         return $this->responseOk($this->formatDetail($recommendation, $user));
@@ -634,6 +643,7 @@ class RecommendationController extends APIController
                 'mission.responses',
                 'mission.recipients',
                 'entities',
+                'primaryEntity',
                 'followUps.user',
                 'actionPlans.user',
                 'regulatorComments.user',
@@ -679,6 +689,7 @@ class RecommendationController extends APIController
         return [
             'entity_ids' => 'required|array|min:1',
             'entity_ids.*' => 'integer|exists:entities,id',
+            'primary_entity_id' => 'required|integer|exists:entities,id',
             'name' => 'nullable|string|max:255',
             'theme' => 'required|string|max:5000',
             'recommendation_label' => 'required|string|max:5000',
@@ -749,12 +760,15 @@ class RecommendationController extends APIController
     {
         if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
             $entityIds = $user->entity_ids;
+            $primaryEntityId = $recommendation->primary_entity_id
+                ? (int) $recommendation->primary_entity_id
+                : null;
 
-            if ($entityIds === []) {
-                return null;
-            }
-
-            if (! $recommendation->entities()->whereIn('entities.id', $entityIds)->exists()) {
+            if ($primaryEntityId !== null) {
+                if (! in_array($primaryEntityId, $entityIds, true)) {
+                    return null;
+                }
+            } elseif ($entityIds === [] || ! $recommendation->entities()->whereIn('entities.id', $entityIds)->exists()) {
                 return null;
             }
 
@@ -1118,6 +1132,11 @@ class RecommendationController extends APIController
             'recommendation_label' => $recommendation->recommendation_label,
             'recommendation_details' => $recommendation->recommendation_details,
             'responsible_name' => $recommendation->responsible_name,
+            'concerned_names' => $this->recipientResolver->resolveResponsibleNames(
+                $recommendation->entities->pluck('id')->map(fn ($id) => (int) $id)->values()->all()
+            ) ?: null,
+            'primary_entity_id' => $recommendation->primary_entity_id ? (int) $recommendation->primary_entity_id : null,
+            'primary_entity_name' => $recommendation->primaryEntity?->name,
             'due_date' => $recommendation->due_date?->format('Y-m-d'),
             'risk_level' => $recommendation->risk_level,
             'risk_level_fr' => $recommendation->risk_level_fr,
@@ -1264,6 +1283,11 @@ class RecommendationController extends APIController
             'status' => $recommendation->status,
             'status_fr' => $recommendation->status_fr,
             'responsible_name' => $recommendation->responsible_name,
+            'concerned_names' => $this->recipientResolver->resolveResponsibleNames(
+                $recommendation->entities->pluck('id')->map(fn ($id) => (int) $id)->values()->all()
+            ) ?: null,
+            'primary_entity_id' => $recommendation->primary_entity_id ? (int) $recommendation->primary_entity_id : null,
+            'primary_entity_name' => $recommendation->primaryEntity?->name,
             'entity_name' => $entityNames->implode(', ') ?: null,
             'environment_label' => $mission?->entities
                 ->map(fn ($entity) => $entity->environment?->name)

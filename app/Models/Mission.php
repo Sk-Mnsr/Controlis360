@@ -25,18 +25,6 @@ class Mission extends BaseModel
 
     protected $enumCasts = [
         [
-            'colum_name' => 'mission_type',
-            'additional_column_name' => 'mission_type_fr',
-            'choices' => [
-                'audit_interne' => 'Audit Interne',
-                'audit_externe' => 'Audit Externe',
-                'controle_permanent' => 'Contrôle Permanent',
-                'inspection' => 'Inspection',
-                'cac' => 'CAC',
-                'regulateur' => 'Régulateur',
-            ],
-        ],
-        [
             'colum_name' => 'status',
             'additional_column_name' => 'status_fr',
             'choices' => [
@@ -59,6 +47,20 @@ class Mission extends BaseModel
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function missionTypeDefinition(): BelongsTo
+    {
+        return $this->belongsTo(MissionType::class, 'mission_type', 'code');
+    }
+
+    public function getMissionTypeFrAttribute(): ?string
+    {
+        if ($this->relationLoaded('missionTypeDefinition')) {
+            return $this->missionTypeDefinition?->name;
+        }
+
+        return app(\App\Services\MissionTypeService::class)->labelForCode($this->attributes['mission_type'] ?? null);
     }
 
     public function entities(): BelongsToMany

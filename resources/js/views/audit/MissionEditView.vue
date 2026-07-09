@@ -120,12 +120,14 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import AutoResizeTextarea from '../../components/AutoResizeTextarea.vue';
 import MultiSelectDropdown from '../../components/MultiSelectDropdown.vue';
-import { getMissionTypesForProfile, PRIORITIES, RISK_LEVELS } from '../../config/mission-parametrage';
+import { PRIORITIES, RISK_LEVELS } from '../../config/mission-parametrage';
+import { useMissionTypes } from '../../composables/useMissionTypes';
 import { useAuthStore } from '../../stores/auth';
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const { loadMissionTypes, getTypesForProfile } = useMissionTypes();
 
 const loading = ref(true);
 const loadError = ref('');
@@ -158,7 +160,7 @@ const departmentSelectOptions = computed(() => entities.value.map((entity) => ({
 })));
 
 const availableMissionTypes = computed(() => (
-    getMissionTypesForProfile(auth.user?.profile ?? '', form.mission_type || null)
+    getTypesForProfile(auth.user?.profile ?? '', form.mission_type || null)
 ));
 
 function entityLabel(entity) {
@@ -240,6 +242,7 @@ async function submit() {
 }
 
 onMounted(async () => {
+    await loadMissionTypes();
     await loadEntities();
     await loadMission();
     syncResponsible();

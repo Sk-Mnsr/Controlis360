@@ -9,6 +9,7 @@ class Recommendation extends BaseModel
 {
     protected $fillable = [
         'mission_id',
+        'primary_entity_id',
         'reference',
         'name',
         'theme',
@@ -73,6 +74,11 @@ class Recommendation extends BaseModel
     public function mission(): BelongsTo
     {
         return $this->belongsTo(Mission::class);
+    }
+
+    public function primaryEntity(): BelongsTo
+    {
+        return $this->belongsTo(Entity::class, 'primary_entity_id');
     }
 
     public function entities(): BelongsToMany

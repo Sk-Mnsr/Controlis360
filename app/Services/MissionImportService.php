@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\MissionAssignedMail;
 use App\Models\Entity;
 use App\Models\Mission;
+use App\Models\MissionType;
 use App\Models\User;
 use App\Services\MissionRecipientResolver;
 use Carbon\Carbon;
@@ -38,19 +39,37 @@ class MissionImportService
         'Commentaires',
     ];
 
-    private const MISSION_TYPE_MAP = [
-        'audit interne' => 'audit_interne',
-        'audit_interne' => 'audit_interne',
-        'audit externe' => 'audit_externe',
-        'audit_externe' => 'audit_externe',
-        'contrôle permanent' => 'controle_permanent',
-        'controle permanent' => 'controle_permanent',
-        'controle_permanent' => 'controle_permanent',
-        'inspection' => 'inspection',
-        'cac' => 'cac',
-        'régulateur' => 'regulateur',
-        'regulateur' => 'regulateur',
-    ];
+    private function missionTypeMap(): array
+    {
+        static $map = null;
+
+        if ($map !== null) {
+            return $map;
+        }
+
+        $map = [];
+
+        foreach (MissionType::query()->where('is_active', true)->orderBy('sort_order')->get() as $type) {
+            $code = $type->code;
+            $label = $type->name;
+
+            $map[$code] = $code;
+            $map[mb_strtolower($code)] = $code;
+            $map[mb_strtolower($label)] = $code;
+            $map[mb_strtolower(str_replace('_', ' ', $code))] = $code;
+        }
+
+        return $map;
+    }
+
+    private function missionTypeLabels(): array
+    {
+        return MissionType::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->pluck('name')
+            ->all();
+    }
 
     private const RISK_MAP = [
         'faible' => 'faible',
@@ -106,7 +125,10 @@ class MissionImportService
         }
 
         $parametrage = config('mission-parametrage');
-        $missionTypeLabels = array_column($parametrage['mission_types'], 'label');
+        $missionTypeLabels = $this->missionTypeLabels();
+        if ($missionTypeLabels === []) {
+            $missionTypeLabels = array_column(config('mission-parametrage.mission_types', []), 'label');
+        }
         $riskLabels = array_column($parametrage['risk_levels'], 'label');
         $priorityLabels = array_column($parametrage['priorities'], 'label');
         $statusLabels = array_column($parametrage['statuses'], 'label');
@@ -386,7 +408,7 @@ class MissionImportService
     {
         $get = fn (string $key) => trim((string) ($row[$columnIndex[$key]] ?? ''));
 
-        $missionType = $this->mapValue($get('mission_type'), self::MISSION_TYPE_MAP, 'type de mission');
+        $missionType = $this->mapValue($get('mission_type'), $this->missionTypeMap(), 'type de mission');
         $riskLevel = $this->mapValue($get('risk_level'), self::RISK_MAP, 'niveau de risque');
         $priority = $this->mapValue($get('priority'), self::PRIORITY_MAP, 'priorité');
         $statusRaw = $get('status');

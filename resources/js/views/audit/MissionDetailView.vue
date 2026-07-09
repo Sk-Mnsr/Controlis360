@@ -176,7 +176,7 @@
                                                         <span
                                                             v-if="recoDaysRemaining(reco) !== null"
                                                             class="text-sm"
-                                                            :class="remainingDaysClasses(recoDaysRemaining(reco))"
+                                                            :style="remainingDaysTextStyle(recoDaysRemaining(reco))"
                                                         >
                                                             {{ recoDaysRemaining(reco) }}
                                                         </span>
@@ -185,7 +185,8 @@
                                                     <td class="border border-white px-4 py-3">
                                                         <span
                                                             class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                                                            :class="deadlineStatusClasses(recoDeadlineStatus(reco).tone)"
+                                                            class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
+                                                            :style="deadlineToneStyle(recoDeadlineStatus(reco).tone)"
                                                         >
                                                             {{ recoDeadlineStatus(reco).label }}
                                                         </span>
@@ -304,6 +305,7 @@ import MissionRecommendationViewModal from '../../components/audit/MissionRecomm
 import RecoImplementationPanel from '../../components/audit/RecoImplementationPanel.vue';
 import { isMissionAgent, isMissionResponsible } from '../../config/module-access';
 import { useAuthStore } from '../../stores/auth';
+import { useMissionParametrage } from '../../composables/useMissionParametrage';
 import {
     buildDepartmentStatsFromRecommendations,
     buildMissionStatsFromRecommendations,
@@ -313,15 +315,18 @@ import {
     recommendationsForOwner,
 } from '../../utils/reco-stats';
 import {
-    deadlineStatusClasses,
-    recommendationDeadlineStatus,
     recommendationRemainingDays,
-    remainingDaysClasses,
 } from '../../utils/mission-progress';
 
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
+const {
+    loadMissionParametrage,
+    remainingDaysTextStyle,
+    deadlineToneStyle,
+    resolveDeadlineStatus,
+} = useMissionParametrage();
 
 const mission = ref(null);
 const loading = ref(true);
@@ -502,7 +507,7 @@ function recoDaysRemaining(reco) {
 }
 
 function recoDeadlineStatus(reco) {
-    return recommendationDeadlineStatus(reco);
+    return resolveDeadlineStatus(recommendationRemainingDays(reco));
 }
 
 function isRecoResponseExpanded(reco) {
@@ -669,5 +674,8 @@ async function validateResponse(response) {
 
 watch(departmentStats, syncListDepartmentSelection, { immediate: true });
 
-onMounted(loadMission);
+onMounted(async () => {
+    await loadMissionParametrage();
+    await loadMission();
+});
 </script>

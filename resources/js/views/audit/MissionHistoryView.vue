@@ -76,7 +76,7 @@
                         <td class="px-4 py-3 whitespace-nowrap text-slate-800">{{ formatDate(mission.start_date) }}</td>
                         <td
                             class="px-4 py-3 whitespace-nowrap"
-                            :class="remainingDaysClasses(missionDaysRemaining(mission))"
+                            :style="remainingDaysTextStyle(missionDaysRemaining(mission))"
                         >
                             {{ formatDate(mission.end_date) }}
                         </td>
@@ -97,15 +97,15 @@
                             <span
                                 v-if="missionDaysRemaining(mission) !== null"
                                 class="text-sm"
-                                :class="remainingDaysClasses(missionDaysRemaining(mission))"
+                                :style="remainingDaysTextStyle(missionDaysRemaining(mission))"
                             >
                                 {{ missionDaysRemaining(mission) }}
                             </span>
                             <span v-else class="text-slate-500">—</span>
                         </td>
                         <td class="px-4 py-3">
-                            <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
-                                {{ mission.status_fr ?? mission.status }}
+                            <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium" :style="missionStatusStyle(mission.status)">
+                                {{ missionStatusLabel(mission.status) || mission.status_fr || mission.status }}
                             </span>
                         </td>
                         <td class="px-2 py-3 text-center">
@@ -140,18 +140,25 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
-import { MISSION_TYPES } from '../../config/mission-parametrage';
+import { useMissionTypes } from '../../composables/useMissionTypes';
+import { useMissionParametrage } from '../../composables/useMissionParametrage';
 import { isMissionAgent, isMissionResponsible } from '../../config/module-access';
 import { useAuthStore } from '../../stores/auth';
 import {
     missionImplementationRate,
     missionRemainingDays,
-    remainingDaysClasses,
 } from '../../utils/mission-progress';
 
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();
+const { loadMissionTypes, findType } = useMissionTypes();
+const {
+    loadMissionParametrage,
+    remainingDaysTextStyle,
+    missionStatusStyle,
+    missionStatusLabel,
+} = useMissionParametrage();
 
 const loading = ref(true);
 const missions = ref([]);
@@ -165,12 +172,12 @@ const isAgent = computed(() => isMissionAgent(auth.user));
 const selectedMissionType = computed(() => route.params.missionType ?? '');
 
 const selectedTypeLabel = computed(() => {
-    const match = MISSION_TYPES.find((type) => type.value === selectedMissionType.value);
-    return match?.label ?? '';
+    const match = findType(selectedMissionType.value);
+    return match?.label ?? selectedMissionType.value;
 });
 
 const responsibleColumnLabel = computed(() => {
-    const match = MISSION_TYPES.find((type) => type.value === selectedMissionType.value);
+    const match = findType(selectedMissionType.value);
     const profiles = match?.profiles ?? [];
 
     if (profiles.includes('controle') && !profiles.includes('audit')) {
@@ -330,13 +337,22 @@ watch(
             return;
         }
 
-        const isKnownType = MISSION_TYPES.some((type) => type.value === missionType);
-        if (!isKnownType) {
+        if (!findType(missionType)) {
             router.replace({ name: 'audit.missions.history' });
         }
     },
-    { immediate: true },
 );
 
-onMounted(loadMissions);
+onMounted(async () => {
+    await loadMissionParametrage();
+    await loadMissionTypes();
+
+    const missionType = route.params.missionType;
+    if (missionType && !findType(missionType)) {
+        router.replace({ name: 'audit.missions.history' });
+        return;
+    }
+
+    await loadMissions();
+});
 </script>

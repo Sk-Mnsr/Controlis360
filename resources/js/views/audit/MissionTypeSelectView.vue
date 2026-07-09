@@ -7,7 +7,7 @@
             </p>
         </div>
 
-        <div v-if="loading" class="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
+        <div v-if="loading || typesLoading" class="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
             Chargement...
         </div>
 
@@ -57,38 +57,12 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../../api/client';
-import { getMissionTypesForProfile, MISSION_TYPES } from '../../config/mission-parametrage';
+import { useMissionTypes } from '../../composables/useMissionTypes';
 import { useAuthStore } from '../../stores/auth';
-
-const TYPE_META = {
-    audit_interne: {
-        accent: '#7c3aed',
-        description: 'Missions d\'audit interne et suivi des recommandations émises.',
-    },
-    audit_externe: {
-        accent: '#475569',
-        description: 'Missions réalisées par des auditeurs externes.',
-    },
-    controle_permanent: {
-        accent: '#047857',
-        description: 'Contrôles permanents et suivi des points de contrôle.',
-    },
-    inspection: {
-        accent: '#2563eb',
-        description: 'Inspections ponctuelles et constats de conformité.',
-    },
-    cac: {
-        accent: '#d97706',
-        description: 'Missions du commissaire aux comptes et recommandations associées.',
-    },
-    regulateur: {
-        accent: '#dc2626',
-        description: 'Missions liées aux exigences et retours du régulateur.',
-    },
-};
 
 const auth = useAuthStore();
 const router = useRouter();
+const { loadMissionTypes, types: missionTypes, loading: typesLoading } = useMissionTypes();
 
 const loading = ref(true);
 const missions = ref([]);
@@ -110,16 +84,18 @@ const visibleTypes = computed(() => {
     const typesFromMissions = [...new Set(missions.value.map((mission) => mission.mission_type).filter(Boolean))];
     const profile = auth.user?.profile;
     const profileTypes = profile === 'metier' || profile === 'super_admin'
-        ? MISSION_TYPES.map((type) => type.value)
-        : getMissionTypesForProfile(profile).map((type) => type.value);
+        ? missionTypes.value.map((type) => type.value)
+        : missionTypes.value
+            .filter((type) => (type.profiles ?? []).includes(profile))
+            .map((type) => type.value);
     const typeValues = typesFromMissions.length ? typesFromMissions : profileTypes;
 
-    return MISSION_TYPES
+    return missionTypes.value
         .filter((type) => typeValues.includes(type.value))
         .map((type) => ({
             ...type,
-            accent: TYPE_META[type.value]?.accent ?? '#047857',
-            description: TYPE_META[type.value]?.description ?? 'Consulter les missions enregistrées pour ce type.',
+            accent: type.accent_color ?? '#047857',
+            description: type.description ?? 'Consulter les missions enregistrées pour ce type.',
             count: missionCountByType.value[type.value] ?? 0,
         }));
 });
@@ -150,5 +126,8 @@ async function loadMissions() {
     }
 }
 
-onMounted(loadMissions);
+onMounted(async () => {
+    await loadMissionTypes();
+    await loadMissions();
+});
 </script>
