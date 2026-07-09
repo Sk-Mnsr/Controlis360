@@ -92,6 +92,39 @@
                         </td>
                     </tr>
                 </template>
+                <tr v-if="rows.length && summaryAverages" class="operational-risk-summary">
+                    <td colspan="7" class="operational-risk-summary-label operational-risk-summary-label-gross">
+                        Évaluation intrinsèque
+                    </td>
+                    <td class="operational-risk-center operational-risk-summary-value">
+                        {{ formatRiskScore(summaryAverages.gross.gravity) ?? '—' }}
+                    </td>
+                    <td class="operational-risk-center operational-risk-summary-value">
+                        {{ formatRiskScore(summaryAverages.gross.probability) ?? '—' }}
+                    </td>
+                    <td
+                        class="operational-risk-score operational-risk-summary-value"
+                        :style="grossSummaryStyle"
+                    >
+                        {{ formatRiskScore(summaryAverages.gross.risk) ?? '—' }}
+                    </td>
+                    <td colspan="4" class="operational-risk-summary-label operational-risk-summary-label-residual">
+                        Évaluation résiduelle
+                    </td>
+                    <td class="operational-risk-center operational-risk-summary-value">
+                        {{ formatRiskScore(summaryAverages.residual.gravity) ?? '—' }}
+                    </td>
+                    <td class="operational-risk-center operational-risk-summary-value">
+                        {{ formatRiskScore(summaryAverages.residual.probability) ?? '—' }}
+                    </td>
+                    <td
+                        class="operational-risk-score operational-risk-summary-value"
+                        :style="residualSummaryStyle"
+                    >
+                        {{ formatRiskScore(summaryAverages.residual.risk) ?? '—' }}
+                    </td>
+                    <td class="operational-risk-actions" />
+                </tr>
             </tbody>
         </table>
 
@@ -204,7 +237,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { groupRowsBySubProcess } from '../../utils/operationalRiskGroups';
-import { formatRiskScore, resolvedResidualFields, scoreStyle } from '../../utils/riskScore';
+import { formatRiskScore, resolvedResidualFields, scoreStyle, computeRiskAverages, classificationForCell } from '../../utils/riskScore';
 
 const props = defineProps({
     title: { type: String, required: true },
@@ -216,6 +249,7 @@ const props = defineProps({
         type: String,
         default: 'Aucune ligne d\'analyse pour ce département.',
     },
+    riskClassifications: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits([
@@ -234,6 +268,42 @@ const menuPanelRef = ref(null);
 const menuPanelStyle = ref({ top: '0px', left: '0px' });
 
 const groupedRows = computed(() => groupRowsBySubProcess(props.rows));
+
+const summaryAverages = computed(() => {
+    if (!props.rows.length) {
+        return null;
+    }
+
+    return computeRiskAverages(props.rows);
+});
+
+const grossSummaryStyle = computed(() => {
+    const averages = summaryAverages.value;
+
+    if (!averages?.gross.gravity || !averages?.gross.probability) {
+        return {};
+    }
+
+    return scoreStyle(classificationForCell(
+        Math.round(averages.gross.gravity),
+        Math.round(averages.gross.probability),
+        props.riskClassifications,
+    ));
+});
+
+const residualSummaryStyle = computed(() => {
+    const averages = summaryAverages.value;
+
+    if (!averages?.residual.gravity || averages?.residual.probability === null) {
+        return {};
+    }
+
+    return scoreStyle(classificationForCell(
+        Math.round(averages.residual.gravity),
+        Math.round(averages.residual.probability),
+        props.riskClassifications,
+    ));
+});
 
 const canAddException = computed(() => props.permissions.can_create_row && props.departmentCode);
 
@@ -533,6 +603,30 @@ function residualScoreStyle(row) {
 .operational-risk-score {
     text-align: center;
     font-weight: 700;
+}
+
+.operational-risk-summary {
+    background: #fff7ed;
+}
+
+.operational-risk-summary-label {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+    text-align: center;
+}
+
+.operational-risk-summary-label-gross {
+    background: #fed7aa;
+}
+
+.operational-risk-summary-label-residual {
+    background: #fef08a;
+}
+
+.operational-risk-summary-value {
+    font-weight: 700;
+    background: #fffbeb;
 }
 
 .operational-risk-empty {

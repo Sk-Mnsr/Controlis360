@@ -62,6 +62,7 @@ Route::controller(AuthController::class)->group(function () {
                 Route::get('top-risques', 'topRisques')->name('top-risques');
                 Route::put('top-risques', 'updateTopRisques')->name('top-risques.update');
                 Route::get('entities-departments', 'entitiesDepartments')->name('entities-departments');
+                Route::get('cartographie-dashboard', 'cartographieDashboard')->name('cartographie-dashboard');
                 Route::get('analyse-risques/{code}', 'analyseRisques')->name('analyse-risques');
                 Route::get('analyse-risques/{code}/historique', 'analyseRisquesHistorique')->name('analyse-risques.historique');
                 Route::put('analyse-risques/{code}', 'updateAnalyseRisques')->name('analyse-risques.update');

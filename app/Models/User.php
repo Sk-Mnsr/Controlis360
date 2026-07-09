@@ -202,6 +202,34 @@ class User extends AuthenticatableBase
         return $this->profile === UserProfile::Admin->value;
     }
 
+    public function isControleAgent(): bool
+    {
+        return $this->profile === UserProfile::Controle->value
+            && $this->controle_role === 'agent_controle_interne';
+    }
+
+    public function isControleResponsable(): bool
+    {
+        return $this->profile === UserProfile::Controle->value
+            && $this->controle_role === 'responsable_controle_permanent';
+    }
+
+    public function isEntityResponsable(): bool
+    {
+        return $this->profile === UserProfile::Metier->value
+            && $this->metier_role === 'responsable_entite';
+    }
+
+    public function canEditMethodology(): bool
+    {
+        return $this->isSuperAdmin() || $this->isControleResponsable();
+    }
+
+    public function canCreateOperationalRiskRow(): bool
+    {
+        return $this->isSuperAdmin() || $this->isControleAgent() || $this->isControleResponsable();
+    }
+
     public function belongsToEnvironment(?int $environmentId): bool
     {
         if ($environmentId === null) {

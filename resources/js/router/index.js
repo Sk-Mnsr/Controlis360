@@ -94,6 +94,11 @@ const routes = [
                         component: () => import('../views/HomeView.vue'),
                     },
                     {
+                        path: 'cartographie',
+                        name: 'cartographie.cartographie',
+                        component: () => import('../views/cartographie/CartographieView.vue'),
+                    },
+                    {
                         path: 'methodology/:slug',
                         name: 'cartographie.methodology.show',
                         component: () => import('../views/methodology/MethodologyPageView.vue'),
@@ -169,6 +174,11 @@ const routes = [
                         path: 'departements/:code',
                         name: 'cartographie.departement-analyse',
                         component: () => import('../views/cartographie/DepartementAnalyseView.vue'),
+                    },
+                    {
+                        path: 'departements/:code/dashboard',
+                        name: 'cartographie.departement-dashboard',
+                        component: () => import('../views/cartographie/DepartementDashboardView.vue'),
                     },
                     {
                         path: 'departements/:code/historique',

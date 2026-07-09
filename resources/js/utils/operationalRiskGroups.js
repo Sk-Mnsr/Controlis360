@@ -33,6 +33,28 @@ export function groupRowsBySubProcess(rows) {
     return groups;
 }
 
+export function groupRowsByProcess(rows) {
+    const groups = [];
+    const indexByKey = new Map();
+
+    for (const row of rows) {
+        const processName = row.process_name || row.entity?.name || '—';
+
+        if (!indexByKey.has(processName)) {
+            const group = {
+                process_name: processName,
+                rows: [],
+            };
+            indexByKey.set(processName, groups.length);
+            groups.push(group);
+        }
+
+        groups[indexByKey.get(processName)].rows.push(row);
+    }
+
+    return groups;
+}
+
 export function subProcessFieldsFromRow(row) {
     return {
         process_number: row.process_number,

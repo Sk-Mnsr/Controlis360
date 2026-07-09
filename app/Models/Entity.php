@@ -62,14 +62,24 @@ class Entity extends ModelBase
 
     public function scopeVisibleToUser(Builder $query, User $user): Builder
     {
-        if ($user->environment_id) {
-            $query->where('environment_id', $user->environment_id);
+        if (! $user->isSuperAdmin()) {
+            $environmentIds = $user->environment_ids;
+
+            if ($environmentIds === []) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            $query->whereIn('environment_id', $environmentIds);
         }
 
-        if ($user->isEntityResponsable() && $user->entity_id) {
-            $query->where('id', $user->entity_id);
-        } elseif ($user->isEntityResponsable()) {
-            $query->whereRaw('1 = 0');
+        if ($user->isEntityResponsable()) {
+            $entityIds = $user->entity_ids;
+
+            if ($entityIds === []) {
+                return $query->whereRaw('1 = 0');
+            }
+
+            $query->whereIn('id', $entityIds);
         }
 
         return $query;

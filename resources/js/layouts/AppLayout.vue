@@ -163,6 +163,7 @@
                     <button
                         type="button"
                         class="nav-cartographie"
+                        :class="{ 'nav-cartographie-active': isCartographieSection }"
                         @click="openCartographie"
                     >
                         Cartographie
@@ -319,21 +320,28 @@ const isPortal = computed(() => route.name === 'portal');
 const activeModule = computed(() => getModuleFromRoute(route));
 const isFullBleedPage = computed(() =>
     route.name === 'cartographie.home'
+    || route.name === 'cartographie.cartographie'
     || route.name === 'cartographie.methodology.show'
     || route.name === 'cartographie.departement-analyse',
 );
 const hideSidebar = computed(() => route.name === 'audit.missions.show');
+const isCartographieSection = computed(() => route.name === 'cartographie.cartographie');
 const isDashboardActive = computed(() =>
-    route.name === 'cartographie.home' && cartographie.selectedDepartment === 'DASHBOARD',
+    (route.name === 'cartographie.home' && cartographie.selectedDepartment === 'DASHBOARD')
+    || route.name === 'cartographie.departement-dashboard',
 );
 const isMethodologySection = computed(() => route.name === 'cartographie.methodology.show');
 const isSaisieSection = computed(() => route.name === 'cartographie.saisie-risques');
 const isDepartmentsSection = computed(() =>
-    (route.name === 'cartographie.departement-analyse' || route.name === 'cartographie.departement-historique')
+    (route.name === 'cartographie.departement-analyse'
+        || route.name === 'cartographie.departement-dashboard'
+        || route.name === 'cartographie.departement-historique')
     && activeEntityType.value === 'department',
 );
 const isAgenciesSection = computed(() =>
-    (route.name === 'cartographie.departement-analyse' || route.name === 'cartographie.departement-historique')
+    (route.name === 'cartographie.departement-analyse'
+        || route.name === 'cartographie.departement-dashboard'
+        || route.name === 'cartographie.departement-historique')
     && activeEntityType.value === 'agency',
 );
 const isEnvironmentsSection = computed(() => route.path.startsWith('/environments'));
@@ -366,7 +374,9 @@ const agenciesOpen = ref(false);
 const entitiesLoading = ref(false);
 
 const activeEntityType = computed(() => {
-    if (route.name !== 'cartographie.departement-analyse' && route.name !== 'cartographie.departement-historique') {
+    if (route.name !== 'cartographie.departement-analyse'
+        && route.name !== 'cartographie.departement-dashboard'
+        && route.name !== 'cartographie.departement-historique') {
         return null;
     }
 
@@ -381,6 +391,10 @@ function normalizeEntitiesPayload(payload) {
 
     if (Array.isArray(payload?.data)) {
         return payload.data;
+    }
+
+    if (Array.isArray(payload?.data?.data)) {
+        return payload.data.data;
     }
 
     return [];
@@ -431,6 +445,7 @@ function isMethodologyItemActive(item) {
 
 function isEntityActive(entity) {
     const onEntityRoute = route.name === 'cartographie.departement-analyse'
+        || route.name === 'cartographie.departement-dashboard'
         || route.name === 'cartographie.departement-historique';
 
     if (!onEntityRoute || route.params.code !== entity.code) {
@@ -462,8 +477,15 @@ function entityNavLabel(entity) {
 }
 
 function openCartographie() {
-    cartographie.openCartographie();
-    router.push({ name: 'cartographie.home' });
+    cartographie.statusMessage = '';
+    cartographie.resetDashboard();
+
+    const environment = cartographie.navigationEntities[0]?.environment?.code;
+
+    router.push({
+        name: 'cartographie.cartographie',
+        query: environment ? { environment } : {},
+    });
 }
 
 const userRoleLabel = computed(() => {
@@ -563,6 +585,10 @@ async function handleLogout() {
 
 .nav-cartographie:hover {
     opacity: 0.92;
+}
+
+.nav-cartographie-active {
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
 }
 
 .nav-group {

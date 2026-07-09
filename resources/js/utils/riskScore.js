@@ -86,3 +86,166 @@ export function scoreStyle(classification) {
         fontWeight: '700',
     };
 }
+
+function averageNumeric(values) {
+    const numbers = values.filter((value) => value !== null && value !== undefined && value !== '');
+
+    if (!numbers.length) {
+        return null;
+    }
+
+    return numbers.reduce((sum, value) => sum + Number(value), 0) / numbers.length;
+}
+
+function roundScore(value) {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    return Math.round(Number(value) * 10) / 10;
+}
+
+export function classificationForScore(score, classifications = []) {
+    if (score === null || score === undefined || score === '') {
+        return null;
+    }
+
+    const rounded = Math.round(Number(score));
+
+    if (rounded <= 0) {
+        return null;
+    }
+
+    return classifications.find(
+        (item) => rounded >= item.min_score && rounded <= item.max_score,
+    ) ?? null;
+}
+
+function categoryShortLabel(name) {
+    const labels = {
+        'Risques opérationnels': 'Risque opérationnel',
+        'Risques de fraude': 'Risque de Fraude',
+        'Risques de crédit': 'Risque de crédit',
+        'Risques stratégiques': 'Risque stratégique',
+        'Risques de liquidité': 'Risque de liquidité',
+        'Risques réglementaires': 'Risque réglementaire',
+        'Risques exogènes ou externes': 'Risque exogène',
+    };
+
+    return labels[name] ?? name;
+}
+
+function buildFamilyCategoryMap(categories = []) {
+    const map = new Map();
+
+    for (const category of categories) {
+        for (const family of category.families ?? []) {
+            map.set(family.name, category);
+        }
+    }
+
+    return map;
+}
+
+function trendForScore(score, maxScore) {
+    if (!score || score <= 0) {
+        return '—';
+    }
+
+    if (score === maxScore) {
+        return '↗';
+    }
+
+    return '→';
+}
+
+export function computeRiskCategorySummary(rows, categories = [], classifications = [], mode = 'gross') {
+    const familyMap = buildFamilyCategoryMap(categories);
+    const grouped = new Map();
+
+    for (const category of categories) {
+        grouped.set(category.id, []);
+    }
+
+    for (const row of rows ?? []) {
+        const category = familyMap.get(row.risk_family);
+
+        if (!category) {
+            continue;
+        }
+
+        grouped.get(category.id)?.push(row);
+    }
+
+    const items = categories.map((category) => {
+        const categoryRows = grouped.get(category.id) ?? [];
+        const occurrence = categoryRows.length;
+        const averages = computeRiskAverages(categoryRows);
+        const evaluationScore = mode === 'residual'
+            ? (averages.residual.risk ?? 0)
+            : (averages.gross.risk ?? 0);
+
+        return {
+            id: category.id,
+            label: categoryShortLabel(category.name),
+            score: occurrence,
+            evaluationScore,
+            classification: evaluationScore > 0
+                ? classificationForScore(evaluationScore, classifications)
+                : null,
+            trend: null,
+        };
+    });
+
+    const maxOccurrence = items.reduce((max, item) => Math.max(max, item.score ?? 0), 0);
+
+    return items.map((item) => ({
+        ...item,
+        trend: trendForScore(item.score, maxOccurrence),
+        levelLabel: item.evaluationScore > 0
+            ? (item.classification?.name ?? '—')
+            : 'Très faible / Nul',
+    }));
+}
+
+export function computeRiskAverages(rows) {
+    const gravities = [];
+    const probabilities = [];
+    const residualGravities = [];
+    const residualProbabilities = [];
+
+    for (const row of rows ?? []) {
+        if (row.gravity != null && row.probability != null) {
+            gravities.push(Number(row.gravity));
+            probabilities.push(Number(row.probability));
+        }
+
+        const residual = resolvedResidualFields(row);
+
+        if (residual.gravity != null && residual.probability != null) {
+            residualGravities.push(Number(residual.gravity));
+            residualProbabilities.push(Number(residual.probability));
+        }
+    }
+
+    const avgG = roundScore(averageNumeric(gravities));
+    const avgP = roundScore(averageNumeric(probabilities));
+    const avgRb = avgG !== null && avgP !== null ? roundScore(avgG * avgP) : null;
+
+    const avgResidualG = roundScore(averageNumeric(residualGravities));
+    const avgPr = roundScore(averageNumeric(residualProbabilities));
+    const avgRr = avgResidualG !== null && avgPr !== null ? roundScore(avgResidualG * avgPr) : null;
+
+    return {
+        gross: {
+            gravity: avgG,
+            probability: avgP,
+            risk: avgRb,
+        },
+        residual: {
+            gravity: avgResidualG,
+            probability: avgPr,
+            risk: avgRr,
+        },
+    };
+}

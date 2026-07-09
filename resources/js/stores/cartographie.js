@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue';
 import { defineStore } from 'pinia';
 import { useRouter } from 'vue-router';
+import { entityRouteQuery } from '../utils/entityEnvironment';
 
 export const useCartographieStore = defineStore('cartographie', () => {
     const selectedDepartment = ref('DASHBOARD');
@@ -102,6 +103,23 @@ export function useCartographieNavigation() {
     }
 
     function goToDashboard() {
+        if (cartographie.selectedEntityCode) {
+            const entity = cartographie.navigationEntities.find(
+                (item) => item.id === cartographie.selectedEntityId
+                    || item.code === cartographie.selectedEntityCode,
+            );
+
+            cartographie.selectedDepartment = entity?.name ?? cartographie.selectedEntityCode;
+
+            router.push({
+                name: 'cartographie.departement-dashboard',
+                params: { code: cartographie.selectedEntityCode },
+                query: entityRouteQuery(entity),
+            });
+
+            return;
+        }
+
         cartographie.resetDashboard();
         router.push({ name: 'cartographie.home' });
     }
