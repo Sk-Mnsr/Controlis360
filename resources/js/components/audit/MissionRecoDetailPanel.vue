@@ -38,6 +38,10 @@
                     <span class="font-bold text-slate-900">{{ displayValue(reco.status_fr ?? reco.status) }}</span>
                 </li>
                 <li v-if="showOwners">
+                    <span class="text-slate-600">Conserne :</span>
+                    <span class="font-bold text-slate-900">{{ displayValue(reco.concerned_names) }}</span>
+                </li>
+                <li v-if="showOwners">
                     <span class="text-slate-600">OWNERS :</span>
                     <span class="font-bold text-slate-900">{{ displayValue(reco.responsible_name) }}</span>
                 </li>

@@ -10,6 +10,7 @@ use App\Http\Controllers\API\ReferentialController;
 use App\Http\Controllers\API\ScaleLevelController;
 use App\Http\Controllers\API\MissionController;
 use App\Http\Controllers\API\MissionResponseController;
+use App\Http\Controllers\API\MissionParametrageController;
 use App\Http\Controllers\API\MissionTypeController;
 use App\Http\Controllers\API\RecommendationController;
 use App\Http\Controllers\API\UserController;
@@ -99,8 +100,17 @@ Route::controller(AuthController::class)->group(function () {
                 Route::delete('/{id}', 'destroy')->name('destroy');
             });
 
+            Route::prefix('mission-parametrage')->name('mission-parametrage.')->controller(MissionParametrageController::class)->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::put('/', 'save')->name('save');
+            });
+
             Route::prefix('mission-types')->name('mission-type.')->controller(MissionTypeController::class)->group(function () {
                 Route::get('/', 'index')->name('index');
+                Route::get('/manage', 'manage')->name('manage');
+                Route::post('/', 'store')->name('store');
+                Route::put('/{id}', 'update')->name('update');
+                Route::delete('/{id}', 'destroy')->name('destroy');
             });
 
             Route::prefix('missions')->name('mission.')->group(function () {

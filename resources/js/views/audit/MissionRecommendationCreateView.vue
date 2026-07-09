@@ -101,14 +101,28 @@
                             />
                         </div>
                         <div>
-                            <label class="mb-1 block text-sm font-medium text-slate-700">OWNERS</label>
+                            <label class="mb-1 block text-sm font-medium text-slate-700">Conserne</label>
                             <input
                                 type="text"
                                 class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm"
-                                :value="selectedResponsible"
+                                :value="selectedConcerned"
                                 readonly
                                 placeholder="Sélectionnez un ou plusieurs départements"
                             />
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-sm font-medium text-slate-700">OWNERS</label>
+                            <select
+                                v-model="form.primary_entity_id"
+                                required
+                                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                                :disabled="!ownerOptions.length"
+                            >
+                                <option value="" disabled>Sélectionner le owner principal</option>
+                                <option v-for="option in ownerOptions" :key="option.id" :value="option.id">
+                                    {{ option.label }}
+                                </option>
+                            </select>
                         </div>
 
                         <div>
@@ -206,7 +220,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import MultiSelectDropdown from '../../components/MultiSelectDropdown.vue';
@@ -229,6 +243,7 @@ const REFERENCE_PREFIX = 'REC - ';
 const form = reactive({
     reference: REFERENCE_PREFIX,
     entity_ids: [],
+    primary_entity_id: '',
     theme: '',
     recommendation_label: '',
     risk_type: '',
@@ -292,7 +307,7 @@ const periodLabel = computed(() => {
     return `${start} — ${end}`;
 });
 
-const selectedResponsible = computed(() => {
+const selectedConcerned = computed(() => {
     const names = form.entity_ids
         .map((id) => departmentOptions.value.find((e) => Number(e.id) === id)?.responsible_name)
         .filter(Boolean)
@@ -301,6 +316,32 @@ const selectedResponsible = computed(() => {
 
     return [...new Set(names)].join(', ');
 });
+
+const ownerOptions = computed(() => {
+    return form.entity_ids
+        .map((id) => departmentOptions.value.find((e) => Number(e.id) === id))
+        .filter(Boolean)
+        .map((entity) => ({
+            id: entity.id,
+            label: entity.responsible_name
+                ? `${entity.name} — ${entity.responsible_name}`
+                : entity.name,
+        }));
+});
+
+watch(
+    () => form.entity_ids.slice(),
+    (ids) => {
+        if (!ids.length) {
+            form.primary_entity_id = '';
+            return;
+        }
+
+        if (!ids.includes(Number(form.primary_entity_id))) {
+            form.primary_entity_id = ids.length === 1 ? ids[0] : '';
+        }
+    },
+);
 
 function formatDate(value) {
     if (!value) return '—';
@@ -348,6 +389,7 @@ function buildFormData() {
     const fd = new FormData();
     fd.append('reference', form.reference.trim());
     form.entity_ids.forEach((id) => fd.append('entity_ids[]', String(id)));
+    fd.append('primary_entity_id', String(form.primary_entity_id));
     fd.append('theme', form.theme.trim());
     fd.append('recommendation_label', form.recommendation_label.trim());
     fd.append('risk_type', form.risk_type.trim());
@@ -369,6 +411,7 @@ async function loadMission() {
         mission.value = data?.data ?? data;
         form.reference = REFERENCE_PREFIX;
         form.entity_ids = [];
+        form.primary_entity_id = '';
         await loadDepartments(mission.value?.environment_id);
     } catch {
         loadError.value = 'Impossible de charger la mission.';
@@ -382,6 +425,11 @@ async function submit() {
 
     if (!form.entity_ids.length) {
         error.value = 'Veuillez sélectionner au moins un département.';
+        return;
+    }
+
+    if (!form.primary_entity_id) {
+        error.value = 'Veuillez sélectionner le owner principal (OWNERS).';
         return;
     }
 

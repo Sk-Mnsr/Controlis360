@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\ActionPlanStatusService;
 use App\Services\MissionImportService;
 use App\Services\MissionRecipientResolver;
+use App\Services\MissionTypeService;
 use App\Services\RecommendationStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,18 +29,10 @@ class MissionController extends APIController
         private MissionResponseController $responseController,
         private MissionImportService $importService,
         private MissionRecipientResolver $recipientResolver,
+        private MissionTypeService $missionTypeService,
         private RecommendationStatusService $recommendationStatusService,
         private ActionPlanStatusService $actionPlanStatusService,
     ) {}
-
-    private const MISSION_TYPES = [
-        'audit_interne',
-        'audit_externe',
-        'controle_permanent',
-        'inspection',
-        'cac',
-        'regulateur',
-    ];
 
     private const STATUSES = [
         'ouvert',
@@ -223,6 +216,7 @@ class MissionController extends APIController
         $validator = Validator::make($request->all(), [
             'entity_ids' => 'required|array|min:1',
             'entity_ids.*' => 'integer|exists:entities,id',
+            'primary_entity_id' => 'required|integer|exists:entities,id',
             'reference' => 'nullable|string|max:255',
             'name' => 'nullable|string|max:255',
             'theme' => 'required|string|max:5000',
@@ -244,6 +238,14 @@ class MissionController extends APIController
 
         $data = $validator->validated();
         $entityIds = array_values(array_unique(array_map('intval', $data['entity_ids'])));
+        $primaryEntityId = (int) $data['primary_entity_id'];
+
+        if (! in_array($primaryEntityId, $entityIds, true)) {
+            return $this->responseError([
+                'primary_entity_id' => ['Le owner principal doit faire partie des départements concernés.'],
+            ], 422);
+        }
+
         $entities = \App\Models\Entity::query()->whereIn('id', $entityIds)->get();
 
         if ($entities->count() !== count($entityIds)) {
@@ -268,13 +270,14 @@ class MissionController extends APIController
         }
 
         $attachmentPaths = $this->storeRecommendationAttachments($request, $mission->id);
-        $responsibleNames = $this->recipientResolver->resolveResponsibleNames($entityIds);
+        $primaryOwnerName = $this->recipientResolver->resolveResponsibleNames([$primaryEntityId]);
 
-        $mission = DB::transaction(function () use ($mission, $data, $responsibleNames, $attachmentPaths, $entityIds) {
+        $mission = DB::transaction(function () use ($mission, $data, $primaryEntityId, $primaryOwnerName, $attachmentPaths, $entityIds) {
             $recommendation = $mission->recommendations()->create([
                 'reference' => isset($data['reference']) && trim((string) $data['reference']) !== ''
                     ? trim((string) $data['reference'])
                     : $this->generateRecommendationReference($mission),
+                'primary_entity_id' => $primaryEntityId,
                 'name' => isset($data['name']) ? trim((string) $data['name']) ?: null : null,
                 'theme' => $data['theme'],
                 'recommendation_date' => $data['recommendation_date'],
@@ -282,7 +285,7 @@ class MissionController extends APIController
                 'risk_type' => $data['risk_type'],
                 'priority' => $data['priority'],
                 'status' => $data['status'] ?? 'emise',
-                'responsible_name' => $responsibleNames ?: null,
+                'responsible_name' => $primaryOwnerName ?: null,
                 'due_date' => $data['due_date'] ?? null,
                 'recommendation_label' => $data['recommendation_label'],
                 'comments' => $data['comments'] ?? null,
@@ -327,7 +330,7 @@ class MissionController extends APIController
             return $this->responseError(['message' => ['Modification non autorisée pour cette mission.']], 403);
         }
 
-        $validator = Validator::make($request->all(), $this->missionValidationRules($user));
+        $validator = Validator::make($request->all(), $this->missionValidationRules($user, $mission));
 
         if ($validator->fails()) {
             return $this->responseError($validator->errors(), 422);
@@ -388,9 +391,11 @@ class MissionController extends APIController
 
     private function missionStoreValidationRules(?User $user = null): array
     {
+        $allowedTypes = $this->allowedMissionTypesForUser($user) ?: ['__none__'];
+
         return [
             'reference' => 'required|string|max:100|unique:missions,reference',
-            'mission_type' => 'required|in:'.implode(',', $this->allowedMissionTypesForUser($user)),
+            'mission_type' => 'required|in:'.implode(',', $allowedTypes),
             'environment_id' => 'required|integer|exists:environments,id',
             'entity_ids' => 'required|array|min:1',
             'entity_ids.*' => 'integer|exists:entities,id',
@@ -404,10 +409,12 @@ class MissionController extends APIController
         ];
     }
 
-    private function missionValidationRules(?User $user = null): array
+    private function missionValidationRules(?User $user = null, ?Mission $mission = null): array
     {
+        $allowedTypes = $this->allowedMissionTypesForUser($user, $mission?->mission_type) ?: ['__none__'];
+
         return [
-            'mission_type' => 'required|in:'.implode(',', $this->allowedMissionTypesForUser($user)),
+            'mission_type' => 'required|in:'.implode(',', $allowedTypes),
             'environment_id' => 'nullable|integer|exists:environments,id',
             'entity_ids' => 'required|array|min:1',
             'entity_ids.*' => 'integer|exists:entities,id',
@@ -789,6 +796,11 @@ class MissionController extends APIController
             'entity_ids' => $entities->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
             'entity_id' => $entities->first()?->id,
             'entity_name' => $names->isNotEmpty() ? $names->implode(', ') : null,
+            'primary_entity_id' => $recommendation->primary_entity_id ? (int) $recommendation->primary_entity_id : null,
+            'primary_entity_name' => $recommendation->primaryEntity?->name,
+            'concerned_names' => $this->recipientResolver->resolveResponsibleNames(
+                $entities->pluck('id')->map(fn ($id) => (int) $id)->values()->all()
+            ) ?: null,
             'entities' => $entities->map(fn ($entity) => [
                 'id' => $entity->id,
                 'name' => $entity->name,
@@ -891,8 +903,15 @@ class MissionController extends APIController
     {
         if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
             $entityIds = $user->entity_ids ?? [];
+            $primaryEntityId = $recommendation->primary_entity_id
+                ? (int) $recommendation->primary_entity_id
+                : null;
 
-            if ($entityIds === [] || ! $recommendation->entities()->whereIn('entities.id', $entityIds)->exists()) {
+            if ($primaryEntityId !== null) {
+                if (! in_array($primaryEntityId, $entityIds, true)) {
+                    return null;
+                }
+            } elseif ($entityIds === [] || ! $recommendation->entities()->whereIn('entities.id', $entityIds)->exists()) {
                 return null;
             }
 
@@ -1055,15 +1074,8 @@ class MissionController extends APIController
         ]);
     }
 
-    private function allowedMissionTypesForUser(?User $user): array
+    private function allowedMissionTypesForUser(?User $user, ?string $currentCode = null): array
     {
-        if (! $user || $user->isSuperAdmin()) {
-            return self::MISSION_TYPES;
-        }
-
-        return collect(config('mission-parametrage.mission_types', []))
-            ->filter(fn (array $type) => in_array($user->profile, $type['profiles'] ?? [], true))
-            ->pluck('value')
-            ->all();
+        return $this->missionTypeService->allowedCodesForUser($user, $currentCode);
     }
 }

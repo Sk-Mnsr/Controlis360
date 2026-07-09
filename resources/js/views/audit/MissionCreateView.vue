@@ -163,11 +163,12 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../../api/client';
 import MultiSelectDropdown from '../../components/MultiSelectDropdown.vue';
-import { getMissionTypesForProfile } from '../../config/mission-parametrage';
+import { useMissionTypes } from '../../composables/useMissionTypes';
 import { useAuthStore } from '../../stores/auth';
 
 const auth = useAuthStore();
 const router = useRouter();
+const { loadMissionTypes, getTypesForProfile, loading: missionTypesLoading } = useMissionTypes();
 
 const environments = ref([]);
 const entities = ref([]);
@@ -213,7 +214,7 @@ const selectedResponsible = computed(() => {
 });
 
 const availableMissionTypes = computed(() => (
-    getMissionTypesForProfile(auth.user?.profile ?? '')
+    getTypesForProfile(auth.user?.profile ?? '')
 ));
 
 function extractList(data) {
@@ -347,7 +348,10 @@ async function submit() {
     }
 }
 
-onMounted(loadEnvironments);
+onMounted(async () => {
+    await loadMissionTypes();
+    await loadEnvironments();
+});
 </script>
 
 <style scoped src="./mission-form.css"></style>

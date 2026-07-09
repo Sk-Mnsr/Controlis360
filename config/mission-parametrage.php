@@ -21,15 +21,15 @@ return [
         ['value' => 'haute', 'label' => 'Haute'],
     ],
     'statuses' => [
-        ['value' => 'ouvert', 'label' => 'Ouvert'],
-        ['value' => 'ferme', 'label' => 'Fermé'],
+        ['value' => 'ouvert', 'label' => 'Ouvert', 'color' => 'blue'],
+        ['value' => 'ferme', 'label' => 'Fermé', 'color' => 'slate'],
     ],
     'recommendation_statuses' => [
-        ['value' => 'emise', 'label' => 'Émise'],
-        ['value' => 'en_cours', 'label' => 'En cours'],
-        ['value' => 'traitee', 'label' => 'Traitée'],
-        ['value' => 'transmis', 'label' => 'Transmis'],
-        ['value' => 'cloturee', 'label' => 'Clôturée'],
+        ['value' => 'emise', 'label' => 'Émise', 'color' => 'slate'],
+        ['value' => 'en_cours', 'label' => 'En cours', 'color' => 'amber'],
+        ['value' => 'traitee', 'label' => 'Traitée', 'color' => 'emerald'],
+        ['value' => 'transmis', 'label' => 'Transmis', 'color' => 'blue'],
+        ['value' => 'cloturee', 'label' => 'Clôturée', 'color' => 'slate'],
     ],
     'action_plan_statuses' => [
         ['value' => 'non_demarre', 'label' => 'Non démarré', 'color' => 'blue'],

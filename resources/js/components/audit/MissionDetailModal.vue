@@ -99,6 +99,7 @@
                                 <DetailRow label="Type de risque" :value="reco.risk_type" />
                                 <DetailRow label="Niveau de risque" :value="reco.risk_level_fr" />
                                 <DetailRow label="Priorité" :value="reco.priority_fr" />
+                                <DetailRow label="Conserne" :value="reco.concerned_names" />
                                 <DetailRow label="OWNERS" :value="reco.responsible_name" />
                                 <DetailRow
                                     v-if="reco.comments"

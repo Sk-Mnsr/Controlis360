@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             MissionFlowTestSeeder::class,
             MissionTypeSeeder::class,
+            MissionParametrageSeeder::class,
         ]);
     }
 }

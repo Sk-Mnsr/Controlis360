@@ -238,6 +238,16 @@ const routes = [
                         meta: { canCreateMission: true },
                     },
                     {
+                        path: 'parametrage',
+                        name: 'audit.parametrage',
+                        component: () => import('../views/audit/MissionParametrageView.vue'),
+                        meta: { canCreateMission: true },
+                    },
+                    {
+                        path: 'parametrage/types-mission',
+                        redirect: { name: 'audit.parametrage' },
+                    },
+                    {
                         path: 'regulateur',
                         name: 'audit.regulator',
                         component: () => import('../views/audit/RegulatorQueueView.vue'),

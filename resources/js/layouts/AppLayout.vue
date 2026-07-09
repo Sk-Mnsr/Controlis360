@@ -215,6 +215,15 @@
                         >
                             Historiques
                         </RouterLink>
+
+                        <RouterLink
+                            v-if="canCreateMission"
+                            class="nav-link"
+                            :class="{ 'nav-link-active': route.name === 'audit.parametrage' }"
+                            :to="{ name: 'audit.parametrage' }"
+                        >
+                            Paramétrage
+                        </RouterLink>
                     </template>
                 </template>
 
@@ -302,14 +311,18 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { methodologyItems } from '../config/cartographie-nav';
 import { getModuleFromRoute } from '../config/modules';
-import { isRegulatorProfile } from '../config/module-access';
+import { canCreateMission as userCanCreateMission, isRegulatorProfile } from '../config/module-access';
 import { useCartographieNavigation } from '../stores/cartographie';
 import { useAuthStore } from '../stores/auth';
 import { useCartographiePermissions } from '../composables/useCartographiePermissions';
 import api from '../api/client';
 
 const auth = useAuthStore();
+<<<<<<< HEAD
 const { canCreateRiskRow } = useCartographiePermissions();
+=======
+const canCreateMission = computed(() => userCanCreateMission(auth.user));
+>>>>>>> fdcde9a (module parametrage)
 const route = useRoute();
 const router = useRouter();
 const { cartographie, navigateMethodology, goToDashboard, selectDepartmentEntity } = useCartographieNavigation();

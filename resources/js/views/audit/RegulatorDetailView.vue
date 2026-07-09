@@ -74,6 +74,10 @@
                         <span class="font-bold text-slate-900">{{ displayValue(recommendation.status_fr ?? recommendation.status) }}</span>
                     </li>
                     <li>
+                        <span class="text-slate-600">Conserne :</span>
+                        <span class="font-bold text-slate-900">{{ displayValue(recommendation.concerned_names) }}</span>
+                    </li>
+                    <li>
                         <span class="text-slate-600">OWNERS :</span>
                         <span class="font-bold text-slate-900">{{ displayValue(recommendation.responsible_name) }}</span>
                     </li>

@@ -38,7 +38,13 @@ class RecommendationStatusService
         $updated = Recommendation::query()
             ->where('mission_id', $mission->id)
             ->where('status', 'emise')
-            ->whereHas('entities', fn ($query) => $query->whereIn('entities.id', $entityIds))
+            ->where(function ($query) use ($entityIds) {
+                $query->whereIn('primary_entity_id', $entityIds)
+                    ->orWhere(function ($fallbackQuery) use ($entityIds) {
+                        $fallbackQuery->whereNull('primary_entity_id')
+                            ->whereHas('entities', fn ($entityQuery) => $entityQuery->whereIn('entities.id', $entityIds));
+                    });
+            })
             ->update(['status' => 'en_cours']);
 
         if ($updated > 0) {
