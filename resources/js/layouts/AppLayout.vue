@@ -319,11 +319,7 @@ import { useCartographiePermissions } from '../composables/useCartographiePermis
 import api from '../api/client';
 
 const auth = useAuthStore();
-<<<<<<< HEAD
 const { canCreateRiskRow } = useCartographiePermissions();
-=======
-const canCreateMission = computed(() => userCanCreateMission(auth.user));
->>>>>>> fdcde9a (module parametrage)
 const route = useRoute();
 const router = useRouter();
 const { cartographie, navigateMethodology, goToDashboard, selectDepartmentEntity } = useCartographieNavigation();
