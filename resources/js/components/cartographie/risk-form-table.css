@@ -1,0 +1,130 @@
+.risk-form-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    color: #111111;
+}
+
+.risk-form-table th,
+.risk-form-table td {
+    border: 1px solid #111111;
+    padding: 0;
+    vertical-align: middle;
+}
+
+.risk-form-head {
+    background: #d1d5db;
+    padding: 0.4rem 0.5rem;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+}
+
+.risk-form-head-family {
+    background: #c00000;
+    color: #ffffff;
+}
+
+.risk-form-head-score {
+    background: #e5e7eb;
+    font-size: 0.68rem;
+}
+
+.risk-form-cell {
+    background: #ffffff;
+}
+
+.risk-form-cell-narrow {
+    width: 4rem;
+}
+
+.risk-form-cell-score {
+    width: 3.25rem;
+    text-align: center;
+}
+
+.risk-form-cell-rb {
+    width: 4.5rem;
+    text-align: center;
+}
+
+.risk-form-input,
+.risk-form-textarea,
+.risk-form-select {
+    display: block;
+    width: 100%;
+    border: none;
+    padding: 0.45rem 0.5rem;
+    font-size: 0.75rem;
+    font-family: inherit;
+    background: transparent;
+    color: #111111;
+}
+
+.risk-form-input:focus,
+.risk-form-textarea:focus,
+.risk-form-select:focus {
+    outline: 2px solid #c00000;
+    outline-offset: -2px;
+    background: #fffbeb;
+}
+
+.risk-form-input-center {
+    text-align: center;
+}
+
+.risk-form-textarea {
+    resize: vertical;
+    min-height: 2.25rem;
+}
+
+.risk-form-rb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.25rem;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
+.risk-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+}
+
+.risk-form-btn {
+    border-radius: 0.25rem;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid #111111;
+}
+
+.risk-form-btn-primary {
+    background: #c00000;
+    border-color: #c00000;
+    color: #ffffff;
+}
+
+.risk-form-btn-secondary {
+    background: #ffffff;
+    color: #111111;
+}
+
+.risk-form-btn-danger {
+    background: #ffffff;
+    border-color: #c00000;
+    color: #c00000;
+}
+
+.risk-form-table-readonly .risk-form-input,
+.risk-form-table-readonly .risk-form-textarea,
+.risk-form-table-readonly .risk-form-select {
+    pointer-events: none;
+    background: #f8fafc;
+}

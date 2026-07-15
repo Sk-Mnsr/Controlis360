@@ -1,0 +1,22 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('operational_risk_rows', function (Blueprint $table) {
+            $table->date('line_date')->nullable()->after('sub_process_name');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('operational_risk_rows', function (Blueprint $table) {
+            $table->dropColumn('line_date');
+        });
+    }
+};
