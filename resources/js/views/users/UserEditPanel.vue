@@ -37,7 +37,10 @@
                     <option value="regulateur">Régulateur</option>
                     <option value="controle">Contrôle</option>
                     <option value="audit">Audit</option>
+<<<<<<< HEAD
                     <option value="conformite">Conformité</option>
+=======
+>>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                     <option value="metier">Métier</option>
                 </select>
             </div>

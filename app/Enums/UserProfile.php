@@ -10,7 +10,10 @@ enum UserProfile: string
     case Regulateur = 'regulateur';
     case Controle = 'controle';
     case Audit = 'audit';
+<<<<<<< HEAD
     case Conformite = 'conformite';
+=======
+>>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
     case Metier = 'metier';
 
     public function label(): string
@@ -22,7 +25,10 @@ enum UserProfile: string
             self::Regulateur => 'Régulateur',
             self::Controle => 'Contrôle',
             self::Audit => 'Audit',
+<<<<<<< HEAD
             self::Conformite => 'Conformité',
+=======
+>>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
             self::Metier => 'Métier',
         };
     }
@@ -36,7 +42,10 @@ enum UserProfile: string
             self::Regulateur => 'regulateur',
             self::Controle => 'controle',
             self::Audit => 'audit',
+<<<<<<< HEAD
             self::Conformite => 'conformite',
+=======
+>>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
             self::Metier => 'metier',
         };
     }

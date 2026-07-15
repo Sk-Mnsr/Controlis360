@@ -31,7 +31,10 @@
             <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-emerald-900">
                 <li v-if="auth.workspace === 'controle'">Saisie et validation des évaluations de risques</li>
                 <li v-if="auth.workspace === 'audit'">Planification et suivi des missions d'audit</li>
+<<<<<<< HEAD
                 <li v-if="auth.workspace === 'conformite'">Suivi réglementaire et dispositifs de conformité</li>
+=======
+>>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                 <li v-if="auth.workspace === 'metier'">Consultation selon votre rôle métier</li>
                 <li v-if="auth.workspace === 'superviseur'">Supervision des évaluations sur vos périmètres</li>
                 <li v-if="auth.user?.profile === 'super_admin'">Configuration globale des environnements</li>

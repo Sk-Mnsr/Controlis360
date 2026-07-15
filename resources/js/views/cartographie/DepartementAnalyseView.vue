@@ -1,7 +1,18 @@
 <template>
     <div class="departement-analyse-page">
         <div class="departement-analyse-actions">
+<<<<<<< HEAD
             <RouterLink :to="{ name: 'cartographie.home' }" class="departement-analyse-back">
+=======
+            <RouterLink
+                :to="{
+                    name: 'cartographie.departement-dashboard',
+                    params: { code: route.params.code },
+                    query: environmentQueryParams(route),
+                }"
+                class="departement-analyse-back"
+            >
+>>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                 ← Dashboard
             </RouterLink>
             <RouterLink
@@ -57,6 +68,10 @@
                     :department-code="route.params.code"
                     :department-environment="route.query.environment"
                     :permissions="permissions"
+<<<<<<< HEAD
+=======
+                    :risk-classifications="riskClassifications"
+>>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                     :empty-message="emptyMessage"
                     @edit="openEditModal"
                     @delete="deleteRow"
