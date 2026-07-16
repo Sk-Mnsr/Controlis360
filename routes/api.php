@@ -13,10 +13,7 @@ use App\Http\Controllers\API\MissionResponseController;
 use App\Http\Controllers\API\MissionParametrageController;
 use App\Http\Controllers\API\MissionTypeController;
 use App\Http\Controllers\API\RecommendationController;
-<<<<<<< HEAD
 use App\Http\Controllers\API\RegulatoryReportingFicheController;
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 use App\Http\Controllers\API\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -67,10 +64,7 @@ Route::controller(AuthController::class)->group(function () {
                 Route::get('top-risques', 'topRisques')->name('top-risques');
                 Route::put('top-risques', 'updateTopRisques')->name('top-risques.update');
                 Route::get('entities-departments', 'entitiesDepartments')->name('entities-departments');
-<<<<<<< HEAD
-=======
                 Route::get('cartographie-dashboard', 'cartographieDashboard')->name('cartographie-dashboard');
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                 Route::get('analyse-risques/{code}', 'analyseRisques')->name('analyse-risques');
                 Route::get('analyse-risques/{code}/historique', 'analyseRisquesHistorique')->name('analyse-risques.historique');
                 Route::put('analyse-risques/{code}', 'updateAnalyseRisques')->name('analyse-risques.update');
@@ -176,7 +170,6 @@ Route::controller(AuthController::class)->group(function () {
                 Route::delete('/{id}', 'destroy')->name('destroy');
             });
 
-<<<<<<< HEAD
             Route::prefix('regulatory-reporting-fiches')->name('regulatory-reporting-fiche.')->controller(RegulatoryReportingFicheController::class)->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::get('/inbox', 'inbox')->name('inbox');
@@ -187,8 +180,6 @@ Route::controller(AuthController::class)->group(function () {
                 Route::delete('/{id}', 'destroy')->name('destroy');
             });
 
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
             // Routes supplémentaires sous autorisation
         });
     });

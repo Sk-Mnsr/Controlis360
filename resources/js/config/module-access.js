@@ -3,10 +3,7 @@ import { modules } from './modules';
 const MODULE_PROFILES = {
     cartographie: ['super_admin', 'admin', 'superviseur', 'controle', 'metier'],
     audit: ['super_admin', 'regulateur', 'controle', 'audit'],
-<<<<<<< HEAD
     conformite: ['super_admin', 'conformite'],
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 };
 
 export function canAccessModule(profile, slug, user = null) {
@@ -30,7 +27,6 @@ export function canAccessModule(profile, slug, user = null) {
         return false;
     }
 
-<<<<<<< HEAD
     if (slug === 'conformite') {
         if (MODULE_PROFILES.conformite.includes(profile)) {
             return true;
@@ -43,8 +39,6 @@ export function canAccessModule(profile, slug, user = null) {
         return false;
     }
 
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
     const allowedProfiles = MODULE_PROFILES[slug];
     return allowedProfiles ? allowedProfiles.includes(profile) : false;
 }

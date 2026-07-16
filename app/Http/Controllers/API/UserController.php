@@ -24,11 +24,8 @@ class UserController extends APIController
 
     protected array $updateRelationArray = ['environments', 'entities'];
 
-<<<<<<< HEAD
     private const PROFILE_RULE = 'super_admin,admin,superviseur,regulateur,controle,audit,conformite,metier';
-=======
     private const PROFILE_RULE = 'super_admin,admin,superviseur,regulateur,controle,audit,metier';
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 
     public function __construct()
     {

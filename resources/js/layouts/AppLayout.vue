@@ -163,10 +163,7 @@
                     <button
                         type="button"
                         class="nav-cartographie"
-<<<<<<< HEAD
-=======
                         :class="{ 'nav-cartographie-active': isCartographieSection }"
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                         @click="openCartographie"
                     >
                         Cartographie
@@ -231,7 +228,6 @@
                     </template>
                 </template>
 
-<<<<<<< HEAD
                 <template v-else-if="activeModule?.slug === 'conformite'">
                     <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
                         ← Tous les modules
@@ -272,8 +268,6 @@
                     </RouterLink>
                 </template>
 
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                 <template v-else>
                     <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
                         ← Tous les modules
@@ -346,7 +340,6 @@
         </aside>
 
         <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-<<<<<<< HEAD
             <main
                 class="min-h-0 flex-1"
                 :class="[
@@ -354,9 +347,6 @@
                     isConformiteSaisieSection ? 'overflow-hidden' : 'overflow-y-auto',
                 ]"
             >
-=======
-            <main class="min-h-0 flex-1 overflow-y-auto" :class="isFullBleedPage ? 'flex flex-col' : 'p-6 lg:p-8'">
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                 <RouterView />
             </main>
         </div>
@@ -376,10 +366,7 @@ import api from '../api/client';
 
 const auth = useAuthStore();
 const { canCreateRiskRow } = useCartographiePermissions();
-<<<<<<< HEAD
 const canCreateMission = computed(() => userCanCreateMission(auth.user));
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 const route = useRoute();
 const router = useRouter();
 const { cartographie, navigateMethodology, goToDashboard, selectDepartmentEntity } = useCartographieNavigation();
@@ -389,37 +376,21 @@ const isPortal = computed(() => route.name === 'portal');
 const activeModule = computed(() => getModuleFromRoute(route));
 const isFullBleedPage = computed(() =>
     route.name === 'cartographie.home'
-<<<<<<< HEAD
+    || route.name === 'cartographie.cartographie'
     || route.name === 'cartographie.methodology.show'
     || route.name === 'cartographie.departement-analyse'
     || route.name === 'conformite.reporting.create'
     || route.name === 'conformite.reporting.edit',
 );
 const hideSidebar = computed(() => route.name === 'audit.missions.show');
-const isDashboardActive = computed(() =>
-    route.name === 'cartographie.home' && cartographie.selectedDepartment === 'DASHBOARD',
-=======
-    || route.name === 'cartographie.cartographie'
-    || route.name === 'cartographie.methodology.show'
-    || route.name === 'cartographie.departement-analyse',
-);
-const hideSidebar = computed(() => route.name === 'audit.missions.show');
 const isCartographieSection = computed(() => route.name === 'cartographie.cartographie');
 const isDashboardActive = computed(() =>
     (route.name === 'cartographie.home' && cartographie.selectedDepartment === 'DASHBOARD')
     || route.name === 'cartographie.departement-dashboard',
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 );
 const isMethodologySection = computed(() => route.name === 'cartographie.methodology.show');
 const isSaisieSection = computed(() => route.name === 'cartographie.saisie-risques');
 const isDepartmentsSection = computed(() =>
-<<<<<<< HEAD
-    (route.name === 'cartographie.departement-analyse' || route.name === 'cartographie.departement-historique')
-    && activeEntityType.value === 'department',
-);
-const isAgenciesSection = computed(() =>
-    (route.name === 'cartographie.departement-analyse' || route.name === 'cartographie.departement-historique')
-=======
     (route.name === 'cartographie.departement-analyse'
         || route.name === 'cartographie.departement-dashboard'
         || route.name === 'cartographie.departement-historique')
@@ -429,7 +400,6 @@ const isAgenciesSection = computed(() =>
     (route.name === 'cartographie.departement-analyse'
         || route.name === 'cartographie.departement-dashboard'
         || route.name === 'cartographie.departement-historique')
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
     && activeEntityType.value === 'agency',
 );
 const isEnvironmentsSection = computed(() => route.path.startsWith('/environments'));
@@ -454,7 +424,6 @@ const isAuditRegulatorSection = computed(() =>
     route.name === 'audit.regulator'
     || route.name === 'audit.regulator.show',
 );
-<<<<<<< HEAD
 const isConformiteSaisieSection = computed(() =>
     route.name === 'conformite.reporting.create'
     || route.name === 'conformite.reporting.edit',
@@ -467,8 +436,6 @@ const isConformiteReceptionSection = computed(() =>
 const canManageConformiteSaisie = computed(() =>
     ['super_admin', 'conformite'].includes(auth.user?.profile),
 );
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 const isRegulatorOnly = computed(() => auth.user?.profile === 'regulateur');
 const showRegulatorNav = computed(() => isRegulatorProfile(auth.user?.profile));
 const canManageUsers = computed(() => ['super_admin', 'admin'].includes(auth.user?.profile));
@@ -477,13 +444,9 @@ const agenciesOpen = ref(false);
 const entitiesLoading = ref(false);
 
 const activeEntityType = computed(() => {
-<<<<<<< HEAD
-    if (route.name !== 'cartographie.departement-analyse' && route.name !== 'cartographie.departement-historique') {
-=======
     if (route.name !== 'cartographie.departement-analyse'
         && route.name !== 'cartographie.departement-dashboard'
         && route.name !== 'cartographie.departement-historique') {
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
         return null;
     }
 
@@ -500,13 +463,10 @@ function normalizeEntitiesPayload(payload) {
         return payload.data;
     }
 
-<<<<<<< HEAD
-=======
     if (Array.isArray(payload?.data?.data)) {
         return payload.data.data;
     }
 
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
     return [];
 }
 
@@ -555,10 +515,7 @@ function isMethodologyItemActive(item) {
 
 function isEntityActive(entity) {
     const onEntityRoute = route.name === 'cartographie.departement-analyse'
-<<<<<<< HEAD
-=======
         || route.name === 'cartographie.departement-dashboard'
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
         || route.name === 'cartographie.departement-historique';
 
     if (!onEntityRoute || route.params.code !== entity.code) {
@@ -590,10 +547,6 @@ function entityNavLabel(entity) {
 }
 
 function openCartographie() {
-<<<<<<< HEAD
-    cartographie.openCartographie();
-    router.push({ name: 'cartographie.home' });
-=======
     cartographie.statusMessage = '';
     cartographie.resetDashboard();
 
@@ -603,7 +556,6 @@ function openCartographie() {
         name: 'cartographie.cartographie',
         query: environment ? { environment } : {},
     });
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 }
 
 const userRoleLabel = computed(() => {
@@ -705,13 +657,10 @@ async function handleLogout() {
     opacity: 0.92;
 }
 
-<<<<<<< HEAD
-=======
 .nav-cartographie-active {
     box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
 }
 
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 .nav-group {
     margin-top: 0.25rem;
 }

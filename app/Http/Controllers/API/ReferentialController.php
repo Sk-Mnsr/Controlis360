@@ -488,15 +488,9 @@ class ReferentialController extends APIController
     /**
      * Plus gros risques opérationnels à fort impact business.
      */
-<<<<<<< HEAD
-    public function topRisques()
-    {
-        return $this->responseOk($this->buildTopRisquesPayload());
-=======
     public function topRisques(Request $request)
     {
         return $this->responseOk($this->buildTopRisquesPayload($request));
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
     }
 
     /**
@@ -526,31 +520,6 @@ class ReferentialController extends APIController
 
         $this->syncTopRisques($request->input('rows', []));
 
-<<<<<<< HEAD
-        return $this->topRisques();
-    }
-
-    private function buildTopRisquesPayload(): array
-    {
-        $rows = TopRisk::query()->orderBy('sort_order')->get()->map(function (TopRisk $row) {
-            $classification = ($row->gravity && $row->probability)
-                ? RiskClassification::forCell($row->gravity, $row->probability)
-                : null;
-
-            return [
-                'id' => $row->id,
-                'process_name' => $row->process_name,
-                'sub_process_name' => $row->sub_process_name,
-                'major_exceptions' => $row->major_exceptions,
-                'risk_family' => $row->risk_family,
-                'gravity' => $row->gravity,
-                'probability' => $row->probability,
-                'gross_risk' => $row->gross_risk,
-                'classification' => $classification,
-                'sort_order' => $row->sort_order,
-            ];
-        });
-=======
         return $this->topRisques($request);
     }
 
@@ -606,15 +575,11 @@ class ReferentialController extends APIController
 
                 return $formatted;
             });
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 
         return [
             'title' => 'RISQUES OPERATIONNELS A FORT IMPACT BUSINESS',
             'rows' => $rows,
-<<<<<<< HEAD
-=======
             'is_dynamic' => true,
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
         ];
     }
 
@@ -692,8 +657,6 @@ class ReferentialController extends APIController
     }
 
     /**
-<<<<<<< HEAD
-=======
      * Dashboard cartographie global (risques bruts et résiduels par entité).
      */
     public function cartographieDashboard(Request $request)
@@ -702,7 +665,6 @@ class ReferentialController extends APIController
     }
 
     /**
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
      * Données pour la saisie centralisée des risques opérationnels.
      */
     public function saisieRisquesContext(Request $request)
@@ -724,15 +686,15 @@ class ReferentialController extends APIController
         $user = $request->user();
 
         if ($user->environment_id) {
-            $query->where('environment_id', $user->environment_id);
+            $entitiesQuery->where('environment_id', $user->environment_id);
         } elseif ($user->isSuperAdmin()) {
             $environmentId = Environment::query()->orderBy('id')->value('id');
             if ($environmentId) {
-                $query->where('environment_id', $environmentId);
+                $entitiesQuery->where('environment_id', $environmentId);
             }
         }
 
-        return $this->responseOk($query->get());
+        return $this->responseOk($entitiesQuery->get());
     }
 
     /**
@@ -839,33 +801,12 @@ class ReferentialController extends APIController
 
     private function resolveDepartmentEntity(Request $request, string $code): ?Entity
     {
-<<<<<<< HEAD
-        $query = Entity::query()
-            ->with('environment')
-            ->where('type', 'department')
-            ->where('code', $code)
-            ->where('is_active', true);
-
-        $user = $request->user();
-
-        if ($user->environment_id) {
-            $query->where('environment_id', $user->environment_id);
-        } elseif ($user->isSuperAdmin()) {
-            $environmentId = Environment::query()->orderBy('id')->value('id');
-            if ($environmentId) {
-                $query->where('environment_id', $environmentId);
-            }
-        }
-
-        return $query->first();
-=======
         return Entity::resolveDepartmentForUser(
             $request->user(),
             $code,
             $request->query('environment'),
             $request->integer('entity_id') ?: null
         );
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
     }
 
     private function buildAnalyseRisquesPayload(Entity $entity, bool $includeDrafts = false): array
@@ -907,13 +848,10 @@ class ReferentialController extends APIController
                 ->orderBy('sort_order')
                 ->pluck('name')
                 ->values(),
-<<<<<<< HEAD
-=======
             'risk_categories' => RiskCategory::query()
                 ->with(['families' => fn ($query) => $query->orderBy('sort_order')])
                 ->orderBy('sort_order')
                 ->get(),
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
             'risk_classifications' => RiskClassification::query()
                 ->orderBy('sort_order')
                 ->get(),
@@ -980,8 +918,6 @@ class ReferentialController extends APIController
             ->whereNotIn('id', $keptIds)
             ->delete();
     }
-<<<<<<< HEAD
-=======
 
     private function buildCartographieDashboardPayload(Request $request): array
     {
@@ -1176,5 +1112,4 @@ class ReferentialController extends APIController
             ->values()
             ->all();
     }
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 }

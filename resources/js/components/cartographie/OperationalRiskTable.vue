@@ -92,8 +92,6 @@
                         </td>
                     </tr>
                 </template>
-<<<<<<< HEAD
-=======
                 <tr v-if="rows.length && summaryAverages" class="operational-risk-summary">
                     <td colspan="7" class="operational-risk-summary-label operational-risk-summary-label-gross">
                         Évaluation intrinsèque
@@ -127,7 +125,6 @@
                     </td>
                     <td class="operational-risk-actions" />
                 </tr>
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
             </tbody>
         </table>
 
@@ -240,11 +237,7 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { groupRowsBySubProcess } from '../../utils/operationalRiskGroups';
-<<<<<<< HEAD
-import { formatRiskScore, resolvedResidualFields, scoreStyle } from '../../utils/riskScore';
-=======
 import { formatRiskScore, resolvedResidualFields, scoreStyle, computeRiskAverages, classificationForCell } from '../../utils/riskScore';
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 
 const props = defineProps({
     title: { type: String, required: true },
@@ -256,10 +249,7 @@ const props = defineProps({
         type: String,
         default: 'Aucune ligne d\'analyse pour ce département.',
     },
-<<<<<<< HEAD
-=======
     riskClassifications: { type: Array, default: () => [] },
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 });
 
 const emit = defineEmits([
@@ -279,8 +269,6 @@ const menuPanelStyle = ref({ top: '0px', left: '0px' });
 
 const groupedRows = computed(() => groupRowsBySubProcess(props.rows));
 
-<<<<<<< HEAD
-=======
 const summaryAverages = computed(() => {
     if (!props.rows.length) {
         return null;
@@ -317,7 +305,6 @@ const residualSummaryStyle = computed(() => {
     ));
 });
 
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 const canAddException = computed(() => props.permissions.can_create_row && props.departmentCode);
 
 function hasAnyAction(row) {
@@ -618,8 +605,6 @@ function residualScoreStyle(row) {
     font-weight: 700;
 }
 
-<<<<<<< HEAD
-=======
 .operational-risk-summary {
     background: #fff7ed;
 }
@@ -644,7 +629,6 @@ function residualScoreStyle(row) {
     background: #fffbeb;
 }
 
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 .operational-risk-empty {
     text-align: center;
     color: #64748b;

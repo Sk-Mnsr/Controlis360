@@ -53,10 +53,7 @@ class User extends AuthenticatableBase
                 'regulateur' => 'Régulateur',
                 'controle' => 'Contrôle',
                 'audit' => 'Audit',
-<<<<<<< HEAD
                 'conformite' => 'Conformité',
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                 'metier' => 'Métier',
             ],
         ],
@@ -82,12 +79,9 @@ class User extends AuthenticatableBase
                 'audit' => [
                     ['subject' => ['recommendation', 'mission'], 'action' => ['create', 'read', 'update', 'validate']],
                 ],
-<<<<<<< HEAD
                 'conformite' => [
                     ['subject' => ['recommendation', 'mission', 'compliance'], 'action' => ['create', 'read', 'update', 'validate']],
                 ],
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                 'metier' => [
                     ['subject' => ['evaluation', 'report'], 'action' => ['read']],
                 ],
@@ -212,8 +206,6 @@ class User extends AuthenticatableBase
         return $this->profile === UserProfile::Admin->value;
     }
 
-<<<<<<< HEAD
-=======
     public function isControleAgent(): bool
     {
         return $this->profile === UserProfile::Controle->value
@@ -226,15 +218,12 @@ class User extends AuthenticatableBase
             && $this->controle_role === 'responsable_controle_permanent';
     }
 
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
     public function isEntityResponsable(): bool
     {
         return $this->profile === UserProfile::Metier->value
             && $this->metier_role === 'responsable_entite';
     }
 
-<<<<<<< HEAD
-=======
     public function canEditMethodology(): bool
     {
         return $this->isSuperAdmin() || $this->isControleResponsable();
@@ -245,7 +234,6 @@ class User extends AuthenticatableBase
         return $this->isSuperAdmin() || $this->isControleAgent() || $this->isControleResponsable();
     }
 
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
     public function belongsToEnvironment(?int $environmentId): bool
     {
         if ($environmentId === null) {

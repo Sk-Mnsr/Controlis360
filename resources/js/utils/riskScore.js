@@ -86,8 +86,6 @@ export function scoreStyle(classification) {
         fontWeight: '700',
     };
 }
-<<<<<<< HEAD
-=======
 
 function averageNumeric(values) {
     const numbers = values.filter((value) => value !== null && value !== undefined && value !== '');
@@ -251,4 +249,3 @@ export function computeRiskAverages(rows) {
         },
     };
 }
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec

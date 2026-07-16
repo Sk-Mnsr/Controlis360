@@ -33,8 +33,6 @@ export function groupRowsBySubProcess(rows) {
     return groups;
 }
 
-<<<<<<< HEAD
-=======
 export function groupRowsByProcess(rows) {
     const groups = [];
     const indexByKey = new Map();
@@ -57,7 +55,6 @@ export function groupRowsByProcess(rows) {
     return groups;
 }
 
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 export function subProcessFieldsFromRow(row) {
     return {
         process_number: row.process_number,

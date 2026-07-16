@@ -101,7 +101,6 @@ class UserSeeder extends Seeder
                 'entity_ids' => [],
                 'job_title' => 'Régulateur',
             ],
-<<<<<<< HEAD
             [
                 'name' => 'Mariama BA',
                 'email' => 'mariama.ba@cofinacorp.com',
@@ -118,8 +117,6 @@ class UserSeeder extends Seeder
                 ]),
                 'job_title' => 'Responsable Conformité',
             ],
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
         ];
 
         foreach ($users as $userData) {

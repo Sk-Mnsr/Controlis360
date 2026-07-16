@@ -6,10 +6,7 @@ use App\Models\Mission;
 use App\Models\MissionResponse;
 use App\Models\Recommendation;
 use App\Models\RecommendationActionPlan;
-<<<<<<< HEAD
 use App\Models\RegulatoryReportingFiche;
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 use App\Models\User;
 
 class AttachmentAccessService
@@ -24,7 +21,6 @@ class AttachmentAccessService
             return true;
         }
 
-<<<<<<< HEAD
         if (preg_match('#^regulatory-reporting/(\d+)/#', $path, $matches)) {
             $fiche = RegulatoryReportingFiche::query()->find((int) $matches[1]);
 
@@ -48,8 +44,6 @@ class AttachmentAccessService
             return false;
         }
 
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
         if (preg_match('#^action-plans/(\d+)/#', $path, $matches)) {
             $plan = RecommendationActionPlan::query()
                 ->with(['recommendation'])

@@ -94,14 +94,11 @@ const routes = [
                         component: () => import('../views/HomeView.vue'),
                     },
                     {
-<<<<<<< HEAD
-=======
                         path: 'cartographie',
                         name: 'cartographie.cartographie',
                         component: () => import('../views/cartographie/CartographieView.vue'),
                     },
                     {
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                         path: 'methodology/:slug',
                         name: 'cartographie.methodology.show',
                         component: () => import('../views/methodology/MethodologyPageView.vue'),
@@ -179,14 +176,11 @@ const routes = [
                         component: () => import('../views/cartographie/DepartementAnalyseView.vue'),
                     },
                     {
-<<<<<<< HEAD
-=======
                         path: 'departements/:code/dashboard',
                         name: 'cartographie.departement-dashboard',
                         component: () => import('../views/cartographie/DepartementDashboardView.vue'),
                     },
                     {
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                         path: 'departements/:code/historique',
                         name: 'cartographie.departement-historique',
                         component: () => import('../views/cartographie/HistoriqueView.vue'),
@@ -276,49 +270,6 @@ const routes = [
                 ],
             },
             {
-<<<<<<< HEAD
-                path: 'conformite',
-                meta: { module: 'conformite' },
-                children: [
-                    {
-                        path: '',
-                        redirect: { name: 'conformite.home' },
-                    },
-                    {
-                        path: 'home',
-                        name: 'conformite.home',
-                        component: () => import('../views/conformite/ConformiteHomeView.vue'),
-                    },
-                    {
-                        path: 'reporting/nouvelle',
-                        name: 'conformite.reporting.create',
-                        component: () => import('../views/conformite/ReportingFicheFormView.vue'),
-                    },
-                    {
-                        path: 'reporting/:id/modifier',
-                        name: 'conformite.reporting.edit',
-                        component: () => import('../views/conformite/ReportingFicheFormView.vue'),
-                    },
-                    {
-                        path: 'reporting',
-                        name: 'conformite.reporting.history',
-                        component: () => import('../views/conformite/ReportingFicheHistoryView.vue'),
-                    },
-                    {
-                        path: 'reception',
-                        name: 'conformite.reporting.reception',
-                        component: () => import('../views/conformite/ReportingReceptionHistoryView.vue'),
-                    },
-                    {
-                        path: 'reception/:id',
-                        name: 'conformite.reporting.reception.show',
-                        component: () => import('../views/conformite/ReportingReceptionDetailView.vue'),
-                    },
-                ],
-            },
-            {
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                 path: 'home',
                 redirect: { name: 'cartographie.home' },
             },
