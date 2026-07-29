@@ -247,6 +247,41 @@
                     <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
                         ← Tous les modules
                     </RouterLink>
+
+                    <RouterLink
+                        v-if="platformProfile === 'super_admin' || platformProfile === 'admin'"
+                        class="nav-link"
+                        :class="{ 'nav-link-active': isEnvironmentsSection }"
+                        :to="platformProfile === 'admin' ? adminEnvironmentRoute : { name: 'environments' }"
+                    >
+                        {{
+                            platformProfile === 'admin' && adminEnvironmentIds.length <= 1
+                                ? 'Mon environnement'
+                                : (platformProfile === 'admin' ? 'Mes environnements' : 'Environnements')
+                        }}
+                    </RouterLink>
+
+                    <div v-if="canManageUsers" class="nav-group">
+                        <p class="nav-group-label" :class="{ 'nav-group-label-active': isUsersSection }">
+                            Utilisateurs
+                        </p>
+                        <div class="nav-group-children">
+                            <RouterLink
+                                class="nav-sublink"
+                                :class="{ 'nav-sublink-active': isUsersCreateSection }"
+                                :to="{ name: 'users.create' }"
+                            >
+                                Nouveau
+                            </RouterLink>
+                            <RouterLink
+                                class="nav-sublink"
+                                :class="{ 'nav-sublink-active': isUsersHistorySection }"
+                                :to="{ name: 'users.history' }"
+                            >
+                                Historiques
+                            </RouterLink>
+                        </div>
+                    </div>
                 </template>
             </nav>
 
@@ -367,6 +402,26 @@ const canManageConformiteSaisie = computed(() =>
 );
 const isRegulatorOnly = computed(() => platformProfile.value === 'regulateur');
 const showRegulatorNav = computed(() => isRegulatorProfile(platformProfile.value));
+const canManageUsers = computed(() => ['super_admin', 'admin'].includes(platformProfile.value));
+
+const adminEnvironmentIds = computed(() => {
+    const user = auth.baseUser ?? auth.user;
+    if (Array.isArray(user?.environment_ids) && user.environment_ids.length) {
+        return user.environment_ids.map((id) => Number(id)).filter((id) => !Number.isNaN(id));
+    }
+
+    return (user?.environments ?? [])
+        .map((environment) => Number(environment.id))
+        .filter((id) => !Number.isNaN(id));
+});
+
+const adminEnvironmentRoute = computed(() => {
+    if (adminEnvironmentIds.value.length === 1) {
+        return { name: 'environments.detail', params: { id: adminEnvironmentIds.value[0] } };
+    }
+
+    return { name: 'environments' };
+});
 
 const departmentsOpen = ref(false);
 const agenciesOpen = ref(false);
