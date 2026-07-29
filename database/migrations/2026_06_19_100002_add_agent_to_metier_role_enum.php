@@ -17,6 +17,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        DB::table('users')
+            ->where('metier_role', 'agent')
+            ->update(['metier_role' => null]);
+
         $this->updateMetierRoleConstraint([
             'responsable_entite',
             'groupe',
