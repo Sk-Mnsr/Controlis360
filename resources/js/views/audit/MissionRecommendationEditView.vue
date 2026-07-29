@@ -220,37 +220,38 @@ const missionEntities = computed(() => mission.value?.entities ?? []);
 const departmentOptions = computed(() => {
     const byId = new Map();
 
-    for (const entity of environmentDepartments.value) {
-        byId.set(Number(entity.id), {
-            id: entity.id,
-            name: entity.name,
-            responsible_name: entity.responsible_name ?? '',
+    const upsert = (entity) => {
+        const id = Number(entity.id);
+        const existing = byId.get(id);
+        const type = entity.type ?? existing?.type ?? 'department';
+
+        byId.set(id, {
+            id,
+            name: entity.name ?? existing?.name ?? '',
+            type,
+            responsible_name: entity.responsible_name ?? existing?.responsible_name ?? '',
+            group: type === 'agency' ? 'Agences' : 'Départements',
         });
+    };
+
+    for (const entity of environmentDepartments.value) {
+        upsert(entity);
     }
 
     for (const entity of missionEntities.value) {
-        const id = Number(entity.id);
-        const existing = byId.get(id);
-
-        byId.set(id, {
-            id,
-            name: entity.name ?? existing?.name ?? '',
-            responsible_name: entity.responsible_name ?? existing?.responsible_name ?? '',
-        });
+        upsert(entity);
     }
 
     for (const entity of recommendation.value?.entities ?? []) {
-        const id = Number(entity.id);
-        const existing = byId.get(id);
-
-        byId.set(id, {
-            id,
-            name: entity.name ?? existing?.name ?? '',
-            responsible_name: entity.responsible_name ?? existing?.responsible_name ?? '',
-        });
+        upsert(entity);
     }
 
-    return [...byId.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'fr'));
+    return [...byId.values()].sort((a, b) => {
+        const groupOrder = (a.group === 'Départements' ? 0 : 1) - (b.group === 'Départements' ? 0 : 1);
+        if (groupOrder !== 0) return groupOrder;
+
+        return String(a.name).localeCompare(String(b.name), 'fr');
+    });
 });
 
 const missionDepartmentsLabel = computed(() => {

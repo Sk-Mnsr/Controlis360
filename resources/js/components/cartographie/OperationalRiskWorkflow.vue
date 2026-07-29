@@ -10,6 +10,7 @@
             <OperationalRiskSubProcessFields v-model="createSubProcessForm" :department-name="departmentName" />
             <OperationalRiskExceptionFields
                 v-model="createExceptionForm"
+                :risk-categories="riskCategories"
                 :risk-families="riskFamilies"
                 :risk-classifications="riskClassifications"
             />
@@ -48,6 +49,7 @@
                 >
                     <OperationalRiskExceptionFields
                         v-model="addExceptionForm"
+                        :risk-categories="riskCategories"
                         :risk-families="riskFamilies"
                         :risk-classifications="riskClassifications"
                     />
@@ -79,6 +81,7 @@
                         <form v-if="canEditPhase1(row)" @submit.prevent="savePhase1(row, group)">
                             <OperationalRiskExceptionFields
                                 v-model="exceptionForms[row.id]"
+                                :risk-categories="riskCategories"
                                 :risk-families="riskFamilies"
                                 :risk-classifications="riskClassifications"
                             />
@@ -121,6 +124,7 @@
                         <form v-else-if="canEditPhase2(row)" @submit.prevent="savePhase2(row)">
                             <OperationalRiskExceptionFields
                                 :model-value="exceptionForms[row.id]"
+                                :risk-categories="riskCategories"
                                 :risk-families="riskFamilies"
                                 :risk-classifications="riskClassifications"
                                 readonly
@@ -139,6 +143,7 @@
                         <OperationalRiskExceptionFields
                             v-else
                             :model-value="exceptionForms[row.id]"
+                            :risk-categories="riskCategories"
                             :risk-families="riskFamilies"
                             :risk-classifications="riskClassifications"
                             readonly
@@ -167,6 +172,7 @@ const props = defineProps({
     permissions: { type: Object, default: () => ({}) },
     assignableEntities: { type: Array, default: () => [] },
     riskFamilies: { type: Array, default: () => [] },
+    riskCategories: { type: Array, default: () => [] },
     riskClassifications: { type: Array, default: () => [] },
     departmentCode: { type: String, required: true },
     departmentName: { type: String, default: '' },

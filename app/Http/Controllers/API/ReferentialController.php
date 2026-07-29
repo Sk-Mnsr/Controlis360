@@ -557,7 +557,7 @@ class ReferentialController extends APIController
             ->whereIn('entity_id', $entityIds)
             ->whereNotNull('gravity')
             ->whereNotNull('probability')
-            ->whereRaw('gravity * probability >= 10');
+            ->whereRaw('gravity * probability >= 20');
 
         if ($user->isEntityResponsable()) {
             $rowsQuery->visibleToEntityResponsable($user);
@@ -641,17 +641,31 @@ class ReferentialController extends APIController
     {
         $user = $request->user();
 
-        $entities = Entity::query()
-            ->with('environment')
+        $query = Entity::query()
+            ->with(['environment', 'responsables:id,name'])
             ->whereIn('type', ['department', 'agency'])
             ->where('is_active', true)
             ->visibleToUser($user)
             ->orderBy('environment_id')
             ->orderBy('sort_order')
-            ->orderBy('name')
+            ->orderBy('name');
+
+        if ($request->filled('environment_id')) {
+            $query->where('environment_id', (int) $request->input('environment_id'));
+        }
+
+        $entities = $query
             ->get()
             ->unique('id')
-            ->values();
+            ->values()
+            ->map(function (Entity $entity) {
+                $entity->setAttribute(
+                    'responsible_name',
+                    $entity->responsables->pluck('name')->filter()->implode(', ') ?: null
+                );
+
+                return $entity;
+            });
 
         return $this->responseOk($entities);
     }
@@ -679,22 +693,35 @@ class ReferentialController extends APIController
             ->with('environment:id,code,name')
             ->whereIn('type', ['department', 'agency'])
             ->where('is_active', true)
+            ->visibleToUser($user)
             ->orderBy('environment_id')
             ->orderBy('sort_order')
             ->orderBy('name');
 
-        $user = $request->user();
-
-        if ($user->environment_id) {
-            $entitiesQuery->where('environment_id', $user->environment_id);
-        } elseif ($user->isSuperAdmin()) {
+        if ($user->isSuperAdmin() && $user->environment_ids === []) {
             $environmentId = Environment::query()->orderBy('id')->value('id');
             if ($environmentId) {
                 $entitiesQuery->where('environment_id', $environmentId);
             }
         }
 
-        return $this->responseOk($entitiesQuery->get());
+        return $this->responseOk([
+            'entities' => $entitiesQuery->get()->toArray(),
+            'risk_families' => RiskFamily::query()
+                ->orderBy('sort_order')
+                ->pluck('name')
+                ->values()
+                ->all(),
+            'risk_categories' => RiskCategory::query()
+                ->with(['families' => fn ($query) => $query->orderBy('sort_order')])
+                ->orderBy('sort_order')
+                ->get()
+                ->toArray(),
+            'risk_classifications' => RiskClassification::query()
+                ->orderBy('sort_order')
+                ->get()
+                ->toArray(),
+        ]);
     }
 
     /**
@@ -923,6 +950,7 @@ class ReferentialController extends APIController
     {
         $user = $request->user();
         $environmentCode = $request->query('environment');
+        $isGroupeScope = $environmentCode === 'all' || $environmentCode === 'groupe';
         $formatter = app(OperationalRiskRowController::class);
 
         $entitiesQuery = Entity::query()
@@ -930,17 +958,20 @@ class ReferentialController extends APIController
             ->whereIn('type', ['department', 'agency'])
             ->where('is_active', true)
             ->visibleToUser($user)
+            ->orderBy('environment_id')
             ->orderBy('sort_order')
             ->orderBy('name');
 
-        if ($user->environment_id) {
-            $entitiesQuery->where('environment_id', $user->environment_id);
+        if ($isGroupeScope) {
+            // Toutes les filiales visibles pour l'utilisateur (pas de filtre mono-env).
         } elseif ($environmentCode) {
             $entitiesQuery->whereHas(
                 'environment',
                 fn ($query) => $query->where('code', $environmentCode)
             );
-        } else {
+        } elseif ($user->environment_id) {
+            $entitiesQuery->where('environment_id', $user->environment_id);
+        } elseif ($user->isSuperAdmin()) {
             $environmentId = Environment::query()->orderBy('id')->value('id');
 
             if ($environmentId) {
@@ -949,7 +980,7 @@ class ReferentialController extends APIController
         }
 
         $entities = $entitiesQuery->get();
-        $environment = $entities->first()?->environment;
+        $environment = $isGroupeScope ? null : $entities->first()?->environment;
 
         $rowsQuery = OperationalRiskRow::query()
             ->visibleInAnalyse()
@@ -972,10 +1003,13 @@ class ReferentialController extends APIController
 
         return [
             'title' => 'CARTOGRAPHIE DES RISQUES',
-            'subtitle' => $environment
-                ? 'Vue d\'ensemble des principaux risques — '.$environment->name
-                : 'Vue d\'ensemble des principaux risques',
+            'subtitle' => $isGroupeScope
+                ? 'Vue consolidée de toutes les filiales'
+                : ($environment
+                    ? 'Vue d\'ensemble des principaux risques — '.$environment->name
+                    : 'Vue d\'ensemble des principaux risques'),
             'environment' => $environment,
+            'scope' => $isGroupeScope ? 'groupe' : 'filiale',
             'classifications' => $matrice['classifications'],
             'matrix' => $matrice['matrix'],
             'risk_categories' => RiskCategory::query()
@@ -983,12 +1017,12 @@ class ReferentialController extends APIController
                 ->orderBy('sort_order')
                 ->get(),
             'rows' => $formattedRows,
-            'gross' => $this->buildCartographyModePayload($entities, $rowsByEntity, 'gross'),
-            'residual' => $this->buildCartographyModePayload($entities, $rowsByEntity, 'residual'),
+            'gross' => $this->buildCartographyModePayload($entities, $rowsByEntity, 'gross', $isGroupeScope),
+            'residual' => $this->buildCartographyModePayload($entities, $rowsByEntity, 'residual', $isGroupeScope),
         ];
     }
 
-    private function buildCartographyModePayload($entities, $rowsByEntity, string $mode): array
+    private function buildCartographyModePayload($entities, $rowsByEntity, string $mode, bool $groupeScope = false): array
     {
         $entitySummaries = [];
 
@@ -1005,7 +1039,18 @@ class ReferentialController extends APIController
                 'name' => $entity->name,
                 'code' => $entity->code,
                 'type' => $entity->type,
+                'environment' => $entity->environment
+                    ? [
+                        'id' => $entity->environment->id,
+                        'code' => $entity->environment->code,
+                        'name' => $entity->environment->name,
+                    ]
+                    : null,
             ]);
+        }
+
+        if ($groupeScope) {
+            $entitySummaries = $this->aggregateCartographyByEnvironment($entitySummaries);
         }
 
         $gravities = array_column($entitySummaries, 'gravity');
@@ -1013,15 +1058,23 @@ class ReferentialController extends APIController
 
         $averages = null;
         if ($gravities !== []) {
-            $avgG = round(array_sum($gravities) / count($gravities), 1);
-            $avgP = round(array_sum($probabilities) / count($probabilities), 1);
-            $avgRisk = round($avgG * $avgP, 1);
+            $avgG = (int) round(array_sum($gravities) / count($gravities));
+            $avgP = (int) round(array_sum($probabilities) / count($probabilities));
+            $avgRisk = $avgG * $avgP;
+            $classification = RiskClassification::forScore($avgRisk);
 
             $averages = [
                 'gravity' => $avgG,
                 'probability' => $avgP,
                 'risk_score' => $avgRisk,
-                'classification' => RiskClassification::forScore((int) round($avgRisk)),
+                'rows_count' => array_sum(array_column($entitySummaries, 'rows_count')),
+                'high_impact_count' => array_sum(array_column($entitySummaries, 'high_impact_count')),
+                'entities_count' => array_sum(array_map(
+                    fn ($item) => (int) ($item['entities_count'] ?? 1),
+                    $entitySummaries
+                )),
+                'classification' => $classification,
+                'level_label' => $classification?->name ?? 'Non significatif',
             ];
         }
 
@@ -1032,7 +1085,63 @@ class ReferentialController extends APIController
             'averages' => $averages,
             'distribution' => $distribution,
             'total_entities' => count($entitySummaries),
+            'scope' => $groupeScope ? 'groupe' : 'filiale',
+            'summary_label' => $groupeScope ? 'GROUPE' : 'FILIALE',
         ];
+    }
+
+    /**
+     * Agrège les entités par filiale (environnement) pour le dashboard groupe.
+     */
+    private function aggregateCartographyByEnvironment(array $entitySummaries): array
+    {
+        $grouped = [];
+
+        foreach ($entitySummaries as $summary) {
+            $envCode = $summary['environment']['code'] ?? 'unknown';
+
+            if (! isset($grouped[$envCode])) {
+                $grouped[$envCode] = [
+                    'items' => [],
+                    'environment' => $summary['environment'],
+                ];
+            }
+
+            $grouped[$envCode]['items'][] = $summary;
+        }
+
+        $filiales = [];
+
+        foreach ($grouped as $envCode => $group) {
+            $items = $group['items'];
+            $avgG = (int) round(array_sum(array_column($items, 'gravity')) / count($items));
+            $avgP = (int) round(array_sum(array_column($items, 'probability')) / count($items));
+            $riskScore = $avgG * $avgP;
+            $classification = RiskClassification::forScore($riskScore);
+            $environment = $group['environment'];
+
+            $filiales[] = [
+                'id' => 'env-'.($environment['id'] ?? $envCode),
+                'name' => $environment['name'] ?? $envCode,
+                'code' => $environment['code'] ?? $envCode,
+                'type' => 'filiale',
+                'environment' => $environment,
+                'gravity' => $avgG,
+                'probability' => $avgP,
+                'risk_score' => $riskScore,
+                'cell_gravity' => max(1, min(6, $avgG)),
+                'cell_probability' => max(1, min(6, $avgP)),
+                'rows_count' => array_sum(array_column($items, 'rows_count')),
+                'high_impact_count' => array_sum(array_column($items, 'high_impact_count')),
+                'entities_count' => count($items),
+                'classification' => $classification,
+                'level_label' => $classification?->name ?? 'Non significatif',
+            ];
+        }
+
+        usort($filiales, fn ($a, $b) => ($b['risk_score'] <=> $a['risk_score']) ?: strcmp($a['name'], $b['name']));
+
+        return $filiales;
     }
 
     private function computeEntityCartographySummary($rows, string $mode): ?array
@@ -1043,6 +1152,7 @@ class ReferentialController extends APIController
 
         $gravities = [];
         $probabilities = [];
+        $highImpactCount = 0;
 
         foreach ($rows as $row) {
             if ($mode === 'residual') {
@@ -1057,19 +1167,25 @@ class ReferentialController extends APIController
                 continue;
             }
 
+            $score = (float) $gravity * (float) $probability;
             $gravities[] = (float) $gravity;
             $probabilities[] = (float) $probability;
+
+            if ($score >= 20) {
+                $highImpactCount++;
+            }
         }
 
         if ($gravities === []) {
             return null;
         }
 
-        $avgG = round(array_sum($gravities) / count($gravities), 1);
-        $avgP = round(array_sum($probabilities) / count($probabilities), 1);
-        $riskScore = round($avgG * $avgP, 1);
-        $cellG = max(1, min(6, (int) round($avgG)));
-        $cellP = max(1, min(6, (int) round($avgP)));
+        $avgG = (int) round(array_sum($gravities) / count($gravities));
+        $avgP = (int) round(array_sum($probabilities) / count($probabilities));
+        $riskScore = $avgG * $avgP;
+        $cellG = max(1, min(6, $avgG));
+        $cellP = max(1, min(6, $avgP));
+        $classification = RiskClassification::forScore($riskScore);
 
         return [
             'gravity' => $avgG,
@@ -1077,7 +1193,10 @@ class ReferentialController extends APIController
             'risk_score' => $riskScore,
             'cell_gravity' => $cellG,
             'cell_probability' => $cellP,
-            'classification' => RiskClassification::forScore((int) round($riskScore)),
+            'rows_count' => count($gravities),
+            'high_impact_count' => $highImpactCount,
+            'classification' => $classification,
+            'level_label' => $classification?->name ?? 'Non significatif',
         ];
     }
 

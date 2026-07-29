@@ -12,7 +12,7 @@
 
         <div class="portal-grid">
             <article
-                v-for="module in modules"
+                v-for="module in accessibleModules"
                 :key="module.slug"
                 class="portal-card"
                 :class="{
@@ -53,9 +53,6 @@
                 <RouterLink :to="{ name: 'users.create' }" class="portal-admin-link">
                     Utilisateurs
                 </RouterLink>
-                <RouterLink :to="{ name: 'entities.members' }" class="portal-admin-link">
-                    Entités
-                </RouterLink>
             </div>
         </section>
     </div>
@@ -64,24 +61,25 @@
 <script setup>
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { modules } from '../config/modules';
-import { canAccessModule } from '../config/module-access';
+import { canAccessModule, getAccessibleModules } from '../config/module-access';
 import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
 const router = useRouter();
 
-const canManagePlatform = computed(() => ['super_admin', 'admin'].includes(auth.user?.profile));
+const accessibleModules = computed(() => getAccessibleModules(auth.baseUser ?? auth.user));
+const canManagePlatform = computed(() => ['super_admin', 'admin'].includes(auth.baseUser?.profile ?? auth.user?.profile));
 
 function openModule(module) {
     if (!module.active || !module.entryRoute) {
         return;
     }
 
-    if (!canAccessModule(auth.user?.profile, module.slug, auth.user)) {
+    if (!canAccessModule(auth.baseUser?.profile ?? auth.user?.profile, module.slug, auth.baseUser ?? auth.user)) {
         return;
     }
 
+    auth.setActiveModule(module.slug);
     router.push({ name: module.entryRoute });
 }
 </script>

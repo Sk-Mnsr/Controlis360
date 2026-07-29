@@ -14,7 +14,7 @@ return [
         'description' => 'Planification et suivi des recommandations.',
         'active' => true,
         'coming_soon' => false,
-        'entry_route' => 'audit.home',
+        'entry_route' => 'audit.dashboard',
     ],
     'conformite' => [
         'slug' => 'conformite',
@@ -23,8 +23,5 @@ return [
         'active' => true,
         'coming_soon' => false,
         'entry_route' => 'conformite.home',
-        'active' => false,
-        'coming_soon' => true,
-        'entry_route' => null,
     ],
 ];

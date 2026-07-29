@@ -31,7 +31,7 @@
                 </svg>
                 <div class="risk-distribution-center">
                     <span class="risk-distribution-total">{{ total }}</span>
-                    <span class="risk-distribution-total-label">entités</span>
+                    <span class="risk-distribution-total-label">{{ totalLabel }}</span>
                 </div>
             </div>
 
@@ -55,6 +55,7 @@ const props = defineProps({
     distribution: { type: Array, default: () => [] },
     classifications: { type: Array, default: () => [] },
     totalEntities: { type: Number, default: 0 },
+    totalLabel: { type: String, default: 'entités' },
 });
 
 const items = computed(() =>

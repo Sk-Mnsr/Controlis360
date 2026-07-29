@@ -8,22 +8,31 @@
 
             <div class="cartographie-header-actions">
                 <p class="cartographie-date">{{ formattedDate }}</p>
-                <label v-if="environmentOptions.length > 1" class="cartographie-environment">
-                    <span class="cartographie-environment-label">Environnement</span>
-                    <select
-                        class="cartographie-environment-select"
-                        :value="selectedEnvironment"
-                        @change="changeEnvironment"
-                    >
-                        <option
-                            v-for="environment in environmentOptions"
-                            :key="environment.code"
-                            :value="environment.code"
+                <div class="cartographie-environment-block">
+                    <label v-if="environmentOptions.length > 0" class="cartographie-environment">
+                        <span class="cartographie-environment-label">Environnement</span>
+                        <select
+                            class="cartographie-environment-select"
+                            :value="selectedEnvironment"
+                            @change="changeEnvironment"
                         >
-                            {{ environment.name || environment.code }}
-                        </option>
-                    </select>
-                </label>
+                            <option v-if="showGroupeOption" value="all">Toutes les filiales</option>
+                            <option
+                                v-for="environment in environmentOptions"
+                                :key="environment.code"
+                                :value="environment.code"
+                            >
+                                {{ environment.name || environment.code }}
+                            </option>
+                        </select>
+                    </label>
+                    <RouterLink
+                        :to="plusGrosRisquesRoute"
+                        class="cartographie-top-risks-btn"
+                    >
+                        Plus gros risques
+                    </RouterLink>
+                </div>
             </div>
         </header>
 
@@ -57,6 +66,7 @@
             :rows="rows"
             :categories="riskCategories"
             :classifications="classifications"
+            :scope="scope"
             :heatmap-title="activeTab === 'gross' ? 'Carte des risques bruts' : 'Carte des risques résiduels'"
             :probability-label="activeTab === 'gross' ? 'Probabilité' : 'Probabilité résiduelle'"
             :risk-label="activeTab === 'gross' ? 'Risque brut' : 'Risque résiduel'"
@@ -68,13 +78,14 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
+import { useAuthStore } from '../../stores/auth';
 import { useCartographieStore } from '../../stores/cartographie';
-import { environmentQueryParams } from '../../utils/entityEnvironment';
 import { formatDashboardDate, uniqueEnvironments } from '../../utils/cartographyDashboard';
 import CartographyDashboardPanel from '../../components/cartographie/CartographyDashboardPanel.vue';
 
 const route = useRoute();
 const router = useRouter();
+const auth = useAuthStore();
 const cartographie = useCartographieStore();
 
 const loading = ref(true);
@@ -86,8 +97,9 @@ const matrix = ref([]);
 const rows = ref([]);
 const riskCategories = ref([]);
 const classifications = ref([]);
-const gross = ref({ entities: [], averages: null, distribution: [], total_entities: 0 });
-const residual = ref({ entities: [], averages: null, distribution: [], total_entities: 0 });
+const gross = ref({ entities: [], averages: null, distribution: [], total_entities: 0, scope: 'filiale', summary_label: 'FILIALE' });
+const residual = ref({ entities: [], averages: null, distribution: [], total_entities: 0, scope: 'filiale', summary_label: 'FILIALE' });
+const scope = ref('filiale');
 
 const formattedDate = computed(() => formatDashboardDate());
 
@@ -95,15 +107,33 @@ const environmentOptions = computed(() =>
     uniqueEnvironments(cartographie.navigationEntities),
 );
 
-const selectedEnvironment = computed(() =>
-    route.query.environment
-        ?? environmentOptions.value[0]?.code
-        ?? null,
+const showGroupeOption = computed(() =>
+    environmentOptions.value.length > 1
+    || auth.user?.profile === 'super_admin',
 );
+
+const selectedEnvironment = computed(() => {
+    if (route.query.environment === 'all' || route.query.environment === 'groupe') {
+        return 'all';
+    }
+
+    return route.query.environment
+        ?? (showGroupeOption.value ? 'all' : environmentOptions.value[0]?.code)
+        ?? null;
+});
 
 const activeModeData = computed(() =>
     activeTab.value === 'residual' ? residual.value : gross.value,
 );
+
+const plusGrosRisquesRoute = computed(() => {
+    const environment = selectedEnvironment.value;
+
+    return {
+        name: 'cartographie.plus-gros-risques',
+        query: environment && environment !== 'all' ? { environment } : {},
+    };
+});
 
 function extractPayload(data) {
     const root = data?.data ?? data;
@@ -111,12 +141,13 @@ function extractPayload(data) {
     return {
         title: root?.title ?? 'CARTOGRAPHIE DES RISQUES',
         subtitle: root?.subtitle ?? '',
+        scope: root?.scope ?? 'filiale',
         matrix: root?.matrix ?? [],
         rows: root?.rows ?? [],
         riskCategories: root?.risk_categories ?? [],
         classifications: root?.classifications ?? [],
-        gross: root?.gross ?? { entities: [], averages: null, distribution: [], total_entities: 0 },
-        residual: root?.residual ?? { entities: [], averages: null, distribution: [], total_entities: 0 },
+        gross: root?.gross ?? { entities: [], averages: null, distribution: [], total_entities: 0, scope: 'filiale', summary_label: 'FILIALE' },
+        residual: root?.residual ?? { entities: [], averages: null, distribution: [], total_entities: 0, scope: 'filiale', summary_label: 'FILIALE' },
     };
 }
 
@@ -125,12 +156,18 @@ async function loadDashboard() {
     error.value = '';
 
     try {
-        const { data } = await api.get('/referentials/cartographie-dashboard', {
-            params: environmentQueryParams(route),
-        });
+        const params = {};
+        const environment = selectedEnvironment.value;
+
+        if (environment) {
+            params.environment = environment;
+        }
+
+        const { data } = await api.get('/referentials/cartographie-dashboard', { params });
         const payload = extractPayload(data);
         title.value = payload.title;
         subtitle.value = payload.subtitle;
+        scope.value = payload.scope;
         matrix.value = payload.matrix;
         rows.value = payload.rows;
         riskCategories.value = payload.riskCategories;
@@ -211,6 +248,14 @@ onMounted(loadDashboard);
     gap: 0.25rem;
 }
 
+.cartographie-environment-block {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+    min-width: 11rem;
+}
+
 .cartographie-environment-label {
     font-size: 0.68rem;
     font-weight: 600;
@@ -225,6 +270,26 @@ onMounted(loadDashboard);
     font-size: 0.8125rem;
     color: #0f172a;
     background: #ffffff;
+}
+
+.cartographie-top-risks-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    border: 1px solid #c00000;
+    background: #ffffff;
+    padding: 0.45rem 0.65rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #c00000;
+    text-align: center;
+    transition: background-color 0.15s, color 0.15s;
+}
+
+.cartographie-top-risks-btn:hover {
+    background: #c00000;
+    color: #ffffff;
 }
 
 .cartographie-tabs {

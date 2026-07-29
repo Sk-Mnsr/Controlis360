@@ -31,7 +31,42 @@
                     />
                 </td>
                 <td class="risk-form-cell">
+                    <select
+                        v-if="hasDetailOptions"
+                        class="risk-form-select"
+                        :value="model.correlated_risks || ''"
+                        :disabled="readonly"
+                        @change="onDetailSelected"
+                    >
+                        <option value="">— Sélectionner un détail —</option>
+                        <optgroup
+                            v-for="category in riskCategories"
+                            :key="category.id ?? category.name"
+                            :label="category.name"
+                        >
+                            <option
+                                v-for="family in category.families || []"
+                                :key="family.id ?? family.name"
+                                :value="family.name"
+                            >
+                                {{ family.name }}
+                            </option>
+                        </optgroup>
+                    </select>
+                    <select
+                        v-else-if="riskFamilies.length"
+                        class="risk-form-select"
+                        :value="model.correlated_risks || ''"
+                        :disabled="readonly"
+                        @change="onLegacyDetailSelected"
+                    >
+                        <option value="">— Sélectionner un détail —</option>
+                        <option v-for="family in riskFamilies" :key="family" :value="family">
+                            {{ family }}
+                        </option>
+                    </select>
                     <textarea
+                        v-else
                         v-model="model.correlated_risks"
                         rows="1"
                         class="risk-form-textarea"
@@ -39,12 +74,15 @@
                     />
                 </td>
                 <td class="risk-form-cell">
-                    <select v-model="model.risk_family" class="risk-form-select" :disabled="readonly">
-                        <option value="">—</option>
-                        <option v-for="family in riskFamilies" :key="family" :value="family">
-                            {{ family }}
-                        </option>
-                    </select>
+                    <input
+                        :value="model.risk_family || ''"
+                        type="text"
+                        class="risk-form-input"
+                        readonly
+                        tabindex="-1"
+                        placeholder="—"
+                        title="Remplie automatiquement selon le détail sélectionné"
+                    />
                 </td>
                 <td class="risk-form-cell risk-form-cell-score">
                     <input
@@ -81,10 +119,15 @@ import { classificationForCell, grossRiskScore, scoreStyle } from '../../utils/r
 const model = defineModel({ type: Object, required: true });
 
 const props = defineProps({
+    riskCategories: { type: Array, default: () => [] },
     riskFamilies: { type: Array, default: () => [] },
     riskClassifications: { type: Array, default: () => [] },
     readonly: { type: Boolean, default: false },
 });
+
+const hasDetailOptions = computed(() =>
+    props.riskCategories.some((category) => (category.families || []).length > 0),
+);
 
 const rbScore = computed(() => grossRiskScore(model.value.gravity, model.value.probability));
 
@@ -95,6 +138,35 @@ const rbClassification = computed(() => classificationForCell(
 ));
 
 const rbStyle = computed(() => scoreStyle(rbClassification.value));
+
+function categoryNameForDetail(detailName) {
+    if (!detailName) {
+        return '';
+    }
+
+    for (const category of props.riskCategories) {
+        const match = (category.families || []).find((family) => family.name === detailName);
+        if (match) {
+            return category.name ?? '';
+        }
+    }
+
+    return '';
+}
+
+function onDetailSelected(event) {
+    const detailName = event.target.value;
+    model.value.correlated_risks = detailName;
+    model.value.risk_family = categoryNameForDetail(detailName);
+}
+
+function onLegacyDetailSelected(event) {
+    const detailName = event.target.value;
+    model.value.correlated_risks = detailName;
+    if (!model.value.risk_family) {
+        model.value.risk_family = detailName;
+    }
+}
 </script>
 
 <style scoped>

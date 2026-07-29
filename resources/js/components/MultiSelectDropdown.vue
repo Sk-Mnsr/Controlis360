@@ -27,25 +27,62 @@
 
         <div
             v-if="open"
-            class="absolute z-30 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-300 bg-white py-1 shadow-lg"
+            class="absolute z-30 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-300 bg-white py-1 shadow-lg"
         >
             <p v-if="!options.length" class="px-3 py-2 text-sm text-slate-500">
                 {{ emptyText }}
             </p>
-            <label
-                v-for="option in options"
-                :key="optionValue(option)"
-                class="flex cursor-pointer items-start gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-                @click.stop
-            >
-                <input
-                    type="checkbox"
-                    class="mt-0.5 rounded border-slate-300"
-                    :checked="isSelected(option)"
-                    @change="onToggle(option, $event.target.checked)"
-                />
-                <span>{{ optionLabel(option) }}</span>
-            </label>
+
+            <template v-else>
+                <label
+                    class="sticky top-0 z-10 flex cursor-pointer items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-800"
+                    @click.stop
+                >
+                    <input
+                        type="checkbox"
+                        class="rounded border-slate-300"
+                        :checked="allSelected"
+                        :indeterminate.prop="someSelected && !allSelected"
+                        @change="toggleSelectAll($event.target.checked)"
+                    />
+                    <span>{{ allSelected ? 'Tout désélectionner' : 'Tout sélectionner' }}</span>
+                    <span class="ml-auto text-xs font-normal text-slate-500">
+                        {{ normalizedValue.length }}/{{ allOptionIds.length }}
+                    </span>
+                </label>
+
+                <template v-for="(group, groupIndex) in groupedOptions" :key="group.label || `group-${groupIndex}`">
+                    <div
+                        v-if="group.label"
+                        class="sticky top-9 z-[5] flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/95 px-3 py-1.5"
+                    >
+                        <p class="text-[0.68rem] font-bold uppercase tracking-wide text-slate-500">
+                            {{ group.label }}
+                        </p>
+                        <button
+                            type="button"
+                            class="text-[0.65rem] font-semibold uppercase tracking-wide text-sky-700 hover:text-sky-900"
+                            @click.stop="toggleGroup(group)"
+                        >
+                            {{ isGroupFullySelected(group) ? 'Aucun' : 'Tous' }}
+                        </button>
+                    </div>
+                    <label
+                        v-for="option in group.items"
+                        :key="optionValue(option)"
+                        class="flex cursor-pointer items-start gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                        @click.stop
+                    >
+                        <input
+                            type="checkbox"
+                            class="mt-0.5 rounded border-slate-300"
+                            :checked="isSelected(option)"
+                            @change="onToggle(option, $event.target.checked)"
+                        />
+                        <span>{{ optionLabel(option) }}</span>
+                    </label>
+                </template>
+            </template>
         </div>
     </div>
 </template>
@@ -61,6 +98,7 @@ const props = defineProps({
     disabled: { type: Boolean, default: false },
     valueKey: { type: String, default: 'id' },
     labelKey: { type: String, default: 'name' },
+    groupKey: { type: String, default: 'group' },
     triggerClass: {
         type: String,
         default: 'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm',
@@ -73,6 +111,46 @@ const root = ref(null);
 const open = ref(false);
 
 const normalizedValue = computed(() => props.modelValue.map((id) => Number(id)));
+
+const allOptionIds = computed(() =>
+    props.options.map((option) => optionValue(option)).filter((id) => !Number.isNaN(id)),
+);
+
+const allSelected = computed(
+    () =>
+        allOptionIds.value.length > 0 &&
+        allOptionIds.value.every((id) => normalizedValue.value.includes(id)),
+);
+
+const someSelected = computed(() =>
+    allOptionIds.value.some((id) => normalizedValue.value.includes(id)),
+);
+
+const groupedOptions = computed(() => {
+    if (!props.options.length) {
+        return [];
+    }
+
+    const hasGroups = props.options.some((option) => option?.[props.groupKey]);
+
+    if (!hasGroups) {
+        return [{ label: null, items: props.options }];
+    }
+
+    const groups = new Map();
+
+    for (const option of props.options) {
+        const label = option?.[props.groupKey] || 'Autres';
+
+        if (!groups.has(label)) {
+            groups.set(label, []);
+        }
+
+        groups.get(label).push(option);
+    }
+
+    return [...groups.entries()].map(([label, items]) => ({ label, items }));
+});
 
 const displayLabel = computed(() => {
     const labels = normalizedValue.value
@@ -97,14 +175,44 @@ function isSelected(option) {
     return normalizedValue.value.includes(optionValue(option));
 }
 
+function emitSelection(next) {
+    emit('update:modelValue', next);
+    emit('change', next);
+}
+
 function onToggle(option, checked) {
     const id = optionValue(option);
     const next = checked
         ? [...new Set([...normalizedValue.value, id])]
         : normalizedValue.value.filter((value) => value !== id);
 
-    emit('update:modelValue', next);
-    emit('change', next);
+    emitSelection(next);
+}
+
+function toggleSelectAll(checked) {
+    emitSelection(checked ? [...allOptionIds.value] : []);
+}
+
+function groupIds(group) {
+    return group.items.map((option) => optionValue(option)).filter((id) => !Number.isNaN(id));
+}
+
+function isGroupFullySelected(group) {
+    const ids = groupIds(group);
+    return ids.length > 0 && ids.every((id) => normalizedValue.value.includes(id));
+}
+
+function toggleGroup(group) {
+    const ids = groupIds(group);
+    if (!ids.length) return;
+
+    if (isGroupFullySelected(group)) {
+        const remove = new Set(ids);
+        emitSelection(normalizedValue.value.filter((id) => !remove.has(id)));
+        return;
+    }
+
+    emitSelection([...new Set([...normalizedValue.value, ...ids])]);
 }
 
 function toggle() {

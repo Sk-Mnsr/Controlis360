@@ -60,6 +60,14 @@ class AttachmentAccessService
             return $this->canViewMission($user, (int) $matches[1]);
         }
 
+        if (str_starts_with($path, 'mission-reports/')) {
+            $mission = Mission::query()
+                ->whereJsonContains('report_attachment_paths', $path)
+                ->first();
+
+            return $mission ? $this->canViewMission($user, (int) $mission->id) : false;
+        }
+
         return false;
     }
 

@@ -20,6 +20,8 @@ class User extends AuthenticatableBase
         'email',
         'password',
         'profile',
+        'modules',
+        'module_profiles',
         'metier_role',
         'controle_role',
         'audit_role',
@@ -136,8 +138,47 @@ class User extends AuthenticatableBase
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'modules' => 'array',
+            'module_profiles' => 'array',
             'activated' => 'boolean',
             'password_change_required' => 'boolean',
+        ];
+    }
+
+    public function hasModuleAccess(string $slug): bool
+    {
+        $profiles = $this->module_profiles;
+        if (is_array($profiles) && $profiles !== []) {
+            return array_key_exists($slug, $profiles) && ! empty($profiles[$slug]['profile'] ?? null);
+        }
+
+        $assigned = $this->modules;
+
+        if (! is_array($assigned) || $assigned === []) {
+            return true;
+        }
+
+        return in_array($slug, $assigned, true);
+    }
+
+    public function profileForModule(?string $slug): array
+    {
+        $profiles = $this->module_profiles;
+
+        if ($slug && is_array($profiles) && isset($profiles[$slug]) && is_array($profiles[$slug])) {
+            return [
+                'profile' => $profiles[$slug]['profile'] ?? $this->profile,
+                'controle_role' => $profiles[$slug]['controle_role'] ?? null,
+                'audit_role' => $profiles[$slug]['audit_role'] ?? null,
+                'metier_role' => $profiles[$slug]['metier_role'] ?? null,
+            ];
+        }
+
+        return [
+            'profile' => $this->profile,
+            'controle_role' => $this->controle_role,
+            'audit_role' => $this->audit_role,
+            'metier_role' => $this->metier_role,
         ];
     }
 

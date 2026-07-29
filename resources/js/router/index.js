@@ -75,12 +75,6 @@ const routes = [
                 ],
             },
             {
-                path: 'entities',
-                name: 'entities.members',
-                component: () => import('../views/entities/EntityMembersView.vue'),
-                meta: { canManageUsers: true },
-            },
-            {
                 path: 'cartographie',
                 meta: { module: 'cartographie' },
                 children: [
@@ -193,12 +187,17 @@ const routes = [
                 children: [
                     {
                         path: '',
-                        redirect: { name: 'audit.home' },
+                        redirect: { name: 'audit.dashboard' },
                     },
                     {
                         path: 'home',
                         name: 'audit.home',
-                        component: () => import('../views/audit/AuditHomeView.vue'),
+                        redirect: { name: 'audit.dashboard' },
+                    },
+                    {
+                        path: 'dashboard',
+                        name: 'audit.dashboard',
+                        component: () => import('../views/audit/AuditDashboardView.vue'),
                     },
                     {
                         path: 'missions',
@@ -335,6 +334,17 @@ router.beforeEach(async (to, from, next) => {
         if (!canManageUsers(auth.user?.profile)) {
             return next({ name: 'portal' });
         }
+    }
+
+    const moduleSlug = to.matched.find((record) => record.meta.module)?.meta.module;
+    if (moduleSlug) {
+        auth.setActiveModule(moduleSlug);
+    } else if (to.name === 'portal' || to.name === 'login') {
+        auth.setActiveModule(null);
+    }
+
+    if (moduleSlug && auth.user && !canAccessModule(auth.baseUser?.profile ?? auth.user.profile, moduleSlug, auth.baseUser ?? auth.user)) {
+        return next({ name: 'portal' });
     }
 
     if (to.meta.requiresEnvironmentManagement) {

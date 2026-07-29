@@ -9,7 +9,7 @@
                 }"
                 class="departement-analyse-back"
             >
-                ← Dashboard
+                ← Cartographie
             </RouterLink>
             <RouterLink
                 :to="{
@@ -97,6 +97,7 @@
             :group="editingGroup"
             :permissions="permissions"
             :risk-families="riskFamilies"
+            :risk-categories="riskCategories"
             :risk-classifications="riskClassifications"
             :department-name="entity?.name ?? ''"
             @saved="loadAnalyse"
@@ -127,6 +128,7 @@ const rows = ref([]);
 const permissions = ref({});
 const assignableEntities = ref([]);
 const riskFamilies = ref([]);
+const riskCategories = ref([]);
 const riskClassifications = ref([]);
 const editModalOpen = ref(false);
 const validateModalOpen = ref(false);
@@ -194,6 +196,7 @@ function extractPayload(data) {
         permissions: root?.permissions ?? {},
         assignableEntities: root?.assignable_entities ?? [],
         riskFamilies: root?.risk_families ?? [],
+        riskCategories: root?.risk_categories ?? [],
         riskClassifications: root?.risk_classifications ?? [],
     };
 }
@@ -213,6 +216,7 @@ async function loadAnalyse() {
         permissions.value = payload.permissions;
         assignableEntities.value = payload.assignableEntities;
         riskFamilies.value = payload.riskFamilies;
+        riskCategories.value = payload.riskCategories;
         riskClassifications.value = payload.riskClassifications;
         cartographie.selectedEntityCode = route.params.code;
         cartographie.selectedEntityId = payload.entity?.id ?? null;

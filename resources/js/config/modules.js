@@ -12,7 +12,7 @@ export const modules = [
         slug: 'audit',
         name: 'Suivi des reco',
         description: 'Planification et suivi des recommandations et missions.',
-        entryRoute: 'audit.home',
+        entryRoute: 'audit.dashboard',
         active: true,
         comingSoon: false,
         accent: '#047857',
@@ -25,10 +25,6 @@ export const modules = [
         active: true,
         comingSoon: false,
         accent: '#a3181f',
-        entryRoute: null,
-        active: false,
-        comingSoon: true,
-        accent: '#2563eb',
     },
 ];
 

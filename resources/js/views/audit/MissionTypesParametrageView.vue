@@ -113,9 +113,13 @@
                             v-model="form.code"
                             type="text"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono"
-                            placeholder="Laisser vide pour génération automatique"
+                            placeholder="Ex. MIS-AUD (ou laisser vide)"
+                            @blur="normalizeCodeInput"
                         />
-                        <p class="mt-1 text-xs text-slate-500">Lettres minuscules, chiffres et underscores uniquement.</p>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Sera enregistré en format technique :
+                            <span class="font-mono text-slate-700">{{ previewCode || '…' }}</span>
+                        </p>
                     </div>
 
                     <div>
@@ -171,7 +175,7 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { useMissionTypes } from '../../composables/useMissionTypes';
 
 const {
@@ -202,6 +206,24 @@ const form = reactive({
     sort_order: 0,
     is_active: true,
 });
+
+const previewCode = computed(() => normalizeCode(form.code || form.name));
+
+function normalizeCode(value) {
+    return String(value ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[- .\u00A0]+/g, '_')
+        .replace(/[^a-z0-9_]+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+}
+
+function normalizeCodeInput() {
+    if (form.code.trim()) {
+        form.code = normalizeCode(form.code);
+    }
+}
 
 function profileLabels(profiles) {
     const labels = (profiles ?? []).map((profile) => {
@@ -249,6 +271,28 @@ function closeModal() {
     error.value = '';
 }
 
+function extractErrorMessage(err) {
+    const payload = err.response?.data;
+    const errors = payload?.errors ?? payload?.data;
+
+    if (errors && typeof errors === 'object' && !Array.isArray(errors)) {
+        const messages = Object.values(errors).flat().filter(Boolean);
+        if (messages.length) {
+            return messages.join(' ');
+        }
+    }
+
+    if (Array.isArray(payload?.message)) {
+        return payload.message.join(' ');
+    }
+
+    if (typeof payload?.message === 'string') {
+        return payload.message;
+    }
+
+    return 'Enregistrement impossible.';
+}
+
 async function save() {
     if (!form.profiles.length) {
         error.value = 'Sélectionnez au moins un profil autorisé.';
@@ -268,7 +312,8 @@ async function save() {
     };
 
     if (!editingType.value && form.code.trim()) {
-        payload.code = form.code.trim();
+        payload.code = normalizeCode(form.code);
+        form.code = payload.code;
     }
 
     try {
@@ -280,10 +325,7 @@ async function save() {
 
         closeModal();
     } catch (err) {
-        const errors = err.response?.data?.errors ?? err.response?.data?.data;
-        error.value = errors
-            ? Object.values(errors).flat().join(' ')
-            : err.response?.data?.message?.[0] ?? 'Enregistrement impossible.';
+        error.value = extractErrorMessage(err);
     } finally {
         saving.value = false;
     }
@@ -301,7 +343,7 @@ async function confirmDelete(type) {
     try {
         await deleteMissionType(type.id);
     } catch (err) {
-        window.alert(err.response?.data?.message?.[0] ?? 'Suppression impossible.');
+        window.alert(extractErrorMessage(err));
     }
 }
 

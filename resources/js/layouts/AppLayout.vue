@@ -31,11 +31,11 @@
 
                     <button
                         type="button"
-                        class="nav-link nav-dashboard"
-                        :class="{ 'nav-link-active': isDashboardActive }"
-                        @click="goToDashboard"
+                        class="nav-link nav-cartographie"
+                        :class="{ 'nav-cartographie-active': isCartographieSection }"
+                        @click="openCartographie"
                     >
-                        Dashboard
+                        Cartographie
                     </button>
 
                     <div class="nav-group">
@@ -78,7 +78,7 @@
                         </p>
                         <div class="nav-group-children">
                             <RouterLink
-                                v-if="canSaisirRisques"
+                                v-if="canCreateRiskRow"
                                 class="nav-sublink"
                                 :class="{ 'nav-sublink-active': route.name === 'cartographie.saisie-risques' }"
                                 :to="{ name: 'cartographie.saisie-risques' }"
@@ -159,28 +159,11 @@
                             </button>
                         </div>
                     </div>
-
-                    <button
-                        type="button"
-                        class="nav-cartographie"
-                        :class="{ 'nav-cartographie-active': isCartographieSection }"
-                        @click="openCartographie"
-                    >
-                        Cartographie
-                    </button>
                 </template>
 
                 <template v-else-if="activeModule?.slug === 'audit'">
                     <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
                         ← Tous les modules
-                    </RouterLink>
-
-                    <RouterLink
-                        class="nav-link"
-                        :class="{ 'nav-link-active': route.name === 'audit.home' }"
-                        :to="{ name: 'audit.home' }"
-                    >
-                        Modules
                     </RouterLink>
 
                     <RouterLink
@@ -195,10 +178,10 @@
                     <template v-if="!isRegulatorOnly">
                         <RouterLink
                             class="nav-link"
-                            :class="{ 'nav-link-active': isAuditMissionsSection }"
-                            :to="{ name: 'audit.missions' }"
+                            :class="{ 'nav-link-active': isAuditDashboardSection }"
+                            :to="{ name: 'audit.dashboard' }"
                         >
-                        Dashboard
+                            Dashboard
                         </RouterLink>
 
                         <RouterLink
@@ -207,14 +190,6 @@
                             :to="{ name: 'audit.missions.history' }"
                         >
                             Missions
-                        </RouterLink>
-
-                        <RouterLink
-                            class="nav-link"
-                            :class="{ 'nav-link-active': route.name === 'audit.home' }"
-                            :to="{ name: 'audit.home' }"
-                        >
-                            Historiques
                         </RouterLink>
 
                         <RouterLink
@@ -311,15 +286,6 @@
                             </RouterLink>
                         </div>
                     </div>
-
-                    <RouterLink
-                        v-if="canManageUsers"
-                        class="nav-link"
-                        :class="{ 'nav-link-active': isEntitiesSection }"
-                        :to="{ name: 'entities.members' }"
-                    >
-                        Entités
-                    </RouterLink>
                 </template>
             </nav>
 
@@ -362,6 +328,7 @@ import { canCreateMission as userCanCreateMission, isRegulatorProfile } from '..
 import { useCartographieNavigation } from '../stores/cartographie';
 import { useAuthStore } from '../stores/auth';
 import { useCartographiePermissions } from '../composables/useCartographiePermissions';
+import { uniqueEnvironments } from '../utils/cartographyDashboard';
 import api from '../api/client';
 
 const auth = useAuthStore();
@@ -369,7 +336,7 @@ const { canCreateRiskRow } = useCartographiePermissions();
 const canCreateMission = computed(() => userCanCreateMission(auth.user));
 const route = useRoute();
 const router = useRouter();
-const { cartographie, navigateMethodology, goToDashboard, selectDepartmentEntity } = useCartographieNavigation();
+const { cartographie, navigateMethodology, selectDepartmentEntity } = useCartographieNavigation();
 
 const logoUrl = '/logo_Cofina.png';
 const isPortal = computed(() => route.name === 'portal');
@@ -384,10 +351,6 @@ const isFullBleedPage = computed(() =>
 );
 const hideSidebar = computed(() => route.name === 'audit.missions.show');
 const isCartographieSection = computed(() => route.name === 'cartographie.cartographie');
-const isDashboardActive = computed(() =>
-    (route.name === 'cartographie.home' && cartographie.selectedDepartment === 'DASHBOARD')
-    || route.name === 'cartographie.departement-dashboard',
-);
 const isMethodologySection = computed(() => route.name === 'cartographie.methodology.show');
 const isSaisieSection = computed(() => route.name === 'cartographie.saisie-risques');
 const isDepartmentsSection = computed(() =>
@@ -404,9 +367,13 @@ const isAgenciesSection = computed(() =>
 );
 const isEnvironmentsSection = computed(() => route.path.startsWith('/environments'));
 const isUsersSection = computed(() => route.path.startsWith('/users'));
-const isEntitiesSection = computed(() => route.name === 'entities.members');
 const isUsersCreateSection = computed(() => route.name === 'users.create');
 const isUsersHistorySection = computed(() => route.name === 'users.history' || route.name === 'users.edit');
+const isAuditDashboardSection = computed(() =>
+    route.name === 'audit.dashboard'
+    || route.name === 'audit.missions'
+    || (route.name === 'audit.missions.show' && route.query.from === 'dashboard'),
+);
 const isAuditMissionsSection = computed(() =>
     route.name === 'audit.missions'
     || route.name === 'audit.missions.create'
@@ -550,7 +517,10 @@ function openCartographie() {
     cartographie.statusMessage = '';
     cartographie.resetDashboard();
 
-    const environment = cartographie.navigationEntities[0]?.environment?.code;
+    const environments = uniqueEnvironments(cartographie.navigationEntities);
+    const environment = environments.length > 1
+        ? 'all'
+        : (environments[0]?.code ?? null);
 
     router.push({
         name: 'cartographie.cartographie',
@@ -610,12 +580,30 @@ async function handleLogout() {
     color: #64748b;
 }
 
-.nav-dashboard {
+.nav-cartographie {
+    display: block;
     width: 100%;
-    text-align: left;
+    margin-bottom: 0.35rem;
     border: none;
-    background: transparent;
+    border-radius: 0.5rem;
+    background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+    padding: 0.7rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #ffffff;
     cursor: pointer;
+    text-align: center;
+    transition: opacity 0.15s;
+}
+
+.nav-cartographie:hover {
+    opacity: 0.92;
+}
+
+.nav-cartographie-active {
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
 }
 
 .nav-sublink-btn {
@@ -634,31 +622,6 @@ async function handleLogout() {
 .nav-dept {
     font-size: 0.75rem;
     line-height: 1.35;
-}
-
-.nav-cartographie {
-    display: block;
-    width: 100%;
-    margin-top: 0.75rem;
-    border: none;
-    border-radius: 0.5rem;
-    background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
-    padding: 0.7rem 0.75rem;
-    font-size: 0.8125rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #ffffff;
-    cursor: pointer;
-    transition: opacity 0.15s;
-}
-
-.nav-cartographie:hover {
-    opacity: 0.92;
-}
-
-.nav-cartographie-active {
-    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
 }
 
 .nav-group {

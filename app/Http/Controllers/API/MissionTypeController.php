@@ -47,11 +47,20 @@ class MissionTypeController extends APIController
         $validator = Validator::make($request->all(), $this->validationRules());
 
         if ($validator->fails()) {
-            return $this->responseError($validator->errors(), 422);
+            return $this->responseError($validator->errors()->toArray(), 422);
         }
 
         $data = $validator->validated();
-        $code = trim((string) ($data['code'] ?? '')) ?: $this->missionTypeService->generateUniqueCode($data['name']);
+        $rawCode = trim((string) ($data['code'] ?? ''));
+        $code = $rawCode !== ''
+            ? $this->missionTypeService->normalizeCode($rawCode)
+            : $this->missionTypeService->generateUniqueCode($data['name']);
+
+        if ($code === '') {
+            return $this->responseError([
+                'code' => ['Le code doit contenir au moins une lettre ou un chiffre.'],
+            ], 422);
+        }
 
         if ($this->missionTypeService->codeExists($code)) {
             return $this->responseError(['code' => ['Ce code existe déjà.']], 422);
@@ -81,7 +90,7 @@ class MissionTypeController extends APIController
         $validator = Validator::make($request->all(), $this->validationRules($type->id, false));
 
         if ($validator->fails()) {
-            return $this->responseError($validator->errors(), 422);
+            return $this->responseError($validator->errors()->toArray(), 422);
         }
 
         $data = $validator->validated();
@@ -130,7 +139,7 @@ class MissionTypeController extends APIController
         ];
 
         if ($creating) {
-            $rules['code'] = 'nullable|string|max:100|regex:/^[a-z0-9_]+$/';
+            $rules['code'] = 'nullable|string|max:100';
         }
 
         return $rules;

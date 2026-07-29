@@ -276,22 +276,32 @@ const departmentOptions = computed(() => {
         byId.set(Number(entity.id), {
             id: entity.id,
             name: entity.name,
+            type: entity.type,
             responsible_name: entity.responsible_name ?? '',
+            group: entity.type === 'agency' ? 'Agences' : 'Départements',
         });
     }
 
     for (const entity of missionEntities.value) {
         const id = Number(entity.id);
         const existing = byId.get(id);
+        const type = entity.type ?? existing?.type ?? 'department';
 
         byId.set(id, {
             id,
             name: entity.name ?? existing?.name ?? '',
+            type,
             responsible_name: entity.responsible_name ?? existing?.responsible_name ?? '',
+            group: type === 'agency' ? 'Agences' : 'Départements',
         });
     }
 
-    return [...byId.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'fr'));
+    return [...byId.values()].sort((a, b) => {
+        const groupOrder = (a.group === 'Départements' ? 0 : 1) - (b.group === 'Départements' ? 0 : 1);
+        if (groupOrder !== 0) return groupOrder;
+
+        return String(a.name).localeCompare(String(b.name), 'fr');
+    });
 });
 
 const missionDepartmentsLabel = computed(() => {

@@ -28,12 +28,12 @@
                     </div>
 
                     <div class="mission-field mission-field-full">
-                        <label class="mission-label">Département(s) concerné(s)</label>
+                        <label class="mission-label">Entité(s) concernée(s)</label>
                         <MultiSelectDropdown
                             v-model="form.entity_ids"
                             :options="departmentSelectOptions"
-                            placeholder="Sélectionner un ou plusieurs départements"
-                            empty-text="Aucun département disponible"
+                            placeholder="Sélectionner une ou plusieurs entités"
+                            empty-text="Aucune entité disponible"
                             trigger-class="mission-input"
                             @change="syncResponsible"
                         />
@@ -154,10 +154,25 @@ const form = reactive({
     comments: '',
 });
 
-const departmentSelectOptions = computed(() => entities.value.map((entity) => ({
-    id: entity.id,
-    name: entityLabel(entity),
-})));
+const departmentSelectOptions = computed(() => {
+    const departments = entities.value
+        .filter((entity) => entity.type === 'department')
+        .map((entity) => ({
+            id: entity.id,
+            name: entityLabel(entity),
+            group: 'Départements',
+        }));
+
+    const agencies = entities.value
+        .filter((entity) => entity.type === 'agency')
+        .map((entity) => ({
+            id: entity.id,
+            name: entityLabel(entity),
+            group: 'Agences',
+        }));
+
+    return [...departments, ...agencies];
+});
 
 const availableMissionTypes = computed(() => (
     getTypesForProfile(auth.user?.profile ?? '', form.mission_type || null)

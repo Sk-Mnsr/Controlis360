@@ -39,9 +39,11 @@
                     <tr v-for="(row, index) in group.exceptions" :key="row.id">
                         <template v-if="index === 0">
                             <td class="operational-risk-center" :rowspan="group.exceptions.length">
-                                {{ group.process_number ?? '—' }}
+                                {{ group.display_number ?? group.process_number ?? '—' }}
                             </td>
-                            <td :rowspan="group.exceptions.length">{{ group.process_name || '—' }}</td>
+                            <td class="operational-risk-center" :rowspan="group.exceptions.length">
+                                {{ group.process_name || '—' }}
+                            </td>
                             <td class="operational-risk-center" :rowspan="group.exceptions.length">
                                 {{ formatRatio(group.ratio) }}
                             </td>
@@ -82,13 +84,9 @@
                                     <span class="operational-risk-menu-dots" aria-hidden="true">⋯</span>
                                 </button>
                             </div>
-                            <span
-                                v-else-if="permissions.can_validate || permissions.is_entity_responsable"
-                                class="operational-risk-status"
-                            >
-                                {{ row.status_label }}
+                            <span class="operational-risk-status">
+                                {{ row.status_label || '—' }}
                             </span>
-                            <span v-else class="operational-risk-no-actions">—</span>
                         </td>
                     </tr>
                 </template>
@@ -137,16 +135,6 @@
                 :style="menuPanelStyle"
                 @click.stop
             >
-                <RouterLink
-                    v-if="canAddException"
-                    :to="addExceptionLink(openMenu.group)"
-                    class="operational-risk-menu-item operational-risk-menu-item-add"
-                    role="menuitem"
-                    @click="closeMenu"
-                >
-                    <span class="operational-risk-menu-icon">+</span>
-                    Ajouter un risque
-                </RouterLink>
                 <button
                     v-if="canEdit(openMenu.row)"
                     type="button"
@@ -305,13 +293,9 @@ const residualSummaryStyle = computed(() => {
     ));
 });
 
-const canAddException = computed(() => props.permissions.can_create_row && props.departmentCode);
-
 function hasAnyAction(row) {
-    return canAddException.value
-        || canDelete(row)
+    return canDelete(row)
         || canEdit(row)
-        || canShowEntityActions(row)
         || canSubmit(row)
         || canSubmitEntity(row)
         || canValidateAssign(row)
@@ -469,6 +453,10 @@ function canEdit(row) {
         return true;
     }
 
+    if (props.permissions.can_validate && row.status === 'submitted') {
+        return true;
+    }
+
     if (row.status !== 'assigned') {
         return false;
     }
@@ -482,29 +470,6 @@ function canEdit(row) {
     }
 
     return Number(props.permissions.entity_id) === Number(row.assigned_entity_id);
-}
-
-function canShowEntityActions(row) {
-    return props.permissions.is_entity_responsable
-        && row.status === 'assigned'
-        && Number(props.permissions.entity_id) === Number(row.assigned_entity_id);
-}
-
-function addExceptionLink(group) {
-    const query = {
-        entity: props.departmentCode,
-        mode: 'existing',
-        group: group.key,
-    };
-
-    if (props.departmentEnvironment) {
-        query.environment = props.departmentEnvironment;
-    }
-
-    return {
-        name: 'cartographie.saisie-risques',
-        query,
-    };
 }
 
 function formatRatio(value) {
@@ -550,7 +515,7 @@ function residualScoreStyle(row) {
 .operational-risk-table td {
     border: 1px solid #111111;
     padding: 0.45rem 0.5rem;
-    vertical-align: top;
+    vertical-align: middle;
 }
 
 .operational-risk-title {
@@ -598,6 +563,7 @@ function residualScoreStyle(row) {
 
 .operational-risk-strong {
     font-weight: 600;
+    text-align: center;
 }
 
 .operational-risk-score {
@@ -642,12 +608,6 @@ function residualScoreStyle(row) {
     z-index: 3;
     background: #ffffff;
     box-shadow: -3px 0 6px rgba(15, 23, 42, 0.06);
-}
-
-.operational-risk-no-actions {
-    display: block;
-    text-align: center;
-    color: #94a3b8;
 }
 
 .operational-risk-status {

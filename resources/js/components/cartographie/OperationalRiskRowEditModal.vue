@@ -22,6 +22,7 @@
                         <h3 class="risk-edit-modal-section-title">Risque</h3>
                         <OperationalRiskExceptionFields
                             v-model="exceptionForm"
+                            :risk-categories="riskCategories"
                             :risk-families="riskFamilies"
                             :risk-classifications="riskClassifications"
                         />
@@ -31,6 +32,7 @@
                         <h3 class="risk-edit-modal-section-title">Risque (lecture seule)</h3>
                         <OperationalRiskExceptionFields
                             :model-value="exceptionForm"
+                            :risk-categories="riskCategories"
                             :risk-families="riskFamilies"
                             :risk-classifications="riskClassifications"
                             readonly
@@ -54,7 +56,7 @@
                             Annuler
                         </button>
                         <button
-                            v-if="editPhase1"
+                            v-if="canSubmitToControl"
                             type="button"
                             class="risk-form-btn risk-form-btn-primary"
                             :disabled="saving"
@@ -96,6 +98,7 @@ const props = defineProps({
     group: { type: Object, default: null },
     permissions: { type: Object, default: () => ({}) },
     riskFamilies: { type: Array, default: () => [] },
+    riskCategories: { type: Array, default: () => [] },
     riskClassifications: { type: Array, default: () => [] },
     departmentName: { type: String, default: '' },
 });
@@ -108,10 +111,22 @@ const subProcessForm = ref(emptySubProcess());
 const exceptionForm = ref(emptyExceptionForm());
 const phase2Form = ref(emptyPhase2());
 
-const editPhase1 = computed(() =>
-    props.row
-    && props.permissions.can_create_row
-    && ['draft', 'revision_requested'].includes(props.row.status),
+const editPhase1 = computed(() => {
+    if (!props.row) {
+        return false;
+    }
+
+    if (props.permissions.can_validate && props.row.status === 'submitted') {
+        return true;
+    }
+
+    return props.permissions.can_create_row
+        && ['draft', 'revision_requested'].includes(props.row.status);
+});
+
+const canSubmitToControl = computed(() =>
+    editPhase1.value
+    && ['draft', 'revision_requested'].includes(props.row?.status),
 );
 
 const editPhase2 = computed(() => {
@@ -257,7 +272,7 @@ async function save() {
 }
 
 async function submitRow() {
-    if (!props.row || !editPhase1.value) {
+    if (!props.row || !canSubmitToControl.value) {
         return;
     }
 

@@ -37,12 +37,20 @@ class OperationalRiskRowController extends APIController
             return $this->responseError($validator->errors()->toArray(), 422);
         }
 
+        $payload = $this->phase1Payload($validator->validated());
+
+        if (($payload['process_number'] ?? null) === null) {
+            $payload['process_number'] = ((int) OperationalRiskRow::query()
+                ->where('entity_id', $department->id)
+                ->max('process_number')) + 1;
+        }
+
         $sortOrder = OperationalRiskRow::query()
             ->where('entity_id', $department->id)
             ->max('sort_order') + 1;
 
         $row = OperationalRiskRow::query()->create(array_merge(
-            $this->phase1Payload($validator->validated()),
+            $payload,
             [
                 'entity_id' => $department->id,
                 'status' => OperationalRiskRowStatus::Draft,

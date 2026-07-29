@@ -105,6 +105,14 @@ function roundScore(value) {
     return Math.round(Number(value) * 10) / 10;
 }
 
+function roundIntegerScore(value) {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    return Math.round(Number(value));
+}
+
 export function classificationForScore(score, classifications = []) {
     if (score === null || score === undefined || score === '') {
         return null;
@@ -228,13 +236,13 @@ export function computeRiskAverages(rows) {
         }
     }
 
-    const avgG = roundScore(averageNumeric(gravities));
-    const avgP = roundScore(averageNumeric(probabilities));
-    const avgRb = avgG !== null && avgP !== null ? roundScore(avgG * avgP) : null;
+    const avgG = roundIntegerScore(averageNumeric(gravities));
+    const avgP = roundIntegerScore(averageNumeric(probabilities));
+    const avgRb = avgG !== null && avgP !== null ? avgG * avgP : null;
 
-    const avgResidualG = roundScore(averageNumeric(residualGravities));
-    const avgPr = roundScore(averageNumeric(residualProbabilities));
-    const avgRr = avgResidualG !== null && avgPr !== null ? roundScore(avgResidualG * avgPr) : null;
+    const avgResidualG = roundIntegerScore(averageNumeric(residualGravities));
+    const avgPr = roundIntegerScore(averageNumeric(residualProbabilities));
+    const avgRr = avgResidualG !== null && avgPr !== null ? avgResidualG * avgPr : null;
 
     return {
         gross: {

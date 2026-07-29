@@ -124,7 +124,12 @@ class OperationalRiskRow extends ModelBase
             return true;
         }
 
-        if (! $user->isSuperAdmin() && ! $user->canCreateOperationalRiskRow()) {
+        // Le responsable contrôle peut corriger une soumission agent sans la renvoyer.
+        if ($user->isControleResponsable() && $this->status === OperationalRiskRowStatus::Submitted) {
+            return true;
+        }
+
+        if (! $user->canCreateOperationalRiskRow()) {
             return false;
         }
 

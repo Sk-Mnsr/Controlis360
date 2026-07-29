@@ -29,7 +29,7 @@
 
             <div v-else class="plus-gros-risques-content">
                 <p class="plus-gros-risques-hint">
-                    Risques opérationnels à fort impact (Rb ≥ 10), triés par score décroissant.
+                    Risques opérationnels à fort impact (Rb ≥ 20), triés par score décroissant.
                 </p>
                 <TopRisksTable :title="title" :rows="rows" />
             </div>

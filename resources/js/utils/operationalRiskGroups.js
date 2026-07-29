@@ -30,7 +30,56 @@ export function groupRowsBySubProcess(rows) {
         groups[indexByKey.get(key)].exceptions.push(row);
     }
 
-    return groups;
+    return assignDisplayProcessNumbers(groups);
+}
+
+/**
+ * Complète les N° manquants pour une numérotation continue (1, 2, 3…).
+ */
+export function assignDisplayProcessNumbers(groups) {
+    const used = new Set(
+        groups
+            .map((group) => group.process_number)
+            .filter((value) => value !== null && value !== undefined && value !== '')
+            .map(Number),
+    );
+
+    let next = 1;
+
+    return groups.map((group) => {
+        const hasNumber = group.process_number !== null
+            && group.process_number !== undefined
+            && group.process_number !== '';
+
+        if (hasNumber) {
+            return {
+                ...group,
+                display_number: Number(group.process_number),
+            };
+        }
+
+        while (used.has(next)) {
+            next += 1;
+        }
+
+        const displayNumber = next;
+        used.add(displayNumber);
+        next += 1;
+
+        return {
+            ...group,
+            display_number: displayNumber,
+        };
+    });
+}
+
+export function nextProcessNumber(groups) {
+    const numbers = groups
+        .map((group) => group.process_number ?? group.display_number)
+        .filter((value) => value !== null && value !== undefined && value !== '')
+        .map(Number);
+
+    return (numbers.length ? Math.max(...numbers) : 0) + 1;
 }
 
 export function groupRowsByProcess(rows) {

@@ -1,7 +1,7 @@
 <template>
     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h3 class="font-semibold">Nouveau utilisateur</h3>
-        <p class="mt-1 text-sm text-slate-500">Créer un compte et lui attribuer un profil</p>
+        <p class="mt-1 text-sm text-slate-500">Créer un compte, lui attribuer des modules et un profil par module</p>
 
         <form class="mt-6 grid gap-4 md:grid-cols-2" @submit.prevent="createUser">
             <div>
@@ -12,41 +12,16 @@
                 <label class="mb-1 block text-sm font-medium">E-mail</label>
                 <input v-model="form.email" type="email" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
-            <div>
-                <label class="mb-1 block text-sm font-medium">Profil</label>
-                <select v-model="form.profile" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <div class="md:col-span-2">
+                <label class="mb-1 block text-sm font-medium">Profil plateforme</label>
+                <select v-model="form.platform_profile" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <option value="">Selon les modules</option>
                     <option v-if="isSuperAdmin" value="super_admin">Super administrateur</option>
-                    <option value="admin">Administrateur</option>
-                    <option value="superviseur">Superviseur</option>
-                    <option value="regulateur">Régulateur</option>
-                    <option value="controle">Contrôle</option>
-                    <option value="audit">Audit</option>
-                    <option value="conformite">Conformité</option>
-                    <option value="metier">Métier</option>
+                    <option value="admin">Administrateur (gestion environnements / utilisateurs)</option>
                 </select>
-            </div>
-            <div v-if="form.profile === 'controle'">
-                <label class="mb-1 block text-sm font-medium">Rôle contrôle</label>
-                <select v-model="form.controle_role" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                    <option value="agent_controle_interne">Agent du contrôle interne</option>
-                    <option value="responsable_controle_permanent">Responsable Contrôle permanent &amp; risques opérationnels</option>
-                </select>
-            </div>
-            <div v-if="form.profile === 'audit'">
-                <label class="mb-1 block text-sm font-medium">Rôle audit</label>
-                <select v-model="form.audit_role" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                    <option value="agent_audit">Agent audit</option>
-                    <option value="responsable_audit">Responsable audit</option>
-                </select>
-            </div>
-            <div v-if="form.profile === 'metier'">
-                <label class="mb-1 block text-sm font-medium">Rôle métier</label>
-                <select v-model="form.metier_role" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                    <option value="responsable_entite">Responsable entité</option>
-                    <option value="groupe">Groupe</option>
-                    <option value="visiteur">Visiteur</option>
-                    <option value="agent">Agent</option>
-                </select>
+                <p class="mt-1 text-xs text-slate-500">
+                    Réservé à l’administration globale. Les droits métier se définissent par module ci-dessous.
+                </p>
             </div>
 
             <UserScopeFields
@@ -55,6 +30,11 @@
                 v-model:entity-ids="form.entity_ids"
                 :environments="selectableEnvironments"
                 :entities="entities"
+            />
+
+            <UserModulesFields
+                v-model="form.assignments"
+                :disabled="form.platform_profile === 'super_admin'"
             />
 
             <div>
@@ -80,14 +60,22 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../../api/client';
+import {
+    assignmentsToPayload,
+    defaultModuleAssignments,
+    emptyModuleAssignment,
+    primaryProfileFromAssignments,
+} from '../../config/module-access';
+import { modules } from '../../config/modules';
 import { useAuthStore } from '../../stores/auth';
+import UserModulesFields from './UserModulesFields.vue';
 import UserScopeFields from './UserScopeFields.vue';
 
 const auth = useAuthStore();
 const router = useRouter();
 
 const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
-const needsEnvironment = computed(() => form.profile !== 'super_admin');
+const needsEnvironment = computed(() => form.platform_profile !== 'super_admin');
 const selectableEnvironments = computed(() => {
     if (isSuperAdmin.value) {
         return environments.value;
@@ -106,14 +94,26 @@ const error = ref('');
 const form = reactive({
     name: '',
     email: '',
-    profile: 'controle',
-    controle_role: 'agent_controle_interne',
-    audit_role: 'agent_audit',
-    metier_role: 'visiteur',
+    platform_profile: '',
     environment_ids: [],
     entity_ids: [],
+    assignments: defaultModuleAssignments({ profile: 'controle', modules: ['cartographie', 'audit'] }),
     password: 'Cofina@123',
 });
+
+function enableAllModulesAsSuperAdmin() {
+    form.assignments = modules.map((module) => ({
+        ...emptyModuleAssignment(module.slug),
+        enabled: true,
+        profile: MODULE_PROFILE_FALLBACK[module.slug] ?? 'metier',
+    }));
+}
+
+const MODULE_PROFILE_FALLBACK = {
+    cartographie: 'controle',
+    audit: 'audit',
+    conformite: 'conformite',
+};
 
 async function loadEnvironments() {
     const { data } = await api.get('/environments');
@@ -148,23 +148,46 @@ async function createUser() {
     success.value = '';
     error.value = '';
 
+    const { modules: moduleSlugs, module_profiles: moduleProfiles } = assignmentsToPayload(form.assignments);
+
+    if (!moduleSlugs.length && form.platform_profile !== 'super_admin' && form.platform_profile !== 'admin') {
+        error.value = 'Sélectionnez au moins un module avec son profil.';
+        saving.value = false;
+        return;
+    }
+
+    const primary = primaryProfileFromAssignments(form.assignments, form.platform_profile || null);
+
     try {
         await api.post('/users', {
             name: form.name,
             email: form.email,
-            profile: form.profile,
+            profile: primary.profile,
             password: form.password,
+            modules: form.platform_profile === 'super_admin'
+                ? modules.map((module) => module.slug)
+                : moduleSlugs,
+            module_profiles: form.platform_profile === 'super_admin'
+                ? Object.fromEntries(modules.map((module) => [module.slug, {
+                    profile: 'super_admin',
+                    controle_role: null,
+                    audit_role: null,
+                    metier_role: null,
+                }]))
+                : moduleProfiles,
             environment_ids: needsEnvironment.value ? form.environment_ids : [],
             entity_ids: needsEnvironment.value ? form.entity_ids : [],
-            metier_role: form.profile === 'metier' ? form.metier_role : null,
-            controle_role: form.profile === 'controle' ? form.controle_role : null,
-            audit_role: form.profile === 'audit' ? form.audit_role : null,
+            metier_role: primary.metier_role,
+            controle_role: primary.controle_role,
+            audit_role: primary.audit_role,
         });
 
         success.value = `Utilisateur « ${form.name} » créé avec succès.`;
         form.name = '';
         form.email = '';
         form.password = 'Cofina@123';
+        form.platform_profile = '';
+        form.assignments = defaultModuleAssignments({ profile: 'controle', modules: ['cartographie', 'audit'] });
 
         setTimeout(() => router.push({ name: 'users.history' }), 1200);
     } catch (err) {
@@ -177,10 +200,11 @@ async function createUser() {
     }
 }
 
-watch(() => form.profile, (profile) => {
+watch(() => form.platform_profile, (profile) => {
     if (profile === 'super_admin') {
         form.environment_ids = [];
         form.entity_ids = [];
+        enableAllModulesAsSuperAdmin();
     } else if (!form.environment_ids.length) {
         form.environment_ids = isSuperAdmin.value
             ? []

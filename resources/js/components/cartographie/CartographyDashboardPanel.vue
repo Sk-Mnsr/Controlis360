@@ -22,21 +22,24 @@
                     :rows="rows"
                     :categories="categories"
                     :classifications="classifications"
-                    :mode="mode"
                 />
                 <RiskDistributionDonut
+                    :title="scope === 'groupe' ? 'Répartition des filiales' : 'Répartition des risques'"
                     :distribution="modeData.distribution"
                     :classifications="classifications"
                     :total-entities="modeData.total_entities"
+                    :total-label="scope === 'groupe' ? 'filiales' : 'entités'"
                 />
             </div>
         </div>
 
         <CartographyEntityTable
+            :title="scope === 'groupe' ? 'Détail des filiales' : 'Détail des entités'"
             :entities="modeData.entities"
             :averages="modeData.averages"
-            :probability-label="probabilityLabel"
             :risk-label="riskLabel"
+            :scope="scope"
+            :summary-label="modeData.summary_label || (scope === 'groupe' ? 'GROUPE' : 'FILIALE')"
         />
     </div>
 </template>
@@ -59,6 +62,7 @@ const props = defineProps({
     heatmapTitle: { type: String, default: 'Carte des risques' },
     probabilityLabel: { type: String, default: 'Probabilité' },
     riskLabel: { type: String, default: 'Risque brut' },
+    scope: { type: String, default: 'filiale' },
 });
 
 const heatmapEmptyMessage = computed(() => {
@@ -79,15 +83,25 @@ const heatmapEmptyMessage = computed(() => {
 
 .cartography-dashboard-main {
     display: grid;
-    grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.8fr);
-    gap: 1rem;
-    align-items: start;
+    grid-template-columns: minmax(0, 1.45fr) minmax(18rem, 1fr);
+    gap: 1.15rem;
+    align-items: stretch;
+}
+
+.cartography-dashboard-heatmap {
+    min-width: 0;
 }
 
 .cartography-dashboard-side {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+}
+
+@media (max-width: 1200px) {
+    .cartography-dashboard-main {
+        grid-template-columns: minmax(0, 1.3fr) minmax(16rem, 0.95fr);
+    }
 }
 
 @media (max-width: 1100px) {

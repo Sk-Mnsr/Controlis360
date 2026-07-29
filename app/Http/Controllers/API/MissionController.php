@@ -56,7 +56,7 @@ class MissionController extends APIController
         }
 
         $query = Mission::query()
-            ->with(['recommendations.entities', 'entities.environment', 'creator', 'recipients', 'responses.assignedAgent'])
+            ->with(['recommendations.entities', 'entities.environment', 'creator', 'recipients', 'responses.assignedAgent', 'missionnaires'])
             ->orderByDesc('created_at');
 
         $this->applyVisibilityFilter($query, $user);
@@ -82,12 +82,18 @@ class MissionController extends APIController
 
         $data = $validator->validated();
         $entityIds = array_values(array_unique(array_map('intval', $data['entity_ids'])));
+        $missionnaires = $this->parseMissionnairesInput($request);
 
         $invalid = $this->entitiesOutsideEnvironment($entityIds, (int) $data['environment_id']);
         if ($invalid) {
             return $this->responseError([
                 'entity_ids' => ['Les entités sélectionnées doivent appartenir à l\'environnement choisi.'],
             ], 422);
+        }
+
+        $missionnaireError = $this->validateMissionnairesPayload($missionnaires);
+        if ($missionnaireError) {
+            return $this->responseError(['missionnaires' => [$missionnaireError]], 422);
         }
 
         $reportPaths = $this->storeReportAttachments($request);
@@ -103,6 +109,7 @@ class MissionController extends APIController
             'status' => $data['status'] ?? 'ouvert',
             'report_reference' => $data['report_reference'] ?? $this->reportLabelFromFiles($request, $reportPaths),
             'report_attachment_paths' => $reportPaths,
+            'missionnaires' => $missionnaires,
         ], $user);
 
         $payload = $this->formatMissionListItem($mission, $user);
@@ -164,7 +171,17 @@ class MissionController extends APIController
         }
 
         $mission = Mission::query()
-            ->with(['recommendations.entities', 'recommendations.followUps.user', 'recommendations.actionPlans.user', 'recommendations.actionPlans.comments.user', 'entities.environment', 'creator', 'recipients', 'responses.assignedAgent'])
+            ->with([
+                'recommendations.entities.environment',
+                'recommendations.followUps.user',
+                'recommendations.actionPlans.user',
+                'recommendations.actionPlans.comments.user',
+                'entities.environment',
+                'creator',
+                'recipients',
+                'responses.assignedAgent',
+                'missionnaires',
+            ])
             ->findOrFail($id);
 
         if (! $this->canViewMission($user, $mission)) {
@@ -338,8 +355,13 @@ class MissionController extends APIController
 
         $data = $validator->validated();
         $entityIds = array_values(array_unique(array_map('intval', $data['entity_ids'])));
+        $missionnaires = $this->parseMissionnairesInput($request);
+        $missionnaireError = $this->validateMissionnairesPayload($missionnaires);
+        if ($missionnaireError) {
+            return $this->responseError(['missionnaires' => [$missionnaireError]], 422);
+        }
 
-        DB::transaction(function () use ($mission, $data, $entityIds) {
+        DB::transaction(function () use ($mission, $data, $entityIds, $missionnaires) {
             $mission->update([
                 'mission_type' => $data['mission_type'],
                 'auditor' => $data['auditor'],
@@ -368,9 +390,11 @@ class MissionController extends APIController
                 $recipient->id => ['notified_at' => now()],
             ])->all();
             $mission->recipients()->sync($syncData);
+
+            $this->importService->syncMissionnaires($mission, $missionnaires);
         });
 
-        $mission->load(['recommendations', 'entities.environment', 'creator', 'recipients', 'responses.assignedAgent']);
+        $mission->load(['recommendations', 'entities.environment', 'creator', 'recipients', 'responses.assignedAgent', 'missionnaires']);
 
         return $this->responseOk($this->formatMissionDetail($mission, $user));
     }
@@ -667,6 +691,9 @@ class MissionController extends APIController
                 ->implode(', ') ?: '—',
             'environment_id' => $mission->entities->first()?->environment_id,
             'entities' => $mission->entities->map(fn ($entity) => $this->formatEntityItem($entity))->values(),
+            'missionnaires' => $mission->relationLoaded('missionnaires')
+                ? $mission->missionnaires->map(fn ($m) => $this->formatMissionnaireItem($m))->values()
+                : [],
             'recommendation' => $this->formatRecommendationSummary($mission->recommendations->first()),
             'recommendations' => $mission->recommendations
                 ->map(fn (Recommendation $recommendation) => $this->formatRecommendationSummary($recommendation))
@@ -780,6 +807,7 @@ class MissionController extends APIController
             'name' => $entity->name,
             'code' => $entity->code,
             'environment_name' => $entity->environment?->name,
+            'environment_code' => $entity->environment?->code,
             'responsible_name' => $this->recipientResolver->resolveResponsibleNames([(int) $entity->id]) ?: null,
         ];
     }
@@ -804,6 +832,8 @@ class MissionController extends APIController
             'entities' => $entities->map(fn ($entity) => [
                 'id' => $entity->id,
                 'name' => $entity->name,
+                'code' => $entity->code,
+                'environment_code' => $entity->environment?->code,
             ])->values()->all(),
         ];
     }
@@ -822,6 +852,7 @@ class MissionController extends APIController
             'recommendation_details' => $recommendation->recommendation_details,
             'responsible_name' => $recommendation->responsible_name,
             'due_date' => $recommendation->due_date?->format('Y-m-d'),
+            'risk_level' => $recommendation->risk_level,
             'risk_level_fr' => $recommendation->risk_level_fr,
             'priority_fr' => $recommendation->priority_fr,
             'status' => $recommendation->status,
@@ -1077,5 +1108,73 @@ class MissionController extends APIController
     private function allowedMissionTypesForUser(?User $user, ?string $currentCode = null): array
     {
         return $this->missionTypeService->allowedCodesForUser($user, $currentCode);
+    }
+
+    private function parseMissionnairesInput(Request $request): array
+    {
+        $raw = $request->input('missionnaires');
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(function ($row) {
+            if (! is_array($row)) {
+                return null;
+            }
+
+            return [
+                'nom' => trim((string) ($row['nom'] ?? '')),
+                'email' => trim((string) ($row['email'] ?? '')),
+                'telephone' => trim((string) ($row['telephone'] ?? '')),
+                'poste' => trim((string) ($row['poste'] ?? '')),
+                'entite_type' => ($row['entite_type'] ?? 'interne') === 'externe' ? 'externe' : 'interne',
+                'responsable_equipe' => trim((string) ($row['responsable_equipe'] ?? '')),
+            ];
+        }, $raw)));
+    }
+
+    private function validateMissionnairesPayload(array $missionnaires): ?string
+    {
+        foreach ($missionnaires as $index => $row) {
+            $label = 'Missionnaire #'.($index + 1);
+
+            if (($row['nom'] ?? '') === '') {
+                return "{$label} : le nom est obligatoire.";
+            }
+
+            if (($row['email'] ?? '') === '' || ! filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
+                return "{$label} : un e-mail valide est obligatoire.";
+            }
+
+            if (! in_array($row['entite_type'] ?? '', ['interne', 'externe'], true)) {
+                return "{$label} : l'entité doit être interne ou externe.";
+            }
+
+            if (($row['responsable_equipe'] ?? '') === '') {
+                return "{$label} : choisissez un responsable / une équipe.";
+            }
+        }
+
+        return null;
+    }
+
+    private function formatMissionnaireItem($missionnaire): array
+    {
+        return [
+            'id' => $missionnaire->id,
+            'nom' => $missionnaire->nom,
+            'email' => $missionnaire->email,
+            'telephone' => $missionnaire->telephone,
+            'poste' => $missionnaire->poste,
+            'entite_type' => $missionnaire->entite_type,
+            'responsable_equipe' => $missionnaire->responsable_equipe,
+            'ordre' => $missionnaire->ordre,
+        ];
     }
 }

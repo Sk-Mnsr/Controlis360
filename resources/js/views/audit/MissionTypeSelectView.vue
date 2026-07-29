@@ -3,7 +3,7 @@
         <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 class="text-xl font-semibold">Missions</h2>
             <p class="mt-1 text-sm text-slate-500">
-                Sélectionnez un type de mission pour consulter son historique.
+                Sélectionnez un type de mission pour consulter son tableau de bord et son historique.
             </p>
         </div>
 
@@ -46,7 +46,7 @@
                 </p>
 
                 <p class="mt-4 text-sm font-medium text-emerald-700 group-hover:text-emerald-800">
-                    Voir l'historique →
+                    Voir le tableau de bord →
                 </p>
             </button>
         </div>

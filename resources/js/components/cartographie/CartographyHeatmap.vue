@@ -5,17 +5,6 @@
         </header>
 
         <div class="cartography-heatmap-body">
-            <div class="cartography-heatmap-legend">
-                <p
-                    v-for="item in legendItems"
-                    :key="item.code"
-                    class="cartography-heatmap-legend-item"
-                >
-                    <span class="cartography-heatmap-legend-swatch" :style="{ backgroundColor: item.color }" />
-                    {{ item.name }}
-                </p>
-            </div>
-
             <div class="cartography-heatmap-grid-wrap">
                 <table class="cartography-heatmap-table">
                     <thead>
@@ -63,6 +52,17 @@
                     {{ emptyMessage }}
                 </p>
             </div>
+
+            <div class="cartography-heatmap-legend" aria-label="Légende des niveaux de risque">
+                <p
+                    v-for="item in legendItems"
+                    :key="item.code"
+                    class="cartography-heatmap-legend-item"
+                >
+                    <span class="cartography-heatmap-legend-swatch" :style="{ backgroundColor: item.color }" />
+                    {{ item.name }}
+                </p>
+            </div>
         </div>
     </section>
 </template>
@@ -108,16 +108,19 @@ function cellStyle(cell) {
     border-radius: 0.85rem;
     background: #ffffff;
     overflow: hidden;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .cartography-heatmap-header {
     border-bottom: 1px solid #e2e8f0;
-    padding: 0.9rem 1.1rem;
+    padding: 0.95rem 1.2rem;
 }
 
 .cartography-heatmap-title {
     margin: 0;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -125,32 +128,36 @@ function cellStyle(cell) {
 }
 
 .cartography-heatmap-body {
-    display: grid;
-    grid-template-columns: 9rem minmax(0, 1fr);
-    gap: 1rem;
-    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 1.15rem 1.25rem 1.25rem;
+    flex: 1;
 }
 
 .cartography-heatmap-legend {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
     justify-content: center;
-    gap: 0.55rem;
+    gap: 0.55rem 1.1rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid #e2e8f0;
 }
 
 .cartography-heatmap-legend-item {
     display: flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.4rem;
     margin: 0;
-    font-size: 0.68rem;
+    font-size: 0.7rem;
     font-weight: 700;
     color: #334155;
+    white-space: nowrap;
 }
 
 .cartography-heatmap-legend-swatch {
-    width: 0.75rem;
-    height: 0.75rem;
+    width: 0.8rem;
+    height: 0.8rem;
     border-radius: 0.15rem;
     flex-shrink: 0;
 }
@@ -163,8 +170,9 @@ function cellStyle(cell) {
 .cartography-heatmap-table {
     width: 100%;
     min-width: 34rem;
+    table-layout: fixed;
     border-collapse: collapse;
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
 }
 
 .cartography-heatmap-table th,
@@ -176,41 +184,44 @@ function cellStyle(cell) {
 
 .cartography-heatmap-corner,
 .cartography-heatmap-probability {
-    width: 2rem;
+    width: 2.5rem;
     background: #e5e7eb;
     font-weight: 700;
+    font-size: 0.9rem;
 }
 
 .cartography-heatmap-axis {
     background: #d1d5db;
     font-weight: 700;
     text-transform: uppercase;
-    font-size: 0.68rem;
+    font-size: 0.75rem;
+    padding: 0.45rem;
 }
 
 .cartography-heatmap-head {
     background: #e5e7eb;
     font-weight: 700;
-    padding: 0.35rem;
+    padding: 0.5rem;
+    font-size: 0.9rem;
 }
 
 .cartography-heatmap-cell {
-    min-width: 5.25rem;
-    min-height: 4.25rem;
-    padding: 0.35rem 0.25rem;
+    min-height: 5.5rem;
+    height: 5.5rem;
+    padding: 0.45rem 0.35rem;
     font-weight: 700;
 }
 
 .cartography-heatmap-score {
     display: block;
-    font-size: 0.85rem;
+    font-size: 1rem;
     line-height: 1.2;
 }
 
 .cartography-heatmap-entity {
     display: block;
-    margin-top: 0.2rem;
-    font-size: 0.62rem;
+    margin-top: 0.3rem;
+    font-size: 0.7rem;
     font-weight: 700;
     line-height: 1.25;
     text-transform: uppercase;
@@ -218,29 +229,25 @@ function cellStyle(cell) {
 }
 
 .cartography-heatmap-caption {
-    margin: 0.65rem 0 0;
-    font-size: 0.7rem;
+    margin: 0.8rem 0 0;
+    font-size: 0.75rem;
     color: #64748b;
 }
 
 .cartography-heatmap-empty {
-    margin: 0.75rem 0 0;
+    margin: 0.85rem 0 0;
     border-radius: 0.5rem;
     background: #fff7ed;
     border: 1px solid #fed7aa;
-    padding: 0.65rem 0.85rem;
-    font-size: 0.75rem;
+    padding: 0.7rem 0.9rem;
+    font-size: 0.78rem;
     color: #9a3412;
 }
 
 @media (max-width: 900px) {
-    .cartography-heatmap-body {
-        grid-template-columns: 1fr;
-    }
-
-    .cartography-heatmap-legend {
-        flex-direction: row;
-        flex-wrap: wrap;
+    .cartography-heatmap-cell {
+        min-height: 4.5rem;
+        height: auto;
     }
 }
 </style>
