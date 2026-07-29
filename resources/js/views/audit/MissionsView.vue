@@ -122,7 +122,7 @@ const missions = ref([]);
 const error = ref('');
 const importOpen = ref(false);
 
-const canCreate = computed(() => canCreateMission(auth.user));
+const canCreate = computed(() => canCreateMission(auth.baseUser ?? auth.user));
 
 const totals = computed(() => {
     const summary = missions.value.reduce(

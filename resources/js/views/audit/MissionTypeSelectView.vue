@@ -83,7 +83,7 @@ const missionCountByType = computed(() => {
 const visibleTypes = computed(() => {
     const typesFromMissions = [...new Set(missions.value.map((mission) => mission.mission_type).filter(Boolean))];
     const profile = auth.user?.profile;
-    const profileTypes = profile === 'metier' || profile === 'super_admin'
+    const profileTypes = profile === 'metier' || profile === 'super_admin' || profile === 'admin'
         ? missionTypes.value.map((type) => type.value)
         : missionTypes.value
             .filter((type) => (type.profiles ?? []).includes(profile))

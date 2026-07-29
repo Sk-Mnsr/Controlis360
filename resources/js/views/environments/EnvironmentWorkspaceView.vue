@@ -1,11 +1,15 @@
 <template>
     <div class="space-y-6">
-        <!-- Liste (super admin sans environnement sélectionné) -->
-        <template v-if="isSuperAdmin && !environmentId">
+        <!-- Liste (super admin / admin multi-environnements) -->
+        <template v-if="showEnvironmentsList">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="text-xl font-semibold">Liste des environnements</h2>
-                    <p class="mt-1 text-sm text-slate-500">Sélectionnez un environnement pour gérer ses entités</p>
+                    <p class="mt-1 text-sm text-slate-500">
+                        {{ isSuperAdmin
+                            ? 'Sélectionnez un environnement pour gérer ses entités'
+                            : 'Sélectionnez un environnement rattaché à votre compte' }}
+                    </p>
                 </div>
                 <div class="flex gap-2">
                     <button
@@ -16,6 +20,7 @@
                         Actualiser
                     </button>
                     <RouterLink
+                        v-if="isSuperAdmin"
                         :to="{ name: 'environments.create' }"
                         class="rounded-lg bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800"
                     >
@@ -87,7 +92,7 @@
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <button
-                        v-if="isSuperAdmin"
+                        v-if="showEnvironmentsList || isSuperAdmin || canBrowseEnvironments"
                         type="button"
                         class="mb-2 text-sm text-slate-500 hover:text-slate-800"
                         @click="backToList"
@@ -131,8 +136,11 @@ const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 
-const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
+const isSuperAdmin = computed(() => (auth.baseUser?.profile ?? auth.user?.profile) === 'super_admin');
+const isPlatformAdmin = computed(() => (auth.baseUser?.profile ?? auth.user?.profile) === 'admin');
 const environmentId = computed(() => route.params.id ?? null);
+const canBrowseEnvironments = computed(() => isSuperAdmin.value || isPlatformAdmin.value);
+const showEnvironmentsList = computed(() => canBrowseEnvironments.value && !environmentId.value);
 
 const environments = ref([]);
 const environment = ref(null);
@@ -229,7 +237,7 @@ async function removeEnvironment(env) {
 watch(environmentId, (id) => {
     if (id) {
         loadWorkspace();
-    } else if (isSuperAdmin.value) {
+    } else if (showEnvironmentsList.value) {
         environment.value = null;
         loadEnvironments();
     }
@@ -238,7 +246,7 @@ watch(environmentId, (id) => {
 onMounted(() => {
     if (environmentId.value) {
         loadWorkspace();
-    } else if (isSuperAdmin.value) {
+    } else if (showEnvironmentsList.value) {
         loadEnvironments();
     }
 });

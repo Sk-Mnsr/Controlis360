@@ -621,13 +621,22 @@ class ReferentialController extends APIController
     {
         $user = $request->user();
 
-        if (! $user->isSuperAdmin() && ! in_array($user->profile, ['controle', 'audit'], true)) {
+        if (! $user->isPlatformAdministrator() && ! in_array($user->profile, ['controle', 'audit'], true)) {
             return $this->responseError(['auth' => ['Accès non autorisé.']], 403);
         }
 
         $query = Environment::query()
             ->where('is_active', true)
             ->orderBy('name');
+
+        if ($user->isEnvironmentAdmin()) {
+            $environmentIds = $user->environment_ids;
+            if ($environmentIds === []) {
+                return $this->responseOk([]);
+            }
+
+            $query->whereIn('id', $environmentIds);
+        }
 
         return $this->responseOk(
             $query->get(['id', 'name', 'code'])
@@ -782,18 +791,24 @@ class ReferentialController extends APIController
     }
 
     /**
-     * Mise à jour de l'analyse des risques d'un département (super administrateur).
+     * Mise à jour de l'analyse des risques d'un département (super admin / admin d'environnement).
      */
     public function updateAnalyseRisques(Request $request, string $code)
     {
-        if (! $request->user()->isSuperAdmin()) {
-            return $this->responseError(['auth' => ['Action réservée au super administrateur']], 403);
+        $user = $request->user();
+
+        if (! $user->isPlatformAdministrator()) {
+            return $this->responseError(['auth' => ['Action réservée aux administrateurs']], 403);
         }
 
         $entity = $this->resolveDepartmentEntity($request, $code);
 
         if (! $entity) {
             return $this->responseError(['code' => ['Département introuvable']], 404);
+        }
+
+        if ($user->isEnvironmentAdmin() && ! $user->canAccessEnvironmentId((int) $entity->environment_id)) {
+            return $this->responseError(['auth' => ['Environnement non autorisé']], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -885,10 +900,11 @@ class ReferentialController extends APIController
             'permissions' => [
                 'can_create_row' => $user->canCreateOperationalRiskRow(),
                 'can_edit_methodology' => $user->canEditMethodology(),
-                'can_validate' => $user->isSuperAdmin() || $user->isControleResponsable(),
-                'can_complete_entity' => $user->isSuperAdmin() || $user->isControleResponsable(),
+                'can_validate' => $user->isPlatformAdministrator() || $user->isControleResponsable(),
+                'can_complete_entity' => $user->isPlatformAdministrator() || $user->isControleResponsable(),
                 'is_entity_responsable' => $user->isEntityResponsable(),
-                'is_super_admin' => $user->isSuperAdmin(),
+                'is_super_admin' => $user->isPlatformAdministrator(),
+                'is_environment_admin' => $user->isEnvironmentAdmin(),
                 'entity_id' => $user->entity_id,
             ],
         ];

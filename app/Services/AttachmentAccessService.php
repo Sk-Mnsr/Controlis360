@@ -21,6 +21,10 @@ class AttachmentAccessService
             return true;
         }
 
+        if ($user->isEnvironmentAdmin()) {
+            // Continuer : l'admin n'a accès qu'aux pièces de son périmètre.
+        }
+
         if (preg_match('#^regulatory-reporting/(\d+)/#', $path, $matches)) {
             $fiche = RegulatoryReportingFiche::query()->find((int) $matches[1]);
 
@@ -28,9 +32,9 @@ class AttachmentAccessService
                 return false;
             }
 
-            if (in_array($user->profile, ['conformite'], true)) {
+            if ($user->isEnvironmentAdmin() || in_array($user->profile, ['conformite'], true)) {
                 if ($fiche->environment_id === null) {
-                    return true;
+                    return $user->isEnvironmentAdmin() ? false : true;
                 }
 
                 return $user->belongsToEnvironment((int) $fiche->environment_id);
@@ -94,7 +98,7 @@ class AttachmentAccessService
 
     private function canViewRecommendations(User $user): bool
     {
-        if ($user->isSuperAdmin()) {
+        if ($user->isPlatformAdministrator()) {
             return true;
         }
 
@@ -121,8 +125,14 @@ class AttachmentAccessService
             return;
         }
 
-        if (in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isEnvironmentAdmin() || in_array($user->profile, ['controle', 'audit'], true)) {
             $environmentIds = $user->environment_ids;
+
+            if ($user->isEnvironmentAdmin() && empty($environmentIds)) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
 
             if (! empty($environmentIds)) {
                 $query->whereHas('entities', function ($entityQuery) use ($environmentIds) {

@@ -38,7 +38,7 @@ class MissionTypeService
 
         $types = $query->get();
 
-        if (! $user || $user->isSuperAdmin()) {
+        if (! $user || $user->isPlatformAdministrator()) {
             return $types;
         }
 
@@ -64,7 +64,7 @@ class MissionTypeService
 
     public function typeAllowedForUser(MissionType $type, ?User $user): bool
     {
-        if (! $user || $user->isSuperAdmin()) {
+        if (! $user || $user->isPlatformAdministrator()) {
             return true;
         }
 

@@ -151,7 +151,7 @@ class MissionTypeController extends APIController
             return false;
         }
 
-        return $user->isSuperAdmin()
+        return $user->isPlatformAdministrator()
             || in_array($user->profile, ['controle', 'audit'], true);
     }
 }

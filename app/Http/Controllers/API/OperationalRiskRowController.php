@@ -373,7 +373,7 @@ class OperationalRiskRowController extends APIController
 
     private function canValidate(User $user): bool
     {
-        return $user->isSuperAdmin() || $user->isControleResponsable();
+        return $user->isPlatformAdministrator() || $user->isControleResponsable();
     }
 
     private function findRow(int $id): ?OperationalRiskRow

@@ -304,27 +304,45 @@ const router = createRouter({
     routes,
 });
 
+function platformUser(auth) {
+    return auth.baseUser ?? auth.user;
+}
+
+function platformProfile(auth) {
+    return platformUser(auth)?.profile ?? null;
+}
+
 function canAccessEnvironment(auth, environmentId) {
-    if (auth.user?.profile === 'super_admin') return true;
-    if (auth.user?.profile === 'admin') {
-        const environmentIds = auth.user.environment_ids ?? [];
-        return environmentIds.map(String).includes(String(environmentId));
+    const profile = platformProfile(auth);
+    if (profile === 'super_admin') return true;
+    if (profile === 'admin') {
+        return getAdminEnvironmentIds(auth).map(String).includes(String(environmentId));
     }
     return false;
 }
 
 function getAdminEnvironmentIds(auth) {
-    return auth.user?.environment_ids ?? [];
+    const user = platformUser(auth);
+    if (Array.isArray(user?.environment_ids) && user.environment_ids.length) {
+        return user.environment_ids;
+    }
+
+    const environments = user?.environments ?? [];
+    return environments.map((environment) => environment.id).filter((id) => id != null);
 }
 
 function canManageUsers(profile) {
     return profile === 'super_admin' || profile === 'admin';
 }
 
+function isPlatformAdminRoute(to) {
+    return to.path.startsWith('/users') || to.path.startsWith('/environments');
+}
+
 router.beforeEach(async (to, from, next) => {
     const auth = useAuthStore();
 
-    if (auth.token && !auth.user) {
+    if (auth.token && !auth.baseUser && !auth.user) {
         await auth.fetchUser();
     }
 
@@ -344,8 +362,10 @@ router.beforeEach(async (to, from, next) => {
         return next({ name: 'change-password' });
     }
 
+    const profile = platformProfile(auth);
+
     if (to.matched.some((record) => record.meta.canManageUsers)) {
-        if (!canManageUsers(auth.user?.profile)) {
+        if (!canManageUsers(profile)) {
             return next({ name: 'portal' });
         }
     }
@@ -353,30 +373,44 @@ router.beforeEach(async (to, from, next) => {
     const moduleSlug = to.matched.find((record) => record.meta.module)?.meta.module;
     if (moduleSlug) {
         auth.setActiveModule(moduleSlug);
-    } else if (to.name === 'portal' || to.name === 'login') {
+    } else if (to.name === 'portal' || to.name === 'login' || isPlatformAdminRoute(to)) {
         auth.setActiveModule(null);
     }
 
-    if (moduleSlug && auth.user && !canAccessModule(auth.baseUser?.profile ?? auth.user.profile, moduleSlug, auth.baseUser ?? auth.user)) {
+    if (moduleSlug && auth.baseUser && !canAccessModule(auth.baseUser.profile, moduleSlug, auth.baseUser)) {
         return next({ name: 'portal' });
     }
 
     if (to.meta.requiresEnvironmentManagement) {
-        if (auth.user?.profile === 'super_admin') {
+        if (profile === 'super_admin') {
             return next();
         }
-        if (auth.user?.profile === 'admin' && getAdminEnvironmentIds(auth).length) {
+
+        if (profile === 'admin') {
+            const adminEnvironmentIds = getAdminEnvironmentIds(auth);
+            if (!adminEnvironmentIds.length) {
+                return next({ name: 'portal' });
+            }
+
+            if (to.name === 'environments' && adminEnvironmentIds.length === 1) {
+                return next({
+                    name: 'environments.detail',
+                    params: { id: adminEnvironmentIds[0] },
+                });
+            }
+
             return next();
         }
+
         return next({ name: 'portal' });
     }
 
-    if (to.meta.superAdminOnly && auth.user?.profile !== 'super_admin') {
+    if (to.meta.superAdminOnly && profile !== 'super_admin') {
         const adminEnvironmentIds = getAdminEnvironmentIds(auth);
-        if (auth.user?.profile === 'admin' && adminEnvironmentIds.length === 1) {
+        if (profile === 'admin' && adminEnvironmentIds.length === 1) {
             return next({ name: 'environments.detail', params: { id: adminEnvironmentIds[0] } });
         }
-        if (auth.user?.profile === 'admin' && adminEnvironmentIds.length > 1 && to.name === 'environments') {
+        if (profile === 'admin' && adminEnvironmentIds.length > 1 && to.name === 'environments') {
             return next();
         }
         return next({ name: 'portal' });

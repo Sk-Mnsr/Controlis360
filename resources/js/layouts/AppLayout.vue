@@ -247,45 +247,6 @@
                     <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
                         ← Tous les modules
                     </RouterLink>
-
-                    <RouterLink
-                        v-if="auth.user?.profile === 'super_admin'"
-                        class="nav-link"
-                        :class="{ 'nav-link-active': isEnvironmentsSection }"
-                        :to="{ name: 'environments' }"
-                    >
-                        Environnements
-                    </RouterLink>
-                    <RouterLink
-                        v-else-if="auth.user?.profile === 'admin' && adminEnvironmentIds.length"
-                        class="nav-link"
-                        :to="adminEnvironmentRoute"
-                        active-class="nav-link-active"
-                    >
-                        {{ adminEnvironmentIds.length > 1 ? 'Mes environnements' : 'Mon environnement' }}
-                    </RouterLink>
-
-                    <div v-if="canManageUsers" class="nav-group">
-                        <p class="nav-group-label" :class="{ 'nav-group-label-active': isUsersSection }">
-                            Utilisateurs
-                        </p>
-                        <div class="nav-group-children">
-                            <RouterLink
-                                class="nav-sublink"
-                                :class="{ 'nav-sublink-active': isUsersCreateSection }"
-                                :to="{ name: 'users.create' }"
-                            >
-                                Nouveau
-                            </RouterLink>
-                            <RouterLink
-                                class="nav-sublink"
-                                :class="{ 'nav-sublink-active': isUsersHistorySection }"
-                                :to="{ name: 'users.history' }"
-                            >
-                                Historiques
-                            </RouterLink>
-                        </div>
-                    </div>
                 </template>
             </nav>
 
@@ -333,7 +294,7 @@ import api from '../api/client';
 
 const auth = useAuthStore();
 const { canCreateRiskRow } = useCartographiePermissions();
-const canCreateMission = computed(() => userCanCreateMission(auth.user));
+const canCreateMission = computed(() => userCanCreateMission(auth.baseUser ?? auth.user));
 const route = useRoute();
 const router = useRouter();
 const { cartographie, navigateMethodology, selectDepartmentEntity } = useCartographieNavigation();
@@ -400,12 +361,13 @@ const isConformiteReceptionSection = computed(() =>
     route.name === 'conformite.reporting.reception'
     || route.name === 'conformite.reporting.reception.show',
 );
+const platformProfile = computed(() => auth.baseUser?.profile ?? auth.user?.profile ?? null);
 const canManageConformiteSaisie = computed(() =>
-    ['super_admin', 'conformite'].includes(auth.user?.profile),
+    ['super_admin', 'admin', 'conformite'].includes(platformProfile.value),
 );
-const isRegulatorOnly = computed(() => auth.user?.profile === 'regulateur');
-const showRegulatorNav = computed(() => isRegulatorProfile(auth.user?.profile));
-const canManageUsers = computed(() => ['super_admin', 'admin'].includes(auth.user?.profile));
+const isRegulatorOnly = computed(() => platformProfile.value === 'regulateur');
+const showRegulatorNav = computed(() => isRegulatorProfile(platformProfile.value));
+
 const departmentsOpen = ref(false);
 const agenciesOpen = ref(false);
 const entitiesLoading = ref(false);
@@ -529,22 +491,26 @@ function openCartographie() {
 }
 
 const userRoleLabel = computed(() => {
-    const user = auth.user;
+    const user = auth.baseUser ?? auth.user;
     if (!user) return '';
 
-    if (user.controle_role_fr) {
-        return `${user.profile_fr} — ${user.controle_role_fr}`;
+    if (user.profile === 'admin' || user.profile === 'super_admin') {
+        return user.profile_fr ?? '';
     }
 
-    if (user.audit_role_fr) {
-        return `${user.profile_fr} — ${user.audit_role_fr}`;
+    if (auth.user?.controle_role_fr) {
+        return `${auth.user.profile_fr} — ${auth.user.controle_role_fr}`;
     }
 
-    if (user.metier_role_fr) {
-        return `${user.profile_fr} — ${user.metier_role_fr}`;
+    if (auth.user?.audit_role_fr) {
+        return `${auth.user.profile_fr} — ${auth.user.audit_role_fr}`;
     }
 
-    return user.profile_fr ?? '';
+    if (auth.user?.metier_role_fr) {
+        return `${auth.user.profile_fr} — ${auth.user.metier_role_fr}`;
+    }
+
+    return auth.user?.profile_fr ?? user.profile_fr ?? '';
 });
 
 async function handleLogout() {

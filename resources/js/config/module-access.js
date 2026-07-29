@@ -33,8 +33,8 @@ export const MODULE_PROFILE_OPTIONS = {
 
 const MODULE_PROFILES = {
     cartographie: ['super_admin', 'admin', 'superviseur', 'controle', 'metier'],
-    audit: ['super_admin', 'regulateur', 'controle', 'audit', 'metier'],
-    conformite: ['super_admin', 'conformite', 'metier'],
+    audit: ['super_admin', 'admin', 'regulateur', 'controle', 'audit', 'metier'],
+    conformite: ['super_admin', 'admin', 'conformite', 'metier'],
 };
 
 const ALL_MODULE_SLUGS = modules.map((module) => module.slug);
@@ -223,6 +223,10 @@ export function userWithModuleContext(user, slug) {
 }
 
 export function canAccessModule(profile, slug, user = null) {
+    if (profile === 'super_admin' || profile === 'admin') {
+        return canAccessModuleByProfile(profile, slug, user);
+    }
+
     if (user?.module_profiles && Object.keys(user.module_profiles).length > 0) {
         const assignment = user.module_profiles[slug];
         if (!assignment?.profile) {
@@ -247,7 +251,16 @@ export function canAccessModule(profile, slug, user = null) {
 export function canCreateMission(user) {
     const profile = user?.profile;
 
-    return profile === 'super_admin' || profile === 'controle' || profile === 'audit';
+    return profile === 'super_admin'
+        || profile === 'admin'
+        || profile === 'controle'
+        || profile === 'audit';
+}
+
+export function isPlatformAdministrator(user) {
+    const profile = user?.profile;
+
+    return profile === 'super_admin' || profile === 'admin';
 }
 
 export function isMissionResponsible(user) {

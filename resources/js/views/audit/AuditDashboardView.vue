@@ -55,7 +55,7 @@ const loading = ref(true);
 const error = ref('');
 const missions = ref([]);
 
-const canCreate = computed(() => canCreateMission(auth.user));
+const canCreate = computed(() => canCreateMission(auth.baseUser ?? auth.user));
 
 function extractMissions(data) {
     const root = data?.data ?? data;

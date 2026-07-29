@@ -182,7 +182,7 @@ const showRegulatorComments = computed(() => {
 
     const profile = auth.user?.profile;
 
-    return ['controle', 'audit', 'super_admin'].includes(profile)
+    return ['controle', 'audit', 'super_admin', 'admin'].includes(profile)
         && recommendation.value?.regulator_transmitted_at;
 });
 

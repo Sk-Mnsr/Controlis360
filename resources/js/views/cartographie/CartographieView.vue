@@ -109,7 +109,7 @@ const environmentOptions = computed(() =>
 
 const showGroupeOption = computed(() =>
     environmentOptions.value.length > 1
-    || auth.user?.profile === 'super_admin',
+    || ['super_admin', 'admin'].includes(auth.baseUser?.profile ?? auth.user?.profile),
 );
 
 const selectedEnvironment = computed(() => {

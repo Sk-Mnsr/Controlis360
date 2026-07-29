@@ -506,6 +506,10 @@ class MissionController extends APIController
             return true;
         }
 
+        if ($user->isEnvironmentAdmin()) {
+            return $user->canAccessMissionEnvironments($mission->entities);
+        }
+
         return in_array($user->profile, ['controle', 'audit'], true)
             && (int) $mission->created_by === (int) $user->id;
     }
@@ -518,6 +522,10 @@ class MissionController extends APIController
 
         if ($user->isSuperAdmin()) {
             return true;
+        }
+
+        if ($user->isEnvironmentAdmin()) {
+            return $user->canAccessMissionEnvironments($mission->entities);
         }
 
         if (! in_array($user->profile, ['controle', 'audit'], true)) {
@@ -533,7 +541,7 @@ class MissionController extends APIController
             return false;
         }
 
-        if ($user->isSuperAdmin()) {
+        if ($user->isPlatformAdministrator()) {
             return true;
         }
 
@@ -542,13 +550,13 @@ class MissionController extends APIController
 
     private function canCreateMission(User $user): bool
     {
-        return $user->isSuperAdmin()
+        return $user->isPlatformAdministrator()
             || in_array($user->profile, ['controle', 'audit'], true);
     }
 
     private function canViewMissions(User $user): bool
     {
-        if ($user->isSuperAdmin()) {
+        if ($user->isPlatformAdministrator()) {
             return true;
         }
 
@@ -573,6 +581,10 @@ class MissionController extends APIController
     {
         if ($user->isSuperAdmin()) {
             return true;
+        }
+
+        if ($user->isEnvironmentAdmin()) {
+            return $user->canAccessMissionEnvironments($mission->entities);
         }
 
         if (in_array($user->profile, ['controle', 'audit'], true)) {
@@ -604,8 +616,14 @@ class MissionController extends APIController
             return;
         }
 
-        if (in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isEnvironmentAdmin() || in_array($user->profile, ['controle', 'audit'], true)) {
             $environmentIds = $user->environment_ids;
+
+            if ($user->isEnvironmentAdmin() && empty($environmentIds)) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
 
             if (! empty($environmentIds)) {
                 $query->whereHas('entities', function ($entityQuery) use ($environmentIds) {
@@ -737,7 +755,7 @@ class MissionController extends APIController
             }
         }
 
-        if ($viewer && ($viewer->isSuperAdmin() || in_array($viewer->profile, ['controle', 'audit'], true))) {
+        if ($viewer && ($viewer->isPlatformAdministrator() || in_array($viewer->profile, ['controle', 'audit'], true))) {
             $item['can_edit'] = $this->canManageMission($viewer, $mission);
             $item['can_delete'] = $this->canManageMission($viewer, $mission);
             $item['can_add_recommendation'] = $this->canAddRecommendationToMission($viewer, $mission);
@@ -752,7 +770,7 @@ class MissionController extends APIController
             ])->values();
         }
 
-        if ($viewer && in_array($viewer->profile, ['controle', 'audit'], true)) {
+        if ($viewer && ($viewer->isPlatformAdministrator() || in_array($viewer->profile, ['controle', 'audit'], true))) {
             $item['responses'] = $mission->responses
                 ->where('workflow_status', 'transmis')
                 ->map(fn (MissionResponse $r) => $this->responseController->formatResponse($r, $viewer))

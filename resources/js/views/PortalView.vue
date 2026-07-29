@@ -47,10 +47,10 @@
         <section v-if="canManagePlatform" class="portal-admin">
             <h3 class="portal-admin-title">Administration plateforme</h3>
             <div class="portal-admin-links">
-                <RouterLink :to="{ name: 'environments' }" class="portal-admin-link">
+                <RouterLink :to="environmentsLink" class="portal-admin-link" @click="auth.setActiveModule(null)">
                     Environnements
                 </RouterLink>
-                <RouterLink :to="{ name: 'users.create' }" class="portal-admin-link">
+                <RouterLink :to="{ name: 'users.create' }" class="portal-admin-link" @click="auth.setActiveModule(null)">
                     Utilisateurs
                 </RouterLink>
             </div>
@@ -67,15 +67,32 @@ import { useAuthStore } from '../stores/auth';
 const auth = useAuthStore();
 const router = useRouter();
 
-const accessibleModules = computed(() => getAccessibleModules(auth.baseUser ?? auth.user));
-const canManagePlatform = computed(() => ['super_admin', 'admin'].includes(auth.baseUser?.profile ?? auth.user?.profile));
+const platformUser = computed(() => auth.baseUser ?? auth.user);
+const accessibleModules = computed(() => getAccessibleModules(platformUser.value));
+const canManagePlatform = computed(() => ['super_admin', 'admin'].includes(platformUser.value?.profile));
+
+const environmentsLink = computed(() => {
+    if (platformUser.value?.profile === 'super_admin') {
+        return { name: 'environments' };
+    }
+
+    const environmentIds = Array.isArray(platformUser.value?.environment_ids) && platformUser.value.environment_ids.length
+        ? platformUser.value.environment_ids
+        : (platformUser.value?.environments ?? []).map((environment) => environment.id).filter(Boolean);
+
+    if (environmentIds.length === 1) {
+        return { name: 'environments.detail', params: { id: environmentIds[0] } };
+    }
+
+    return { name: 'environments' };
+});
 
 function openModule(module) {
     if (!module.active || !module.entryRoute) {
         return;
     }
 
-    if (!canAccessModule(auth.baseUser?.profile ?? auth.user?.profile, module.slug, auth.baseUser ?? auth.user)) {
+    if (!canAccessModule(platformUser.value?.profile, module.slug, platformUser.value)) {
         return;
     }
 

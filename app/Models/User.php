@@ -247,6 +247,61 @@ class User extends AuthenticatableBase
         return $this->profile === UserProfile::Admin->value;
     }
 
+    /**
+     * Super administrateur ou administrateur d'environnement.
+     */
+    public function isPlatformAdministrator(): bool
+    {
+        return $this->isSuperAdmin() || $this->isEnvironmentAdmin();
+    }
+
+    /**
+     * L'utilisateur peut accéder à cet environnement (super = tous, admin = ses environnements).
+     */
+    public function canAccessEnvironmentId(?int $environmentId): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (! $this->isEnvironmentAdmin() || $environmentId === null) {
+            return false;
+        }
+
+        return in_array((int) $environmentId, $this->environment_ids, true);
+    }
+
+    /**
+     * Mission visible pour un admin d'environnement si au moins une entité est dans son périmètre.
+     */
+    public function canAccessMissionEnvironments(iterable $entities): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (! $this->isEnvironmentAdmin()) {
+            return false;
+        }
+
+        $environmentIds = $this->environment_ids;
+        if ($environmentIds === []) {
+            return false;
+        }
+
+        foreach ($entities as $entity) {
+            $environmentId = is_array($entity)
+                ? ($entity['environment_id'] ?? null)
+                : ($entity->environment_id ?? null);
+
+            if ($environmentId !== null && in_array((int) $environmentId, $environmentIds, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function isControleAgent(): bool
     {
         return $this->profile === UserProfile::Controle->value
@@ -267,12 +322,14 @@ class User extends AuthenticatableBase
 
     public function canEditMethodology(): bool
     {
-        return $this->isSuperAdmin() || $this->isControleResponsable();
+        return $this->isPlatformAdministrator() || $this->isControleResponsable();
     }
 
     public function canCreateOperationalRiskRow(): bool
     {
-        return $this->isSuperAdmin() || $this->isControleAgent() || $this->isControleResponsable();
+        return $this->isPlatformAdministrator()
+            || $this->isControleAgent()
+            || $this->isControleResponsable();
     }
 
     public function belongsToEnvironment(?int $environmentId): bool

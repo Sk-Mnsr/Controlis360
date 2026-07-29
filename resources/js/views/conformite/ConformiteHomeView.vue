@@ -54,6 +54,6 @@ import { useAuthStore } from '../../stores/auth';
 const auth = useAuthStore();
 
 const canManageSaisie = computed(() =>
-    ['super_admin', 'conformite'].includes(auth.user?.profile),
+    ['super_admin', 'admin', 'conformite'].includes(auth.baseUser?.profile ?? auth.user?.profile),
 );
 </script>
