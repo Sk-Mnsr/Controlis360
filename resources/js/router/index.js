@@ -10,6 +10,12 @@ const routes = [
         meta: { guest: true },
     },
     {
+        path: '/change-password',
+        name: 'change-password',
+        component: () => import('../views/ChangePasswordView.vue'),
+        meta: { requiresAuth: true, allowPasswordChange: true },
+    },
+    {
         path: '/',
         component: () => import('../layouts/AppLayout.vue'),
         meta: { requiresAuth: true },
@@ -327,7 +333,15 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (to.meta.guest && auth.token) {
+        if (auth.mustChangePassword) {
+            return next({ name: 'change-password' });
+        }
+
         return next({ name: 'portal' });
+    }
+
+    if (auth.token && auth.mustChangePassword && !to.meta.allowPasswordChange) {
+        return next({ name: 'change-password' });
     }
 
     if (to.matched.some((record) => record.meta.canManageUsers)) {

@@ -116,6 +116,9 @@ class UserController extends APIController
                 $requestData['password'] = Hash::make($requestData['password']);
             }
 
+            // Première connexion : forcer le changement de mot de passe.
+            $requestData['password_change_required'] = true;
+
             return $this->normalizeUserPayload($requestData);
         };
 
@@ -128,6 +131,8 @@ class UserController extends APIController
         $this->updateBeforeUpdateFunction = function (User $model, array $requestData) {
             if (isset($requestData['password'])) {
                 $requestData['password'] = Hash::make($requestData['password']);
+                // Mot de passe réinitialisé par un admin → changement requis à la prochaine connexion.
+                $requestData['password_change_required'] = true;
             }
 
             return $this->normalizeUserPayload($requestData, $model);

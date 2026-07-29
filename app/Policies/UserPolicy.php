@@ -83,7 +83,7 @@ class UserPolicy extends BasePolicy
         return parent::delete($connectedUser, $user);
     }
 
-    public function updatePassword($connectedUser)
+    public function updatePassword($connectedUser, $user = null)
     {
         return Response::allow();
     }

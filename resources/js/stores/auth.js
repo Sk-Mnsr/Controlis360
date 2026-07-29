@@ -19,6 +19,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     const user = computed(() => userWithModuleContext(baseUser.value, activeModule.value));
     const isAuthenticated = computed(() => Boolean(token.value && baseUser.value));
+    const mustChangePassword = computed(() => Boolean(baseUser.value?.password_change_required));
 
     function setBaseUser(nextUser) {
         baseUser.value = nextUser;
@@ -150,6 +151,30 @@ export const useAuthStore = defineStore('auth', () => {
         }
     }
 
+    async function changePassword({ current_password, new_password, new_password_confirmation }) {
+        const { data } = await api.put('/users/update-password', {
+            current_password,
+            new_password,
+            new_password_confirmation,
+        });
+        const payload = data.data ?? data;
+        const nextUser = payload.user ?? baseUser.value;
+
+        if (nextUser) {
+            setBaseUser({
+                ...nextUser,
+                password_change_required: false,
+            });
+        } else if (baseUser.value) {
+            setBaseUser({
+                ...baseUser.value,
+                password_change_required: false,
+            });
+        }
+
+        return payload;
+    }
+
     async function logout(redirectToLogin = false) {
         try {
             if (token.value) {
@@ -175,8 +200,10 @@ export const useAuthStore = defineStore('auth', () => {
         loading,
         error,
         isAuthenticated,
+        mustChangePassword,
         login,
         fetchUser,
+        changePassword,
         logout,
         setActiveModule,
         startIdleWatch,
