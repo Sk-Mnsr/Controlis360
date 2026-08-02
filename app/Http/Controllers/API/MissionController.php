@@ -1152,9 +1152,16 @@ class MissionController extends APIController
                 'telephone' => trim((string) ($row['telephone'] ?? '')),
                 'poste' => trim((string) ($row['poste'] ?? '')),
                 'entite_type' => ($row['entite_type'] ?? 'interne') === 'externe' ? 'externe' : 'interne',
-                'responsable_equipe' => trim((string) ($row['responsable_equipe'] ?? '')),
+                'responsable_equipe' => $this->normalizeMissionnaireRole($row['responsable_equipe'] ?? null),
             ];
         }, $raw)));
+    }
+
+    private function normalizeMissionnaireRole(mixed $value): string
+    {
+        $role = strtolower(trim((string) $value));
+
+        return in_array($role, ['responsable', 'membre'], true) ? $role : 'membre';
     }
 
     private function validateMissionnairesPayload(array $missionnaires): ?string
@@ -1174,8 +1181,8 @@ class MissionController extends APIController
                 return "{$label} : l'entité doit être interne ou externe.";
             }
 
-            if (($row['responsable_equipe'] ?? '') === '') {
-                return "{$label} : choisissez un responsable / une équipe.";
+            if (! in_array($row['responsable_equipe'] ?? '', ['responsable', 'membre'], true)) {
+                return "{$label} : choisissez Responsable ou Membre.";
             }
         }
 

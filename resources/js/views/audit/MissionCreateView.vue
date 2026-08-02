@@ -124,7 +124,7 @@
                             {{ missionnairesSummary || 'Cliquer pour renseigner les missionnaires' }}
                         </button>
                         <p class="mission-create-hint">
-                            Nom, e-mail, téléphone, poste, entité (interne/externe) et responsable / équipe
+                            Nom, e-mail, téléphone, poste, entité (interne/externe) et rôle (responsable ou membre)
                         </p>
                     </div>
                 </div>
@@ -237,7 +237,6 @@
         <MissionnairesModal
             v-model="missionnaires"
             v-model:open="missionnairesModalOpen"
-            :responsable-options="responsableOptions"
         />
     </div>
 </template>
@@ -325,20 +324,13 @@ const entityPlaceholder = computed(() => {
     return 'Sélectionner une ou plusieurs entités';
 });
 
-const responsableOptions = computed(() => {
-    const names = form.entity_ids
-        .map((id) => entities.value.find((e) => Number(e.id) === id)?.responsible_name)
-        .filter(Boolean)
-        .flatMap((n) => String(n).split(',').map((p) => p.trim()))
-        .filter(Boolean);
-
-    return [...new Set(names)];
-});
-
 const missionnairesSummary = computed(() => {
     if (!missionnaires.value.length) return '';
     return missionnaires.value
-        .map((m) => m.nom)
+        .map((m) => {
+            const role = m.responsable_equipe === 'responsable' ? 'responsable' : 'membre';
+            return m.nom ? `${m.nom} (${role})` : '';
+        })
         .filter(Boolean)
         .join(', ');
 });

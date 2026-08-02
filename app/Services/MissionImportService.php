@@ -380,7 +380,13 @@ class MissionImportService
                 'telephone' => trim((string) ($row['telephone'] ?? '')) ?: null,
                 'poste' => trim((string) ($row['poste'] ?? '')) ?: null,
                 'entite_type' => $entiteType,
-                'responsable_equipe' => trim((string) ($row['responsable_equipe'] ?? '')) ?: null,
+                'responsable_equipe' => in_array(
+                    strtolower(trim((string) ($row['responsable_equipe'] ?? ''))),
+                    ['responsable', 'membre'],
+                    true
+                )
+                    ? strtolower(trim((string) $row['responsable_equipe']))
+                    : 'membre',
                 'ordre' => $index,
             ]);
         }

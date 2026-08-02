@@ -8,7 +8,7 @@
             <header class="border-b border-slate-200 px-5 py-4 sm:px-6">
                 <h3 class="text-lg font-semibold text-slate-900">Missionnaires</h3>
                 <p class="mt-1 text-sm text-slate-500">
-                    Renseignez les missionnaires et leur responsable / équipe.
+                    Indiquez pour chaque personne si elle est responsable ou membre de la mission.
                 </p>
             </header>
 
@@ -81,22 +81,18 @@
                         </div>
                         <div>
                             <label class="mb-1 block text-xs font-medium text-slate-600">
-                                Responsable / équipe *
+                                Rôle dans la mission *
                             </label>
-                            <input
+                            <select
                                 v-model="row.responsable_equipe"
-                                type="text"
-                                list="missionnaire-responsable-options"
                                 class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
-                                placeholder="Choisir ou saisir"
-                            />
+                            >
+                                <option value="responsable">Responsable</option>
+                                <option value="membre">Membre</option>
+                            </select>
                         </div>
                     </div>
                 </div>
-
-                <datalist id="missionnaire-responsable-options">
-                    <option v-for="option in responsableOptions" :key="option" :value="option" />
-                </datalist>
 
                 <button
                     type="button"
@@ -132,15 +128,20 @@
 <script setup>
 import { ref, watch } from 'vue';
 
+const ROLE_VALUES = ['responsable', 'membre'];
+
 const props = defineProps({
     open: { type: Boolean, default: false },
     modelValue: { type: Array, default: () => [] },
-    responsableOptions: { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['update:modelValue', 'update:open', 'close']);
 
 let keySeq = 1;
+
+function normalizeRole(value) {
+    return ROLE_VALUES.includes(value) ? value : 'membre';
+}
 
 function emptyRow() {
     keySeq += 1;
@@ -151,7 +152,7 @@ function emptyRow() {
         telephone: '',
         poste: '',
         entite_type: 'interne',
-        responsable_equipe: '',
+        responsable_equipe: 'membre',
     };
 }
 
@@ -172,7 +173,7 @@ watch(
                 telephone: row.telephone ?? '',
                 poste: row.poste ?? '',
                 entite_type: row.entite_type === 'externe' ? 'externe' : 'interne',
-                responsable_equipe: row.responsable_equipe ?? '',
+                responsable_equipe: normalizeRole(row.responsable_equipe),
             }))
             : [emptyRow()];
     },
@@ -200,9 +201,9 @@ function confirm() {
             telephone: row.telephone.trim(),
             poste: row.poste.trim(),
             entite_type: row.entite_type === 'externe' ? 'externe' : 'interne',
-            responsable_equipe: row.responsable_equipe.trim(),
+            responsable_equipe: normalizeRole(row.responsable_equipe),
         }))
-        .filter((row) => row.nom || row.email || row.telephone || row.poste || row.responsable_equipe);
+        .filter((row) => row.nom || row.email || row.telephone || row.poste);
 
     for (let i = 0; i < cleaned.length; i += 1) {
         const row = cleaned[i];
@@ -216,8 +217,8 @@ function confirm() {
             localError.value = `${label} : un e-mail valide est obligatoire.`;
             return;
         }
-        if (!row.responsable_equipe) {
-            localError.value = `${label} : choisissez un responsable / une équipe.`;
+        if (!ROLE_VALUES.includes(row.responsable_equipe)) {
+            localError.value = `${label} : choisissez Responsable ou Membre.`;
             return;
         }
     }

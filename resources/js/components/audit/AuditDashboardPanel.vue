@@ -1,6 +1,6 @@
 <template>
-    <div class="space-y-5">
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+    <div class="@container space-y-5">
+        <div class="grid grid-cols-1 gap-3 @[28rem]:grid-cols-2 @[42rem]:grid-cols-3 @[56rem]:grid-cols-6">
             <article
                 v-for="card in kpiCards"
                 :key="card.label"
@@ -20,7 +20,7 @@
             </article>
         </div>
 
-        <div class="grid gap-4 xl:grid-cols-3">
+        <div class="grid grid-cols-1 gap-4 @[36rem]:grid-cols-2 @[56rem]:grid-cols-3">
             <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <h3 class="text-sm font-semibold text-slate-800">Répartition par niveau de risque</h3>
                 <DashboardDonut
@@ -61,14 +61,14 @@
             </article>
         </div>
 
-        <div class="grid gap-4" :class="showMissionTypeChart ? 'xl:grid-cols-2' : ''">
+        <div class="grid grid-cols-1 gap-4" :class="showMissionTypeChart ? '@[48rem]:grid-cols-2' : ''">
             <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <h3 class="text-sm font-semibold text-slate-800">Recommandations par direction / entité</h3>
                 <div v-if="!stats.by_entity.length" class="py-10 text-center text-sm text-slate-500">
                     Aucune donnée
                 </div>
                 <ul v-else class="mt-4 space-y-3">
-                    <li v-for="row in stats.by_entity" :key="row.id" class="grid grid-cols-[7rem_1fr_2.5rem] items-center gap-2">
+                    <li v-for="row in stats.by_entity" :key="row.id" class="grid grid-cols-[minmax(4rem,7rem)_1fr_2.5rem] items-center gap-2">
                         <span class="truncate text-xs font-medium text-slate-600" :title="row.name">{{ row.name }}</span>
                         <div class="h-2.5 overflow-hidden rounded-full bg-slate-100">
                             <div
@@ -141,7 +141,7 @@
             </div>
         </article>
 
-        <div class="grid gap-4 xl:grid-cols-2">
+        <div class="grid grid-cols-1 gap-4 @[48rem]:grid-cols-2">
             <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div class="border-b border-slate-100 px-4 py-3">
                     <h3 class="text-sm font-semibold text-slate-800">Alertes & échéances prochaines</h3>

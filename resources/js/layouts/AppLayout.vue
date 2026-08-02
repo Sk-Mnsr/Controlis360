@@ -3,7 +3,11 @@
         <aside
             v-if="!hideSidebar"
             class="flex h-screen shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white"
-            :class="activeModule ? 'w-72' : 'w-64'"
+            :class="[
+                activeModule ? 'w-64 sm:w-72' : 'w-56 sm:w-64',
+                'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:transition-transform',
+                mobileNavOpen ? 'max-lg:translate-x-0' : 'max-lg:-translate-x-full',
+            ]"
         >
             <div class="shrink-0 border-b border-slate-200 px-5 py-5">
                 <img
@@ -302,10 +306,34 @@
         </aside>
 
         <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <header
+                v-if="!hideSidebar"
+                class="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:hidden"
+            >
+                <button
+                    type="button"
+                    class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    :aria-expanded="mobileNavOpen"
+                    aria-label="Ouvrir le menu"
+                    @click="mobileNavOpen = !mobileNavOpen"
+                >
+                    Menu
+                </button>
+                <p class="truncate text-sm font-medium text-slate-700">
+                    {{ activeModule?.name || 'Controlis360' }}
+                </p>
+            </header>
+
+            <div
+                v-if="mobileNavOpen && !hideSidebar"
+                class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden"
+                @click="mobileNavOpen = false"
+            />
+
             <main
                 class="min-h-0 flex-1"
                 :class="[
-                    isFullBleedPage ? 'flex flex-col' : 'p-6 lg:p-8',
+                    isFullBleedPage ? 'flex flex-col' : 'p-4 sm:p-6 lg:p-8',
                     isConformiteSaisieSection ? 'overflow-hidden' : 'overflow-y-auto',
                 ]"
             >
@@ -426,6 +454,7 @@ const adminEnvironmentRoute = computed(() => {
 const departmentsOpen = ref(false);
 const agenciesOpen = ref(false);
 const entitiesLoading = ref(false);
+const mobileNavOpen = ref(false);
 
 const activeEntityType = computed(() => {
     if (route.name !== 'cartographie.departement-analyse'
@@ -474,6 +503,10 @@ async function loadNavigationEntities() {
         entitiesLoading.value = false;
     }
 }
+
+watch(() => route.fullPath, () => {
+    mobileNavOpen.value = false;
+});
 
 watch(activeModule, (module) => {
     if (module?.slug === 'cartographie') {
