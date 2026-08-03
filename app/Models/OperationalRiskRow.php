@@ -120,11 +120,16 @@ class OperationalRiskRow extends ModelBase
 
     public function canEditPhase1By(User $user): bool
     {
-        if ($user->isSuperAdmin()) {
+        if ($user->isPlatformAdministrator()) {
             return true;
         }
 
-        if (! $user->isSuperAdmin() && ! $user->canCreateOperationalRiskRow()) {
+        // Le responsable contrôle peut corriger une soumission agent sans la renvoyer.
+        if ($user->isControleResponsable() && $this->status === OperationalRiskRowStatus::Submitted) {
+            return true;
+        }
+
+        if (! $user->canCreateOperationalRiskRow()) {
             return false;
         }
 
@@ -140,7 +145,7 @@ class OperationalRiskRow extends ModelBase
             return false;
         }
 
-        if ($user->isSuperAdmin()) {
+        if ($user->isPlatformAdministrator()) {
             return true;
         }
 
@@ -170,7 +175,7 @@ class OperationalRiskRow extends ModelBase
 
     public function isVisibleTo(User $user): bool
     {
-        if ($user->isSuperAdmin() || $user->isControleAgent() || $user->isControleResponsable()) {
+        if ($user->isPlatformAdministrator() || $user->isControleAgent() || $user->isControleResponsable()) {
             return true;
         }
 

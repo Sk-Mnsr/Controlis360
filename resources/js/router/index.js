@@ -10,6 +10,12 @@ const routes = [
         meta: { guest: true },
     },
     {
+        path: '/change-password',
+        name: 'change-password',
+        component: () => import('../views/ChangePasswordView.vue'),
+        meta: { requiresAuth: true, allowPasswordChange: true },
+    },
+    {
         path: '/',
         component: () => import('../layouts/AppLayout.vue'),
         meta: { requiresAuth: true },
@@ -75,12 +81,6 @@ const routes = [
                 ],
             },
             {
-                path: 'entities',
-                name: 'entities.members',
-                component: () => import('../views/entities/EntityMembersView.vue'),
-                meta: { canManageUsers: true },
-            },
-            {
                 path: 'cartographie',
                 meta: { module: 'cartographie' },
                 children: [
@@ -92,6 +92,11 @@ const routes = [
                         path: 'home',
                         name: 'cartographie.home',
                         component: () => import('../views/HomeView.vue'),
+                    },
+                    {
+                        path: 'cartographie',
+                        name: 'cartographie.cartographie',
+                        component: () => import('../views/cartographie/CartographieView.vue'),
                     },
                     {
                         path: 'methodology/:slug',
@@ -171,6 +176,11 @@ const routes = [
                         component: () => import('../views/cartographie/DepartementAnalyseView.vue'),
                     },
                     {
+                        path: 'departements/:code/dashboard',
+                        name: 'cartographie.departement-dashboard',
+                        component: () => import('../views/cartographie/DepartementDashboardView.vue'),
+                    },
+                    {
                         path: 'departements/:code/historique',
                         name: 'cartographie.departement-historique',
                         component: () => import('../views/cartographie/HistoriqueView.vue'),
@@ -183,12 +193,17 @@ const routes = [
                 children: [
                     {
                         path: '',
-                        redirect: { name: 'audit.home' },
+                        redirect: { name: 'audit.dashboard' },
                     },
                     {
                         path: 'home',
                         name: 'audit.home',
-                        component: () => import('../views/audit/AuditHomeView.vue'),
+                        redirect: { name: 'audit.dashboard' },
+                    },
+                    {
+                        path: 'dashboard',
+                        name: 'audit.dashboard',
+                        component: () => import('../views/audit/AuditDashboardView.vue'),
                     },
                     {
                         path: 'missions',
@@ -372,27 +387,45 @@ const router = createRouter({
     routes,
 });
 
+function platformUser(auth) {
+    return auth.baseUser ?? auth.user;
+}
+
+function platformProfile(auth) {
+    return platformUser(auth)?.profile ?? null;
+}
+
 function canAccessEnvironment(auth, environmentId) {
-    if (auth.user?.profile === 'super_admin') return true;
-    if (auth.user?.profile === 'admin') {
-        const environmentIds = auth.user.environment_ids ?? [];
-        return environmentIds.map(String).includes(String(environmentId));
+    const profile = platformProfile(auth);
+    if (profile === 'super_admin') return true;
+    if (profile === 'admin') {
+        return getAdminEnvironmentIds(auth).map(String).includes(String(environmentId));
     }
     return false;
 }
 
 function getAdminEnvironmentIds(auth) {
-    return auth.user?.environment_ids ?? [];
+    const user = platformUser(auth);
+    if (Array.isArray(user?.environment_ids) && user.environment_ids.length) {
+        return user.environment_ids;
+    }
+
+    const environments = user?.environments ?? [];
+    return environments.map((environment) => environment.id).filter((id) => id != null);
 }
 
 function canManageUsers(profile) {
     return profile === 'super_admin' || profile === 'admin';
 }
 
+function isPlatformAdminRoute(to) {
+    return to.path.startsWith('/users') || to.path.startsWith('/environments');
+}
+
 router.beforeEach(async (to, from, next) => {
     const auth = useAuthStore();
 
-    if (auth.token && !auth.user) {
+    if (auth.token && !auth.baseUser && !auth.user) {
         await auth.fetchUser();
     }
 
@@ -401,31 +434,66 @@ router.beforeEach(async (to, from, next) => {
     }
 
     if (to.meta.guest && auth.token) {
+        if (auth.mustChangePassword) {
+            return next({ name: 'change-password' });
+        }
+
         return next({ name: 'portal' });
     }
 
+    if (auth.token && auth.mustChangePassword && !to.meta.allowPasswordChange) {
+        return next({ name: 'change-password' });
+    }
+
+    const profile = platformProfile(auth);
+
     if (to.matched.some((record) => record.meta.canManageUsers)) {
-        if (!canManageUsers(auth.user?.profile)) {
+        if (!canManageUsers(profile)) {
             return next({ name: 'portal' });
         }
     }
 
-    if (to.meta.requiresEnvironmentManagement) {
-        if (auth.user?.profile === 'super_admin') {
-            return next();
-        }
-        if (auth.user?.profile === 'admin' && getAdminEnvironmentIds(auth).length) {
-            return next();
-        }
+    const moduleSlug = to.matched.find((record) => record.meta.module)?.meta.module;
+    if (moduleSlug) {
+        auth.setActiveModule(moduleSlug);
+    } else if (to.name === 'portal' || to.name === 'login' || isPlatformAdminRoute(to)) {
+        auth.setActiveModule(null);
+    }
+
+    if (moduleSlug && auth.baseUser && !canAccessModule(auth.baseUser.profile, moduleSlug, auth.baseUser)) {
         return next({ name: 'portal' });
     }
 
-    if (to.meta.superAdminOnly && auth.user?.profile !== 'super_admin') {
+    if (to.meta.requiresEnvironmentManagement) {
+        if (profile === 'super_admin') {
+            return next();
+        }
+
+        if (profile === 'admin') {
+            const adminEnvironmentIds = getAdminEnvironmentIds(auth);
+            if (!adminEnvironmentIds.length) {
+                return next({ name: 'portal' });
+            }
+
+            if (to.name === 'environments' && adminEnvironmentIds.length === 1) {
+                return next({
+                    name: 'environments.detail',
+                    params: { id: adminEnvironmentIds[0] },
+                });
+            }
+
+            return next();
+        }
+
+        return next({ name: 'portal' });
+    }
+
+    if (to.meta.superAdminOnly && profile !== 'super_admin') {
         const adminEnvironmentIds = getAdminEnvironmentIds(auth);
-        if (auth.user?.profile === 'admin' && adminEnvironmentIds.length === 1) {
+        if (profile === 'admin' && adminEnvironmentIds.length === 1) {
             return next({ name: 'environments.detail', params: { id: adminEnvironmentIds[0] } });
         }
-        if (auth.user?.profile === 'admin' && adminEnvironmentIds.length > 1 && to.name === 'environments') {
+        if (profile === 'admin' && adminEnvironmentIds.length > 1 && to.name === 'environments') {
             return next();
         }
         return next({ name: 'portal' });

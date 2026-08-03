@@ -122,7 +122,7 @@ const missions = ref([]);
 const error = ref('');
 const importOpen = ref(false);
 
-const canCreate = computed(() => canCreateMission(auth.user));
+const canCreate = computed(() => canCreateMission(auth.baseUser ?? auth.user));
 
 const totals = computed(() => {
     const summary = missions.value.reduce(
@@ -165,6 +165,20 @@ function extractMissions(data) {
     return Array.isArray(root) ? root : [];
 }
 
+function apiErrorMessage(err, fallback) {
+    const message = err.response?.data?.message;
+
+    if (Array.isArray(message) && message.length) {
+        return String(message[0]);
+    }
+
+    if (typeof message === 'string' && message.trim()) {
+        return message;
+    }
+
+    return fallback;
+}
+
 async function loadMissions() {
     loading.value = true;
     error.value = '';
@@ -172,7 +186,7 @@ async function loadMissions() {
         const { data } = await api.get('/missions');
         missions.value = extractMissions(data);
     } catch (err) {
-        error.value = err.response?.data?.message?.[0] ?? 'Impossible de charger les missions.';
+        error.value = apiErrorMessage(err, 'Impossible de charger les missions.');
     } finally {
         loading.value = false;
     }

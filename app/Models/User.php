@@ -20,6 +20,8 @@ class User extends AuthenticatableBase
         'email',
         'password',
         'profile',
+        'modules',
+        'module_profiles',
         'metier_role',
         'controle_role',
         'audit_role',
@@ -158,8 +160,47 @@ class User extends AuthenticatableBase
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'modules' => 'array',
+            'module_profiles' => 'array',
             'activated' => 'boolean',
             'password_change_required' => 'boolean',
+        ];
+    }
+
+    public function hasModuleAccess(string $slug): bool
+    {
+        $profiles = $this->module_profiles;
+        if (is_array($profiles) && $profiles !== []) {
+            return array_key_exists($slug, $profiles) && ! empty($profiles[$slug]['profile'] ?? null);
+        }
+
+        $assigned = $this->modules;
+
+        if (! is_array($assigned) || $assigned === []) {
+            return true;
+        }
+
+        return in_array($slug, $assigned, true);
+    }
+
+    public function profileForModule(?string $slug): array
+    {
+        $profiles = $this->module_profiles;
+
+        if ($slug && is_array($profiles) && isset($profiles[$slug]) && is_array($profiles[$slug])) {
+            return [
+                'profile' => $profiles[$slug]['profile'] ?? $this->profile,
+                'controle_role' => $profiles[$slug]['controle_role'] ?? null,
+                'audit_role' => $profiles[$slug]['audit_role'] ?? null,
+                'metier_role' => $profiles[$slug]['metier_role'] ?? null,
+            ];
+        }
+
+        return [
+            'profile' => $this->profile,
+            'controle_role' => $this->controle_role,
+            'audit_role' => $this->audit_role,
+            'metier_role' => $this->metier_role,
         ];
     }
 
@@ -228,10 +269,89 @@ class User extends AuthenticatableBase
         return $this->profile === UserProfile::Admin->value;
     }
 
+    /**
+     * Super administrateur ou administrateur d'environnement.
+     */
+    public function isPlatformAdministrator(): bool
+    {
+        return $this->isSuperAdmin() || $this->isEnvironmentAdmin();
+    }
+
+    /**
+     * L'utilisateur peut accéder à cet environnement (super = tous, admin = ses environnements).
+     */
+    public function canAccessEnvironmentId(?int $environmentId): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (! $this->isEnvironmentAdmin() || $environmentId === null) {
+            return false;
+        }
+
+        return in_array((int) $environmentId, $this->environment_ids, true);
+    }
+
+    /**
+     * Mission visible pour un admin d'environnement si au moins une entité est dans son périmètre.
+     */
+    public function canAccessMissionEnvironments(iterable $entities): bool
+    {
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if (! $this->isEnvironmentAdmin()) {
+            return false;
+        }
+
+        $environmentIds = $this->environment_ids;
+        if ($environmentIds === []) {
+            return false;
+        }
+
+        foreach ($entities as $entity) {
+            $environmentId = is_array($entity)
+                ? ($entity['environment_id'] ?? null)
+                : ($entity->environment_id ?? null);
+
+            if ($environmentId !== null && in_array((int) $environmentId, $environmentIds, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function isControleAgent(): bool
+    {
+        return $this->profile === UserProfile::Controle->value
+            && $this->controle_role === 'agent_controle_interne';
+    }
+
+    public function isControleResponsable(): bool
+    {
+        return $this->profile === UserProfile::Controle->value
+            && $this->controle_role === 'responsable_controle_permanent';
+    }
+
     public function isEntityResponsable(): bool
     {
         return $this->profile === UserProfile::Metier->value
             && $this->metier_role === 'responsable_entite';
+    }
+
+    public function canEditMethodology(): bool
+    {
+        return $this->isPlatformAdministrator() || $this->isControleResponsable();
+    }
+
+    public function canCreateOperationalRiskRow(): bool
+    {
+        return $this->isPlatformAdministrator()
+            || $this->isControleAgent()
+            || $this->isControleResponsable();
     }
 
     public function belongsToEnvironment(?int $environmentId): bool

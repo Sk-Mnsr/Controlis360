@@ -16,5 +16,5 @@ import { computed } from 'vue';
 import { useAuthStore } from '../../stores/auth';
 
 const auth = useAuthStore();
-const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
+const isSuperAdmin = computed(() => (auth.baseUser?.profile ?? auth.user?.profile) === 'super_admin');
 </script>

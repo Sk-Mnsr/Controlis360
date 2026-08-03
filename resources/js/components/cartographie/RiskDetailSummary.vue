@@ -8,29 +8,26 @@
             <table class="risk-detail-summary-table">
                 <thead>
                     <tr>
-                        <th>Risque</th>
-                        <th>Score</th>
-                        <th>Niveau</th>
-                        <th>Tendance</th>
+                        <th>Détails par famille</th>
+                        <th>Famille</th>
+                        <th class="risk-detail-summary-center">Occurrences</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-if="!items.length">
-                        <td colspan="4" class="risk-detail-summary-empty">Aucune donnée disponible.</td>
+                        <td colspan="3" class="risk-detail-summary-empty">Aucun détail renseigné.</td>
                     </tr>
-                    <tr v-for="item in items" :key="item.id">
-                        <td class="risk-detail-summary-risk">{{ item.label }}</td>
-                        <td class="risk-detail-summary-score">{{ item.score }}</td>
-                        <td>
-                            <span class="risk-detail-summary-level">
-                                <span
-                                    class="risk-detail-summary-dot"
-                                    :style="{ backgroundColor: levelColor(item) }"
-                                />
-                                {{ item.levelLabel }}
-                            </span>
+                    <tr v-for="item in items" :key="item.detail">
+                        <td class="risk-detail-summary-risk">
+                            <span
+                                class="risk-detail-summary-bar"
+                                :style="{ backgroundColor: item.color }"
+                                :title="item.levelLabel"
+                            />
+                            {{ item.detail }}
                         </td>
-                        <td class="risk-detail-summary-trend">{{ item.trend }}</td>
+                        <td class="risk-detail-summary-family">{{ item.category }}</td>
+                        <td class="risk-detail-summary-score">{{ item.occurrences }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -40,27 +37,81 @@
 
 <script setup>
 import { computed } from 'vue';
-import { computeRiskCategorySummary } from '../../utils/riskScore';
+import { classificationForScore } from '../../utils/riskScore';
 
 const props = defineProps({
     title: { type: String, default: 'DÉTAIL DES RISQUES' },
     rows: { type: Array, default: () => [] },
     categories: { type: Array, default: () => [] },
     classifications: { type: Array, default: () => [] },
-    mode: { type: String, default: 'gross' },
 });
 
-const items = computed(() =>
-    computeRiskCategorySummary(props.rows, props.categories, props.classifications, props.mode),
-);
+const NEUTRAL_COLOR = '#cbd5e1';
 
-function levelColor(item) {
-    if (!item.evaluationScore || item.evaluationScore <= 0) {
-        return '#2e7d32';
+const detailCategoryMap = computed(() => {
+    const map = new Map();
+
+    for (const category of props.categories) {
+        for (const detail of category.families ?? []) {
+            map.set(detail.name, category.name);
+        }
     }
 
-    return item.classification?.color ?? '#94a3b8';
+    return map;
+});
+
+function grossRisk(row) {
+    const gravity = Number(row.gravity);
+    const probability = Number(row.probability);
+
+    if (!gravity || !probability) {
+        return 0;
+    }
+
+    return gravity * probability;
 }
+
+const items = computed(() => {
+    const grouped = new Map();
+
+    for (const row of props.rows) {
+        // Les nouvelles lignes stockent le détail dans correlated_risks.
+        // Pour les anciennes lignes, risk_family peut encore contenir ce détail.
+        const detail = detailCategoryMap.value.has(row.correlated_risks)
+            ? row.correlated_risks
+            : (detailCategoryMap.value.has(row.risk_family) ? row.risk_family : null);
+
+        if (!detail) {
+            continue;
+        }
+
+        const current = grouped.get(detail);
+        const risk = grossRisk(row);
+
+        grouped.set(detail, {
+            detail,
+            category: detailCategoryMap.value.get(detail) ?? row.risk_family ?? '—',
+            occurrences: (current?.occurrences ?? 0) + 1,
+            maxRisk: Math.max(current?.maxRisk ?? 0, risk),
+        });
+    }
+
+    return [...grouped.values()]
+        .map((item) => {
+            const classification = classificationForScore(item.maxRisk, props.classifications);
+
+            return {
+                ...item,
+                color: classification?.color ?? NEUTRAL_COLOR,
+                levelLabel: classification?.name ?? 'Non significatif',
+            };
+        })
+        .sort((a, b) =>
+            b.maxRisk - a.maxRisk
+            || b.occurrences - a.occurrences
+            || a.detail.localeCompare(b.detail, 'fr'),
+        );
+});
 </script>
 
 <style scoped>
@@ -94,11 +145,12 @@ function levelColor(item) {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.875rem;
+    table-layout: fixed;
 }
 
 .risk-detail-summary-table th,
 .risk-detail-summary-table td {
-    padding: 0.85rem 1.25rem;
+    padding: 0.8rem 1rem;
     border-bottom: 1px solid #f1f5f9;
     text-align: left;
     vertical-align: middle;
@@ -111,6 +163,25 @@ function levelColor(item) {
     color: #64748b;
 }
 
+.risk-detail-summary-table th:nth-child(1),
+.risk-detail-summary-table td:nth-child(1) {
+    width: 46%;
+}
+
+.risk-detail-summary-table th:nth-child(2),
+.risk-detail-summary-table td:nth-child(2) {
+    width: 38%;
+}
+
+.risk-detail-summary-table th:nth-child(3),
+.risk-detail-summary-table td:nth-child(3) {
+    width: 16%;
+}
+
+.risk-detail-summary-center {
+    text-align: center;
+}
+
 .risk-detail-summary-table tbody tr:last-child td {
     border-bottom: none;
 }
@@ -120,28 +191,23 @@ function levelColor(item) {
     color: #0f172a;
 }
 
+.risk-detail-summary-bar {
+    display: inline-block;
+    width: 0.3rem;
+    height: 1.1rem;
+    border-radius: 999px;
+    margin-right: 0.6rem;
+    vertical-align: middle;
+}
+
+.risk-detail-summary-family {
+    font-size: 0.78rem;
+    color: #64748b;
+}
+
 .risk-detail-summary-score {
     font-weight: 700;
     color: #0f172a;
-}
-
-.risk-detail-summary-level {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #334155;
-}
-
-.risk-detail-summary-dot {
-    width: 0.55rem;
-    height: 0.55rem;
-    border-radius: 999px;
-    flex-shrink: 0;
-}
-
-.risk-detail-summary-trend {
-    font-size: 1rem;
-    color: #64748b;
     text-align: center;
 }
 

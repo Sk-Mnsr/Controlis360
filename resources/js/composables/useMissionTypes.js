@@ -17,7 +17,7 @@ function extractList(data) {
 export function filterMissionTypesForProfile(types, profile, currentValue = null) {
     const list = Array.isArray(types) ? types : [];
 
-    const allowed = profile === 'super_admin'
+    const allowed = ['super_admin', 'admin'].includes(profile)
         ? list.filter((type) => type.is_active !== false)
         : list.filter((type) => type.is_active !== false && (type.profiles ?? []).includes(profile));
 

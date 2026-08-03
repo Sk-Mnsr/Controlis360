@@ -7,19 +7,56 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (DB::getDriverName() !== 'mysql') {
-            return;
-        }
-
-        DB::statement("ALTER TABLE users MODIFY metier_role ENUM('responsable_entite', 'groupe', 'visiteur', 'agent') NULL");
+        $this->updateMetierRoleConstraint([
+            'responsable_entite',
+            'groupe',
+            'visiteur',
+            'agent',
+        ]);
     }
 
     public function down(): void
     {
-        if (DB::getDriverName() !== 'mysql') {
+        DB::table('users')
+            ->where('metier_role', 'agent')
+            ->update(['metier_role' => null]);
+
+        $this->updateMetierRoleConstraint([
+            'responsable_entite',
+            'groupe',
+            'visiteur',
+        ]);
+    }
+
+    /**
+     * @param  list<string>  $values
+     */
+    private function updateMetierRoleConstraint(array $values): void
+    {
+        $driver = DB::getDriverName();
+        $enumList = implode("', '", $values);
+
+        if ($driver === 'mysql') {
+            DB::statement("ALTER TABLE users MODIFY metier_role ENUM('{$enumList}') NULL");
+
             return;
         }
 
-        DB::statement("ALTER TABLE users MODIFY metier_role ENUM('responsable_entite', 'groupe', 'visiteur') NULL");
+        if ($driver === 'pgsql') {
+            $arrayList = implode(', ', array_map(
+                fn (string $value) => "'{$value}'::character varying",
+                $values,
+            ));
+
+            DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_metier_role_check');
+            DB::statement("
+                ALTER TABLE users
+                ADD CONSTRAINT users_metier_role_check
+                CHECK (
+                    metier_role IS NULL
+                    OR (metier_role)::text = ANY (ARRAY[{$arrayList}]::text[])
+                )
+            ");
+        }
     }
 };

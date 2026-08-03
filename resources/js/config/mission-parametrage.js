@@ -8,7 +8,7 @@ export const MISSION_TYPES = [
 ];
 
 export function getMissionTypesForProfile(profile, currentValue = null) {
-    const allowed = profile === 'super_admin'
+    const allowed = ['super_admin', 'admin'].includes(profile)
         ? MISSION_TYPES
         : MISSION_TYPES.filter((type) => type.profiles.includes(profile));
 

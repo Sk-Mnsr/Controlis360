@@ -55,7 +55,7 @@
                     <select v-model="selectedGroupKey" required class="saisie-select" @change="applyExistingGroup">
                         <option value="">— Sélectionner —</option>
                         <option v-for="group in existingGroups" :key="group.key" :value="group.key">
-                            N°{{ group.process_number ?? '—' }} — {{ group.sub_process_name }}
+                            N°{{ group.display_number ?? group.process_number ?? '—' }} — {{ group.sub_process_name }}
                             ({{ group.exceptions.length }} exc.)
                         </option>
                     </select>
@@ -75,6 +75,7 @@
                 <h2 class="saisie-section-title">Risque</h2>
                 <OperationalRiskExceptionFields
                     v-model="exceptionForm"
+                    :risk-categories="riskCategories"
                     :risk-families="riskFamilies"
                     :risk-classifications="riskClassifications"
                 />
@@ -120,7 +121,7 @@ import { useRoute } from 'vue-router';
 import api from '../../api/client';
 import OperationalRiskSubProcessFields from '../../components/cartographie/OperationalRiskSubProcessFields.vue';
 import OperationalRiskExceptionFields from '../../components/cartographie/OperationalRiskExceptionFields.vue';
-import { groupRowsBySubProcess, subProcessFieldsFromRow } from '../../utils/operationalRiskGroups';
+import { groupRowsBySubProcess, nextProcessNumber, subProcessFieldsFromRow } from '../../utils/operationalRiskGroups';
 import { emptyExceptionForm } from '../../utils/operationalRiskForms';
 import { environmentQueryParams, entityRouteQuery } from '../../utils/entityEnvironment';
 import { useAuthStore } from '../../stores/auth';
@@ -135,6 +136,7 @@ const submitError = ref('');
 const success = ref('');
 const entities = ref([]);
 const riskFamilies = ref([]);
+const riskCategories = ref([]);
 const riskClassifications = ref([]);
 const selectedEntityId = ref('');
 const saisieMode = ref('new');
@@ -175,6 +177,14 @@ function emptySubProcess() {
     return { process_number: null, process_name: '', ratio: null, sub_process_name: '' };
 }
 
+function newSubProcessForm() {
+    return {
+        ...emptySubProcess(),
+        process_number: nextProcessNumber(existingGroups.value),
+        process_name: selectedEntityName.value,
+    };
+}
+
 function emptyException() {
     return emptyExceptionForm();
 }
@@ -186,12 +196,48 @@ async function loadContext() {
     try {
         const { data } = await api.get('/referentials/saisie-risques-context');
         const root = data?.data ?? data;
-        entities.value = root?.entities ?? [];
-        riskFamilies.value = root?.risk_families ?? [];
-        riskClassifications.value = root?.risk_classifications ?? [];
+
+        if (Array.isArray(root)) {
+            entities.value = root;
+            riskFamilies.value = [];
+            riskCategories.value = [];
+            riskClassifications.value = [];
+        } else {
+            entities.value = root?.entities ?? [];
+            riskFamilies.value = root?.risk_families ?? [];
+            riskCategories.value = root?.risk_categories ?? [];
+            riskClassifications.value = root?.risk_classifications ?? [];
+        }
+
+        if (!entities.value.length) {
+            const { data: entitiesPayload } = await api.get('/referentials/entities-departments');
+            entities.value = Array.isArray(entitiesPayload?.data)
+                ? entitiesPayload.data
+                : (Array.isArray(entitiesPayload) ? entitiesPayload : []);
+        }
+
         await applyRouteQuery();
-    } catch {
-        error.value = 'Accès réservé au personnel du contrôle interne.';
+    } catch (err) {
+        if (err.response?.status === 403) {
+            error.value = 'Accès réservé au personnel du contrôle interne.';
+            return;
+        }
+
+        try {
+            const { data: entitiesPayload } = await api.get('/referentials/entities-departments');
+            entities.value = Array.isArray(entitiesPayload?.data)
+                ? entitiesPayload.data
+                : (Array.isArray(entitiesPayload) ? entitiesPayload : []);
+
+            if (!entities.value.length) {
+                error.value = 'Impossible de charger le contexte de saisie.';
+                return;
+            }
+
+            await applyRouteQuery();
+        } catch {
+            error.value = 'Impossible de charger le contexte de saisie.';
+        }
     } finally {
         loading.value = false;
     }
@@ -233,10 +279,7 @@ async function applyRouteQuery() {
         }
     }
 
-    subProcessForm.value = {
-        ...emptySubProcess(),
-        process_name: selectedEntityName.value,
-    };
+    subProcessForm.value = newSubProcessForm();
     exceptionForm.value = emptyException();
 }
 
@@ -260,14 +303,11 @@ async function loadExistingGroups() {
 async function onEntityChange() {
     selectedGroupKey.value = '';
     saisieMode.value = 'new';
-    subProcessForm.value = {
-        ...emptySubProcess(),
-        process_name: selectedEntityName.value,
-    };
+    await loadExistingGroups();
+    subProcessForm.value = newSubProcessForm();
     exceptionForm.value = emptyException();
     success.value = '';
     submitError.value = '';
-    await loadExistingGroups();
 }
 
 function applyExistingGroup() {
@@ -276,7 +316,10 @@ function applyExistingGroup() {
         return;
     }
 
-    subProcessForm.value = subProcessFieldsFromRow(group.exceptions[0]);
+    subProcessForm.value = {
+        ...subProcessFieldsFromRow(group.exceptions[0]),
+        process_number: group.process_number ?? group.display_number ?? null,
+    };
 }
 
 function resetExceptionFields() {
@@ -288,10 +331,7 @@ function resetExceptionFields() {
 watch(saisieMode, (mode) => {
     if (mode === 'new') {
         selectedGroupKey.value = '';
-        subProcessForm.value = {
-            ...emptySubProcess(),
-            process_name: selectedEntityName.value,
-        };
+        subProcessForm.value = newSubProcessForm();
     }
 });
 
@@ -333,10 +373,7 @@ async function submit(andSend = false) {
         if (saisieMode.value === 'existing' && selectedGroupKey.value) {
             applyExistingGroup();
         } else {
-            subProcessForm.value = {
-                ...emptySubProcess(),
-                process_name: selectedEntityName.value,
-            };
+            subProcessForm.value = newSubProcessForm();
         }
     } catch (err) {
         const messages = err.response?.data?.data ?? err.response?.data?.errors;

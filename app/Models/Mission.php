@@ -85,6 +85,11 @@ class Mission extends BaseModel
             ->withTimestamps();
     }
 
+    public function missionnaires(): HasMany
+    {
+        return $this->hasMany(MissionMissionnaire::class)->orderBy('ordre')->orderBy('id');
+    }
+
     public function responses(): HasMany
     {
         return $this->hasMany(MissionResponse::class);

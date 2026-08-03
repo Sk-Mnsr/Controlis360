@@ -6,49 +6,68 @@
                     <th colspan="7" class="top-risks-title">{{ title }}</th>
                 </tr>
                 <tr>
-                    <th class="top-risks-head" rowspan="2">Processus</th>
-                    <th class="top-risks-head" rowspan="2">Sous processus</th>
-                    <th class="top-risks-head" rowspan="2">Exceptions majeures constatées</th>
-                    <th class="top-risks-head top-risks-head-family" rowspan="2">Famille de risque</th>
-                    <th class="top-risks-head" colspan="2">Évaluation</th>
-                    <th class="top-risks-head" rowspan="2">
+                    <th class="top-risks-head">Processus</th>
+                    <th class="top-risks-head">Sous processus</th>
+                    <th class="top-risks-head">Exceptions majeures constatées</th>
+                    <th class="top-risks-head top-risks-head-family">Famille de risque</th>
+                    <th class="top-risks-head">Description</th>
+                    <th class="top-risks-head">Existant</th>
+                    <th class="top-risks-head">
                         Risque brut (Rb)<br />
                         <span class="top-risks-formula">est égal à G × P</span>
                     </th>
                 </tr>
-                <tr>
-                    <th class="top-risks-subhead">Gravité (G)</th>
-                    <th class="top-risks-subhead">Probabilité (P)</th>
-                </tr>
             </thead>
             <tbody>
                 <tr v-if="!rows.length">
-                    <td colspan="7" class="top-risks-empty">Aucun risque enregistré.</td>
+                    <td colspan="7" class="top-risks-empty">Aucun risque à fort impact (Rb ≥ 20) enregistré.</td>
                 </tr>
-                <tr v-for="row in rows" :key="row.id">
-                    <td>{{ row.process_name || '—' }}</td>
-                    <td class="top-risks-subprocess">{{ row.sub_process_name }}</td>
-                    <td>{{ row.major_exceptions || '—' }}</td>
-                    <td class="top-risks-family">{{ row.risk_family || '—' }}</td>
-                    <td class="top-risks-score">{{ row.gravity ?? '—' }}</td>
-                    <td class="top-risks-score">{{ row.probability ?? '—' }}</td>
-                    <td class="top-risks-rb" :style="rbStyle(row)">
-                        {{ row.gross_risk ?? '—' }}
-                    </td>
-                </tr>
+                <template v-for="group in groupedRows" :key="group.process_name">
+                    <tr v-for="(row, index) in group.rows" :key="row.id">
+                        <td
+                            v-if="index === 0"
+                            class="top-risks-process"
+                            :rowspan="group.rows.length"
+                        >
+                            {{ group.process_name }}
+                        </td>
+                        <td class="top-risks-subprocess">{{ row.sub_process_name }}</td>
+                        <td>{{ row.major_exceptions || '—' }}</td>
+                        <td class="top-risks-family">{{ row.risk_family || '—' }}</td>
+                        <td>{{ row.control_description || '—' }}</td>
+                        <td class="top-risks-exists">{{ formatExists(row.control_exists) }}</td>
+                        <td class="top-risks-rb" :style="rbStyle(row)">
+                            {{ row.gross_risk ?? '—' }}
+                        </td>
+                    </tr>
+                </template>
             </tbody>
         </table>
     </section>
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue';
+import { groupRowsByProcess } from '../../utils/operationalRiskGroups';
+
+const props = defineProps({
     title: { type: String, default: 'RISQUES OPERATIONNELS A FORT IMPACT BUSINESS' },
     rows: { type: Array, default: () => [] },
 });
 
+const groupedRows = computed(() => groupRowsByProcess(props.rows));
+
+function formatExists(value) {
+    if (value === null || value === undefined) {
+        return '—';
+    }
+
+    return value ? 'OUI' : 'NON';
+}
+
 function rbStyle(row) {
-    const color = row.classification?.color;
+    const color = row.classification?.color ?? row.gross_classification?.color;
+
     if (!color) {
         return {};
     }
@@ -106,17 +125,16 @@ function rbStyle(row) {
     color: #ffffff;
 }
 
-.top-risks-subhead {
-    background: #e5e7eb;
-    font-weight: 700;
-    text-align: center;
-    font-size: 0.72rem;
-}
-
 .top-risks-formula {
     font-size: 0.68rem;
     font-weight: 600;
     text-transform: none;
+}
+
+.top-risks-process {
+    font-weight: 700;
+    text-transform: uppercase;
+    vertical-align: middle;
 }
 
 .top-risks-subprocess {
@@ -124,7 +142,7 @@ function rbStyle(row) {
 }
 
 .top-risks-family,
-.top-risks-score,
+.top-risks-exists,
 .top-risks-rb {
     text-align: center;
 }

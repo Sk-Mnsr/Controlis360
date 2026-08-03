@@ -41,48 +41,160 @@
 
         <div v-else-if="mission" class="flex flex-1 flex-col">
             <div class="flex-1 space-y-6 overflow-y-auto px-6 py-6 lg:px-8">
-                <div class="grid gap-6 lg:grid-cols-2 lg:items-stretch">
-                    <div class="flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div class="flex min-h-[4rem] items-center justify-center bg-red-800 px-4 py-3 text-center text-sm font-semibold uppercase tracking-wide text-white">
-                            Résumé de la mission
+                <header class="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div class="min-w-0">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h1 class="text-xl font-bold tracking-tight text-slate-900">
+                                    {{ mission.reference }}
+                                </h1>
+                                <span class="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                                    {{ mission.status_fr ?? mission.status }}
+                                </span>
+                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                                    {{ mission.mission_type_fr ?? mission.mission_type }}
+                                </span>
+                            </div>
+                            <p class="mt-1.5 text-sm text-slate-500">
+                                {{ mission.period || periodLabel }}
+                                <span class="mx-1.5 text-slate-300">·</span>
+                                {{ mission.environment_label ?? environmentLabel }}
+                            </p>
                         </div>
-                        <ul class="flex-1 space-y-2.5 p-5 text-sm">
-                            <li>
-                                <span class="text-slate-600">Référence :</span>
-                                <span class="font-bold text-slate-900">{{ mission.reference }}</span>
-                            </li>
-                            <li>
-                                <span class="text-slate-600">Type de mission :</span>
-                                <span class="font-bold text-slate-900">{{ mission.mission_type_fr ?? mission.mission_type }}</span>
-                            </li>
-                            <li>
-                                <span class="text-slate-600">Statut :</span>
-                                <span class="font-bold text-slate-900">{{ mission.status_fr ?? mission.status }}</span>
-                            </li>
-                            <li>
-                                <span class="text-slate-600">Auditeur :</span>
-                                <span class="font-bold text-slate-900">{{ mission.auditor || '—' }}</span>
-                            </li>
-                            <li>
-                                <span class="text-slate-600">Créée par :</span>
-                                <span class="font-bold text-slate-900">{{ mission.created_by_name || '—' }}</span>
-                            </li>
-                            <li>
-                                <span class="text-slate-600">Période :</span>
-                                <span class="font-bold text-slate-900">{{ mission.period || periodLabel }}</span>
-                            </li>
-                            <li>
-                                <span class="text-slate-600">Environnement :</span>
-                                <span class="font-bold text-slate-900">{{ mission.environment_label ?? environmentLabel }}</span>
-                            </li>
-                            <li>
-                                <span class="text-slate-600">Département(s) mission :</span>
-                                <span class="font-bold text-slate-900">{{ entityNames }}</span>
-                            </li>
-                        </ul>
                     </div>
+                </header>
 
-                    <RecoImplementationPanel :summary-row="panelSummaryStats" />
+                <div class="grid gap-6 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.9fr)] xl:items-start">
+                    <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <h2 class="mb-4 text-xs font-bold uppercase tracking-wide text-slate-500">
+                            Résumé de la mission
+                        </h2>
+
+                        <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                            <div>
+                                <dt class="text-xs font-medium text-slate-500">Auditeur</dt>
+                                <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ mission.auditor || '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium text-slate-500">Créée par</dt>
+                                <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ mission.created_by_name || '—' }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium text-slate-500">Période</dt>
+                                <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ mission.period || periodLabel }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs font-medium text-slate-500">Environnement</dt>
+                                <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ mission.environment_label ?? environmentLabel }}</dd>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <dt class="text-xs font-medium text-slate-500">Entité(s) mission</dt>
+                                <dd class="mt-1.5 flex flex-wrap gap-2">
+                                    <template v-if="missionEntities.length">
+                                        <span
+                                            v-for="entity in missionEntities"
+                                            :key="entity.id"
+                                            class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800"
+                                        >
+                                            {{ entity.name }}
+                                        </span>
+                                    </template>
+                                    <span v-else class="text-sm font-semibold text-slate-900">—</span>
+                                </dd>
+                            </div>
+                        </dl>
+
+                        <div v-if="reportAttachments.length || mission.report_reference" class="mt-5 border-t border-slate-100 pt-4">
+                            <h3 class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Rapports associés
+                            </h3>
+                            <ul v-if="reportAttachments.length" class="space-y-2">
+                                <li
+                                    v-for="file in reportAttachments"
+                                    :key="file.path"
+                                    class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5"
+                                >
+                                    <div class="flex min-w-0 items-center gap-2">
+                                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-red-100 text-[10px] font-bold uppercase text-red-700">
+                                            PDF
+                                        </span>
+                                        <span class="min-w-0 truncate text-sm font-medium text-slate-800" :title="file.name">
+                                            {{ file.name }}
+                                        </span>
+                                    </div>
+                                    <span class="flex shrink-0 items-center gap-2">
+                                        <button
+                                            v-if="canPreviewReport(file.path)"
+                                            type="button"
+                                            class="text-xs font-semibold text-blue-700 hover:text-blue-900 disabled:opacity-60"
+                                            :disabled="busyAttachmentPath === file.path"
+                                            @click="previewReport(file)"
+                                        >
+                                            {{ busyAttachmentPath === file.path && busyAttachmentAction === 'preview' ? 'Ouverture…' : 'Visualiser' }}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            class="text-xs font-semibold text-emerald-700 hover:text-emerald-900 disabled:opacity-60"
+                                            :disabled="busyAttachmentPath === file.path"
+                                            @click="downloadReport(file)"
+                                        >
+                                            {{ busyAttachmentPath === file.path && busyAttachmentAction === 'download' ? 'Téléchargement…' : 'Télécharger' }}
+                                        </button>
+                                    </span>
+                                </li>
+                            </ul>
+                            <p
+                                v-else-if="mission.report_reference"
+                                class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                            >
+                                {{ mission.report_reference }}
+                            </p>
+                            <p v-if="attachmentError" class="mt-1.5 text-xs text-red-600">{{ attachmentError }}</p>
+                        </div>
+                    </section>
+
+                    <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div class="mb-4 flex items-center justify-between gap-2">
+                            <h2 class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                                Avancement des recommandations
+                            </h2>
+                            <span class="rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">
+                                {{ panelSummaryStats?.implementation_rate ?? 0 }}%
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <article class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total</p>
+                                <p class="mt-1 text-2xl font-bold text-slate-900">{{ panelSummaryStats?.total ?? 0 }}</p>
+                            </article>
+                            <article class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Implémentées</p>
+                                <p class="mt-1 text-2xl font-bold text-emerald-900">{{ panelSummaryStats?.implemented ?? 0 }}</p>
+                            </article>
+                            <article class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-amber-700">En cours</p>
+                                <p class="mt-1 text-2xl font-bold text-amber-900">{{ panelSummaryStats?.in_progress ?? 0 }}</p>
+                            </article>
+                            <article class="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                                <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">No start</p>
+                                <p class="mt-1 text-2xl font-bold text-slate-900">{{ panelSummaryStats?.no_start ?? 0 }}</p>
+                            </article>
+                        </div>
+
+                        <div class="mt-4">
+                            <div class="mb-1.5 flex items-center justify-between text-xs text-slate-500">
+                                <span>Taux d'implémentation</span>
+                                <span class="font-semibold text-slate-800">{{ panelSummaryStats?.implementation_rate ?? 0 }}%</span>
+                            </div>
+                            <div class="h-2 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                    class="h-full rounded-full bg-emerald-600 transition-all"
+                                    :style="{ width: `${Math.min(100, panelSummaryStats?.implementation_rate ?? 0)}%` }"
+                                />
+                            </div>
+                        </div>
+                    </section>
                 </div>
 
                 <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -165,7 +277,7 @@
                                                     </td>
                                                     <td
                                                         v-if="!isOwner"
-                                                        class="border border-white px-4 py-3 text-blue-700"
+                                                        class="border border-white px-4 py-3 text-slate-800"
                                                     >
                                                         {{ reco.responsible_name || '—' }}
                                                     </td>
@@ -173,21 +285,26 @@
                                                         {{ formatDate(reco.due_date) }}
                                                     </td>
                                                     <td class="border border-white px-4 py-3">
-                                                        <span
-                                                            v-if="recoDaysRemaining(reco) !== null"
-                                                            class="text-sm"
-                                                            :style="remainingDaysTextStyle(recoDaysRemaining(reco))"
-                                                        >
-                                                            {{ recoDaysRemaining(reco) }}
-                                                        </span>
-                                                        <span v-else class="text-slate-500">—</span>
+                                                        <div class="flex flex-wrap items-center gap-2">
+                                                            <span
+                                                                v-if="recoDaysRemaining(reco) !== null"
+                                                                class="text-sm font-semibold"
+                                                                :style="remainingDaysTextStyle(recoDaysRemaining(reco))"
+                                                            >
+                                                                {{ recoDaysRemaining(reco) }}
+                                                            </span>
+                                                            <span v-else class="text-slate-500">—</span>
+                                                            <span
+                                                                class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
+                                                                :style="deadlineToneStyle(recoDeadlineStatus(reco).tone)"
+                                                            >
+                                                                {{ recoDeadlineStatus(reco).label }}
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                     <td class="border border-white px-4 py-3">
-                                                        <span
-                                                            class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                                                            :style="deadlineToneStyle(recoDeadlineStatus(reco).tone)"
-                                                        >
-                                                            {{ recoDeadlineStatus(reco).label }}
+                                                        <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                                                            {{ reco.status_fr ?? reco.status ?? '—' }}
                                                         </span>
                                                     </td>
                                                     <td class="border border-white px-4 py-3 text-center">
@@ -259,28 +376,9 @@
                     </div>
                 </div>
 
-                <div
-                    v-if="mission.report_reference || mission.report_attachment_paths?.length || mission.comments"
-                    class="grid gap-4 lg:grid-cols-2"
-                >
-                    <div class="space-y-4">
-                        <div v-if="mission.report_reference || mission.report_attachment_paths?.length" class="rounded-xl border border-slate-200 p-4">
-                            <h2 class="text-sm font-semibold text-slate-900">Rapport associé</h2>
-                            <p v-if="mission.report_reference" class="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-                                {{ mission.report_reference }}
-                            </p>
-                            <ul v-if="mission.report_attachment_paths?.length" class="mt-2 space-y-1 text-sm text-slate-700">
-                                <li v-for="path in mission.report_attachment_paths" :key="path">
-                                    {{ fileName(path) }}
-                                </li>
-                            </ul>
-                        </div>
-
-                        <div v-if="mission.comments" class="rounded-xl border border-slate-200 p-4">
-                            <h2 class="text-sm font-semibold text-slate-900">Commentaires mission</h2>
-                            <p class="mt-2 whitespace-pre-wrap text-sm text-slate-700">{{ mission.comments }}</p>
-                        </div>
-                    </div>
+                <div v-if="mission.comments" class="rounded-xl border border-slate-200 p-4">
+                    <h2 class="text-sm font-semibold text-slate-900">Commentaires mission</h2>
+                    <p class="mt-2 whitespace-pre-wrap text-sm text-slate-700">{{ mission.comments }}</p>
                 </div>
             </div>
         </div>
@@ -301,7 +399,6 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import MissionRecoOwnerActionsPanel from '../../components/audit/MissionRecoOwnerActionsPanel.vue';
 import MissionRecommendationViewModal from '../../components/audit/MissionRecommendationViewModal.vue';
-import RecoImplementationPanel from '../../components/audit/RecoImplementationPanel.vue';
 import { isMissionAgent, isMissionResponsible } from '../../config/module-access';
 import { useAuthStore } from '../../stores/auth';
 import { useMissionParametrage } from '../../composables/useMissionParametrage';
@@ -313,6 +410,12 @@ import {
     recommendationsForDepartment,
     recommendationsForOwner,
 } from '../../utils/reco-stats';
+import {
+    attachmentFileName,
+    downloadAttachment,
+    isPreviewableAttachment,
+    previewAttachment,
+} from '../../utils/attachments';
 import {
     recommendationRemainingDays,
 } from '../../utils/mission-progress';
@@ -334,6 +437,9 @@ const listDepartmentId = ref(null);
 const expandedResponseRecoId = ref(null);
 const recoViewOpen = ref(false);
 const selectedRecoId = ref(null);
+const busyAttachmentPath = ref('');
+const busyAttachmentAction = ref('');
+const attachmentError = ref('');
 
 const recoTableColspan = computed(() => (isOwner.value ? 6 : 7));
 
@@ -366,6 +472,9 @@ const departmentStats = computed(() => (
 ));
 
 const backRoute = computed(() => {
+    if (route.query.from === 'dashboard') {
+        return { name: 'audit.dashboard' };
+    }
     if (route.query.from === 'missions') {
         return { name: 'audit.missions' };
     }
@@ -379,24 +488,44 @@ const backRoute = computed(() => {
 });
 
 const backLabel = computed(() => {
+    if (route.query.from === 'dashboard') return 'Retour au dashboard';
     if (route.query.from === 'missions') return 'Retour aux missions';
     return 'Retour à l\'historique';
 });
 
-const entityNames = computed(() => {
-    if (isOwner.value) {
-        const names = [...new Set(
-            ownerRecommendations.value
-                .flatMap((reco) => ownerDepartmentsForReco(reco, ownerEntityIds.value))
-                .map((department) => department.name)
-                .filter(Boolean),
-        )];
+const missionEntities = computed(() => {
+    const missionEntityById = new Map(
+        (mission.value?.entities ?? []).map((entity) => [String(entity.id), entity]),
+    );
 
-        return names.length ? names.join(', ') : '—';
+    const normalize = (entity) => {
+        const fromMission = missionEntityById.get(String(entity.id));
+        const name = entity.name ?? fromMission?.name ?? null;
+        if (!name && !entity.id) return null;
+
+        return {
+            id: entity.id ?? name,
+            name: name || '—',
+        };
+    };
+
+    if (isOwner.value) {
+        const byId = new Map();
+
+        for (const department of ownerRecommendations.value
+            .flatMap((reco) => ownerDepartmentsForReco(reco, ownerEntityIds.value))) {
+            const normalized = normalize(department);
+            if (normalized && !byId.has(String(normalized.id))) {
+                byId.set(String(normalized.id), normalized);
+            }
+        }
+
+        return [...byId.values()];
     }
 
-    const names = (mission.value?.entities ?? []).map((e) => e.name).filter(Boolean);
-    return names.length ? names.join(', ') : '—';
+    return (mission.value?.entities ?? [])
+        .map((entity) => normalize(entity))
+        .filter(Boolean);
 });
 
 const environmentLabel = computed(() => {
@@ -487,6 +616,57 @@ const panelSummaryStats = computed(() => {
         implementation_rate: stats.implementation_rate ?? 0,
     };
 });
+
+const reportAttachments = computed(() => {
+    const paths = mission.value?.report_attachment_paths ?? [];
+    if (!Array.isArray(paths) || !paths.length) {
+        return [];
+    }
+
+    const originalNames = String(mission.value?.report_reference ?? '')
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean);
+
+    return paths.map((path, index) => ({
+        path,
+        name: originalNames[index] || attachmentFileName(path),
+    }));
+});
+
+function canPreviewReport(path) {
+    return isPreviewableAttachment(path);
+}
+
+async function previewReport(file) {
+    attachmentError.value = '';
+    busyAttachmentPath.value = file.path;
+    busyAttachmentAction.value = 'preview';
+
+    try {
+        await previewAttachment(file.path);
+    } catch {
+        attachmentError.value = 'Impossible d\'ouvrir ce fichier.';
+    } finally {
+        busyAttachmentPath.value = '';
+        busyAttachmentAction.value = '';
+    }
+}
+
+async function downloadReport(file) {
+    attachmentError.value = '';
+    busyAttachmentPath.value = file.path;
+    busyAttachmentAction.value = 'download';
+
+    try {
+        await downloadAttachment(file.path, file.name);
+    } catch {
+        attachmentError.value = 'Impossible de télécharger ce fichier.';
+    } finally {
+        busyAttachmentPath.value = '';
+        busyAttachmentAction.value = '';
+    }
+}
 
 function isListDepartmentSelected(dept) {
     return String(dept.id) === String(listDepartmentId.value);
@@ -615,11 +795,6 @@ function formatDate(value) {
     if (!value) return '—';
     const [y, m, d] = String(value).split('-');
     return y && m && d ? `${d}/${m}/${y}` : value;
-}
-
-function fileName(path) {
-    if (!path) return '—';
-    return String(path).split('/').pop();
 }
 
 async function loadMission(options = {}) {

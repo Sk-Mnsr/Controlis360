@@ -12,7 +12,7 @@
 
         <div class="portal-grid">
             <article
-                v-for="module in modules"
+                v-for="module in accessibleModules"
                 :key="module.slug"
                 class="portal-card"
                 :class="{
@@ -47,14 +47,11 @@
         <section v-if="canManagePlatform" class="portal-admin">
             <h3 class="portal-admin-title">Administration plateforme</h3>
             <div class="portal-admin-links">
-                <RouterLink :to="{ name: 'environments' }" class="portal-admin-link">
+                <RouterLink :to="environmentsLink" class="portal-admin-link" @click="auth.setActiveModule(null)">
                     Environnements
                 </RouterLink>
-                <RouterLink :to="{ name: 'users.create' }" class="portal-admin-link">
+                <RouterLink :to="{ name: 'users.create' }" class="portal-admin-link" @click="auth.setActiveModule(null)">
                     Utilisateurs
-                </RouterLink>
-                <RouterLink :to="{ name: 'entities.members' }" class="portal-admin-link">
-                    Entités
                 </RouterLink>
             </div>
         </section>
@@ -64,24 +61,42 @@
 <script setup>
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { modules } from '../config/modules';
-import { canAccessModule } from '../config/module-access';
+import { canAccessModule, getAccessibleModules } from '../config/module-access';
 import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
 const router = useRouter();
 
-const canManagePlatform = computed(() => ['super_admin', 'admin'].includes(auth.user?.profile));
+const platformUser = computed(() => auth.baseUser ?? auth.user);
+const accessibleModules = computed(() => getAccessibleModules(platformUser.value));
+const canManagePlatform = computed(() => ['super_admin', 'admin'].includes(platformUser.value?.profile));
+
+const environmentsLink = computed(() => {
+    if (platformUser.value?.profile === 'super_admin') {
+        return { name: 'environments' };
+    }
+
+    const environmentIds = Array.isArray(platformUser.value?.environment_ids) && platformUser.value.environment_ids.length
+        ? platformUser.value.environment_ids
+        : (platformUser.value?.environments ?? []).map((environment) => environment.id).filter(Boolean);
+
+    if (environmentIds.length === 1) {
+        return { name: 'environments.detail', params: { id: environmentIds[0] } };
+    }
+
+    return { name: 'environments' };
+});
 
 function openModule(module) {
     if (!module.active || !module.entryRoute) {
         return;
     }
 
-    if (!canAccessModule(auth.user?.profile, module.slug, auth.user)) {
+    if (!canAccessModule(platformUser.value?.profile, module.slug, platformUser.value)) {
         return;
     }
 
+    auth.setActiveModule(module.slug);
     router.push({ name: module.entryRoute });
 }
 </script>

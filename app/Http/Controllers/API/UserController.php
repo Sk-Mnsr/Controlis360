@@ -26,6 +26,8 @@ class UserController extends APIController
 
     private const PROFILE_RULE = 'super_admin,admin,superviseur,regulateur,controle,audit,conformite,agent_it,responsable_it,responsable_regional,metier';
 
+    private const MODULE_RULE = 'cartographie,audit,conformite';
+
     private const GOUVERNANCE_IT_PROFILES = ['agent_it', 'responsable_it', 'responsable_regional'];
 
     private const GOUVERNANCE_IT_ROLE_BY_PROFILE = [
@@ -58,6 +60,9 @@ class UserController extends APIController
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8',
             'profile' => 'required|in:' . self::PROFILE_RULE,
+            'modules' => 'nullable|array',
+            'modules.*' => 'string|in:' . self::MODULE_RULE,
+            'module_profiles' => 'nullable|array',
             'environment_ids' => 'nullable|array',
             'environment_ids.*' => 'integer|exists:environments,id',
             'entity_ids' => 'nullable|array',
@@ -79,6 +84,9 @@ class UserController extends APIController
                 'email' => 'sometimes|string|email|max:255|unique:users,email,' . $id,
                 'password' => 'sometimes|string|min:8',
                 'profile' => 'sometimes|in:' . self::PROFILE_RULE,
+                'modules' => 'nullable|array',
+                'modules.*' => 'string|in:' . self::MODULE_RULE,
+                'module_profiles' => 'nullable|array',
                 'environment_ids' => 'nullable|array',
                 'environment_ids.*' => 'integer|exists:environments,id',
                 'entity_ids' => 'nullable|array',
@@ -95,14 +103,31 @@ class UserController extends APIController
             ];
         };
 
-        $this->storeManualValidationsFunction = fn (array $requestData) => $this->validateScope($requestData, auth()->user());
+        $this->storeManualValidationsFunction = function (array $requestData) {
+            $scopeError = $this->validateScope($requestData, auth()->user());
+            if ($scopeError) {
+                return $scopeError;
+            }
 
-        $this->updateManualValidationsFunction = fn (array $requestData, User $model) => $this->validateScope($requestData, auth()->user(), $model);
+            return $this->validateModuleAssignments($requestData);
+        };
+
+        $this->updateManualValidationsFunction = function (array $requestData, User $model) {
+            $scopeError = $this->validateScope($requestData, auth()->user(), $model);
+            if ($scopeError) {
+                return $scopeError;
+            }
+
+            return $this->validateModuleAssignments($requestData, $model);
+        };
 
         $this->storeBeforeCreateFunction = function (array $requestData) {
             if (isset($requestData['password'])) {
                 $requestData['password'] = Hash::make($requestData['password']);
             }
+
+            // Première connexion : forcer le changement de mot de passe.
+            $requestData['password_change_required'] = true;
 
             return $this->normalizeUserPayload($requestData);
         };
@@ -116,6 +141,8 @@ class UserController extends APIController
         $this->updateBeforeUpdateFunction = function (User $model, array $requestData) {
             if (isset($requestData['password'])) {
                 $requestData['password'] = Hash::make($requestData['password']);
+                // Mot de passe réinitialisé par un admin → changement requis à la prochaine connexion.
+                $requestData['password_change_required'] = true;
             }
 
             return $this->normalizeUserPayload($requestData, $model);
@@ -124,6 +151,10 @@ class UserController extends APIController
         $this->updateAfterUpdateFunction = function (User $model, array $requestData) {
             if (array_key_exists('environment_ids', $requestData) || array_key_exists('entity_ids', $requestData)) {
                 $this->syncUserScopes($model, $requestData);
+            }
+
+            if (array_key_exists('activated', $requestData) && ! $model->activated) {
+                $model->tokens()->delete();
             }
 
             return $model;
@@ -263,6 +294,38 @@ class UserController extends APIController
         return null;
     }
 
+    private function validateModuleAssignments(array $requestData, ?User $target = null): ?array
+    {
+        $profile = $requestData['profile'] ?? $target?->profile;
+        $moduleProfiles = $requestData['module_profiles'] ?? $target?->module_profiles;
+        $modules = $requestData['modules'] ?? $target?->modules ?? [];
+
+        if (in_array($profile, ['super_admin', 'admin'], true) || in_array($profile, self::GOUVERNANCE_IT_PROFILES, true)) {
+            return null;
+        }
+
+        if (array_key_exists('module_profiles', $requestData)) {
+            $moduleProfiles = $this->normalizeModuleProfiles($requestData['module_profiles'] ?? []);
+            if ($moduleProfiles === []) {
+                return [
+                    'errors' => ['module_profiles' => ['Attribuez au moins un module avec un profil.']],
+                    'status' => 422,
+                ];
+            }
+
+            return null;
+        }
+
+        if (array_key_exists('modules', $requestData) && empty($modules)) {
+            return [
+                'errors' => ['modules' => ['Attribuez au moins un module.']],
+                'status' => 422,
+            ];
+        }
+
+        return null;
+    }
+
     private function normalizeUserPayload(array $requestData, ?User $model = null): array
     {
         $profile = $requestData['profile'] ?? $model?->profile;
@@ -294,9 +357,61 @@ class UserController extends APIController
             $requestData['gouvernance_it_role'] = null;
         }
 
+        if (array_key_exists('modules', $requestData)) {
+            $requestData['modules'] = array_values(array_unique(array_filter(
+                array_map('strval', $requestData['modules'] ?? []),
+                fn ($slug) => in_array($slug, ['cartographie', 'audit', 'conformite'], true),
+            )));
+        }
+
+        if (array_key_exists('module_profiles', $requestData)) {
+            $requestData['module_profiles'] = $this->normalizeModuleProfiles($requestData['module_profiles'] ?? []);
+
+            if (! array_key_exists('modules', $requestData)) {
+                $requestData['modules'] = array_keys($requestData['module_profiles']);
+            }
+        }
+
         unset($requestData['environment_id'], $requestData['entity_id']);
 
         return $requestData;
+    }
+
+    private function normalizeModuleProfiles(mixed $moduleProfiles): array
+    {
+        if (! is_array($moduleProfiles)) {
+            return [];
+        }
+
+        $normalized = [];
+        $allowedProfiles = explode(',', self::PROFILE_RULE);
+
+        foreach ($moduleProfiles as $slug => $assignment) {
+            $slug = (string) $slug;
+            if (! in_array($slug, ['cartographie', 'audit', 'conformite'], true) || ! is_array($assignment)) {
+                continue;
+            }
+
+            $profile = (string) ($assignment['profile'] ?? '');
+            if (! in_array($profile, $allowedProfiles, true)) {
+                continue;
+            }
+
+            $normalized[$slug] = [
+                'profile' => $profile,
+                'controle_role' => $profile === 'controle'
+                    ? ($assignment['controle_role'] ?? 'agent_controle_interne')
+                    : null,
+                'audit_role' => $profile === 'audit'
+                    ? ($assignment['audit_role'] ?? 'agent_audit')
+                    : null,
+                'metier_role' => $profile === 'metier'
+                    ? ($assignment['metier_role'] ?? 'visiteur')
+                    : null,
+            ];
+        }
+
+        return $normalized;
     }
 
     private function syncUserScopes(User $model, array $requestData): void

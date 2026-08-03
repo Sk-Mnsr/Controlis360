@@ -69,18 +69,21 @@ class RegulatoryReportingFicheController extends APIController
             ->orderByDesc('id');
 
         if (! $user->isSuperAdmin()) {
-            $entityIds = $user->entity_ids;
-            if (empty($entityIds)) {
-                return $this->responseOk([
-                    'data' => [],
-                    'current_page' => 1,
-                    'per_page' => 20,
-                    'total' => 0,
-                ]);
-            }
-
-            $query->whereIn('etabli_par_entity_id', $entityIds);
             $this->applyEnvironmentScope($query, $user);
+
+            if (! $user->isEnvironmentAdmin() && ! in_array($user->profile, ['conformite'], true)) {
+                $entityIds = $user->entity_ids;
+                if (empty($entityIds)) {
+                    return $this->responseOk([
+                        'data' => [],
+                        'current_page' => 1,
+                        'per_page' => 20,
+                        'total' => 0,
+                    ]);
+                }
+
+                $query->whereIn('etabli_par_entity_id', $entityIds);
+            }
         }
 
         if ($search = trim((string) $request->query('search', ''))) {
@@ -319,7 +322,7 @@ class RegulatoryReportingFicheController extends APIController
         return [
             ...$fiche->toArray(),
             'can_edit' => $this->canManageFiches($user) && $this->canViewFiche($user, $fiche),
-            'can_contribute' => $user->isSuperAdmin()
+            'can_contribute' => $user->isPlatformAdministrator()
                 || $this->recipientResolver->userCanReceive($user, $fiche->etabli_par_entity_id),
         ];
     }
@@ -474,7 +477,7 @@ class RegulatoryReportingFicheController extends APIController
             return false;
         }
 
-        return in_array($user->profile, ['super_admin', 'conformite'], true);
+        return in_array($user->profile, ['super_admin', 'admin', 'conformite'], true);
     }
 
     private function canManageFiches(?User $user): bool
@@ -493,7 +496,7 @@ class RegulatoryReportingFicheController extends APIController
 
     private function canViewFiche(User $user, RegulatoryReportingFiche $fiche): bool
     {
-        if ($user->isSuperAdmin()) {
+        if ($user->isPlatformAdministrator()) {
             return true;
         }
 

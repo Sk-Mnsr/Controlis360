@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 import { useAuthStore } from './stores/auth';
 
 const auth = useAuthStore();
@@ -13,4 +13,16 @@ onMounted(() => {
         auth.fetchUser();
     }
 });
+
+watch(
+    () => auth.token,
+    (token) => {
+        if (token) {
+            auth.startIdleWatch();
+        } else {
+            auth.stopIdleWatch();
+        }
+    },
+    { immediate: true },
+);
 </script>

@@ -38,7 +38,7 @@ class MissionTypeService
 
         $types = $query->get();
 
-        if (! $user || $user->isSuperAdmin()) {
+        if (! $user || $user->isPlatformAdministrator()) {
             return $types;
         }
 
@@ -64,7 +64,7 @@ class MissionTypeService
 
     public function typeAllowedForUser(MissionType $type, ?User $user): bool
     {
-        if (! $user || $user->isSuperAdmin()) {
+        if (! $user || $user->isPlatformAdministrator()) {
             return true;
         }
 
@@ -99,8 +99,7 @@ class MissionTypeService
 
     public function generateUniqueCode(string $name, ?int $ignoreId = null): string
     {
-        $base = Str::snake(Str::ascii($name));
-        $base = trim($base, '_') ?: 'mission_type';
+        $base = $this->normalizeCode($name) ?: 'mission_type';
         $code = $base;
         $suffix = 1;
 
@@ -110,6 +109,16 @@ class MissionTypeService
         }
 
         return $code;
+    }
+
+    public function normalizeCode(?string $code): string
+    {
+        $normalized = Str::lower(trim((string) $code));
+        $normalized = str_replace(['-', ' ', '.'], '_', $normalized);
+        $normalized = preg_replace('/[^a-z0-9_]+/', '_', $normalized) ?? '';
+        $normalized = preg_replace('/_+/', '_', $normalized) ?? '';
+
+        return trim($normalized, '_');
     }
 
     public function codeExists(string $code, ?int $ignoreId = null): bool

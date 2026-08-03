@@ -153,6 +153,20 @@ function ruleLabel(key) {
     return RULE_LABELS[key] ?? key;
 }
 
+function extractApiMessage(err, fallback) {
+    const message = err?.response?.data?.message;
+
+    if (Array.isArray(message)) {
+        return message[0] ?? fallback;
+    }
+
+    if (typeof message === 'string') {
+        return message || fallback;
+    }
+
+    return fallback;
+}
+
 function fillForm(data) {
     const normalized = normalizeParametrageColors(data);
     form.statuses = (normalized?.statuses ?? []).map((item) => ({ ...item }));
@@ -194,7 +208,7 @@ async function save() {
         const errors = err.response?.data?.errors ?? err.response?.data?.data;
         error.value = errors
             ? Object.values(errors).flat().join(' ')
-            : err.response?.data?.message?.[0] ?? 'Enregistrement impossible.';
+            : extractApiMessage(err, 'Enregistrement impossible.');
     } finally {
         saving.value = false;
     }

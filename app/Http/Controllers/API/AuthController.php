@@ -35,7 +35,15 @@ class AuthController extends APIController
         } else {
             $user = User::where('email', $request->email)->first();
             if ($user && Hash::check($request->password, $user->password)) {
+                if (! $user->activated) {
+                    return $this->responseError([
+                        'activated' => ['Votre compte est désactivé.'],
+                        'message' => ['Votre compte est désactivé.'],
+                    ], 403);
+                }
+
                 $user->load(['environments', 'entities', 'subsidiary.country', 'department']);
+                $user->tokens()->delete();
 
                 return $this->responseOk([
                     "userToken" => $user->createToken($request->email)->plainTextToken,
@@ -56,6 +64,16 @@ class AuthController extends APIController
     public function data(Request $request)
     {
         $user = $request->user()->load(['environments', 'entities', 'subsidiary.country', 'department']);
+
+        if (! $user->activated) {
+            $user->tokens()->delete();
+
+            return $this->responseError([
+                'activated' => ['Votre compte est désactivé.'],
+                'message' => ['Votre compte est désactivé.'],
+                'sub_code' => ['001'],
+            ], 403);
+        }
 
         return $this->responseOk([
             'user' => $user,

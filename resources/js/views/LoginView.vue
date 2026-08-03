@@ -123,6 +123,12 @@ const heroStyle = computed(() => ({
 async function submit() {
     try {
         await auth.login(email.value, password.value);
+
+        if (auth.mustChangePassword) {
+            router.push({ name: 'change-password' });
+            return;
+        }
+
         router.push({ name: 'portal' });
     } catch {
         // error handled in store

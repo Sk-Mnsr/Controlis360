@@ -3,7 +3,11 @@
         <aside
             v-if="!hideSidebar"
             class="flex h-screen shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white"
-            :class="activeModule ? 'w-72' : 'w-64'"
+            :class="[
+                activeModule ? 'w-64 sm:w-72' : 'w-56 sm:w-64',
+                'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:transition-transform',
+                mobileNavOpen ? 'max-lg:translate-x-0' : 'max-lg:-translate-x-full',
+            ]"
         >
             <div class="shrink-0 border-b border-slate-200 px-5 py-5">
                 <img
@@ -31,11 +35,11 @@
 
                     <button
                         type="button"
-                        class="nav-link nav-dashboard"
-                        :class="{ 'nav-link-active': isDashboardActive }"
-                        @click="goToDashboard"
+                        class="nav-link nav-cartographie"
+                        :class="{ 'nav-cartographie-active': isCartographieSection }"
+                        @click="openCartographie"
                     >
-                        Dashboard
+                        Cartographie
                     </button>
 
                     <div class="nav-group">
@@ -78,7 +82,7 @@
                         </p>
                         <div class="nav-group-children">
                             <RouterLink
-                                v-if="canSaisirRisques"
+                                v-if="canCreateRiskRow"
                                 class="nav-sublink"
                                 :class="{ 'nav-sublink-active': route.name === 'cartographie.saisie-risques' }"
                                 :to="{ name: 'cartographie.saisie-risques' }"
@@ -159,27 +163,11 @@
                             </button>
                         </div>
                     </div>
-
-                    <button
-                        type="button"
-                        class="nav-cartographie"
-                        @click="openCartographie"
-                    >
-                        Cartographie
-                    </button>
                 </template>
 
                 <template v-else-if="activeModule?.slug === 'audit'">
                     <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
                         ← Tous les modules
-                    </RouterLink>
-
-                    <RouterLink
-                        class="nav-link"
-                        :class="{ 'nav-link-active': route.name === 'audit.home' }"
-                        :to="{ name: 'audit.home' }"
-                    >
-                        Modules
                     </RouterLink>
 
                     <RouterLink
@@ -194,10 +182,10 @@
                     <template v-if="!isRegulatorOnly">
                         <RouterLink
                             class="nav-link"
-                            :class="{ 'nav-link-active': isAuditMissionsSection }"
-                            :to="{ name: 'audit.missions' }"
+                            :class="{ 'nav-link-active': isAuditDashboardSection }"
+                            :to="{ name: 'audit.dashboard' }"
                         >
-                        Dashboard
+                            Dashboard
                         </RouterLink>
 
                         <RouterLink
@@ -206,14 +194,6 @@
                             :to="{ name: 'audit.missions.history' }"
                         >
                             Missions
-                        </RouterLink>
-
-                        <RouterLink
-                            class="nav-link"
-                            :class="{ 'nav-link-active': route.name === 'audit.home' }"
-                            :to="{ name: 'audit.home' }"
-                        >
-                            Historiques
                         </RouterLink>
 
                         <RouterLink
@@ -295,20 +275,16 @@
                     </RouterLink>
 
                     <RouterLink
-                        v-if="auth.user?.profile === 'super_admin'"
+                        v-if="platformProfile === 'super_admin' || platformProfile === 'admin'"
                         class="nav-link"
                         :class="{ 'nav-link-active': isEnvironmentsSection }"
-                        :to="{ name: 'environments' }"
+                        :to="platformProfile === 'admin' ? adminEnvironmentRoute : { name: 'environments' }"
                     >
-                        Environnements
-                    </RouterLink>
-                    <RouterLink
-                        v-else-if="auth.user?.profile === 'admin' && adminEnvironmentIds.length"
-                        class="nav-link"
-                        :to="adminEnvironmentRoute"
-                        active-class="nav-link-active"
-                    >
-                        {{ adminEnvironmentIds.length > 1 ? 'Mes environnements' : 'Mon environnement' }}
+                        {{
+                            platformProfile === 'admin' && adminEnvironmentIds.length <= 1
+                                ? 'Mon environnement'
+                                : (platformProfile === 'admin' ? 'Mes environnements' : 'Environnements')
+                        }}
                     </RouterLink>
 
                     <div v-if="canManageUsers" class="nav-group">
@@ -332,15 +308,6 @@
                             </RouterLink>
                         </div>
                     </div>
-
-                    <RouterLink
-                        v-if="canManageUsers"
-                        class="nav-link"
-                        :class="{ 'nav-link-active': isEntitiesSection }"
-                        :to="{ name: 'entities.members' }"
-                    >
-                        Entités
-                    </RouterLink>
                 </template>
             </nav>
 
@@ -361,10 +328,34 @@
         </aside>
 
         <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <header
+                v-if="!hideSidebar"
+                class="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:hidden"
+            >
+                <button
+                    type="button"
+                    class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    :aria-expanded="mobileNavOpen"
+                    aria-label="Ouvrir le menu"
+                    @click="mobileNavOpen = !mobileNavOpen"
+                >
+                    Menu
+                </button>
+                <p class="truncate text-sm font-medium text-slate-700">
+                    {{ activeModule?.name || 'Controlis360' }}
+                </p>
+            </header>
+
+            <div
+                v-if="mobileNavOpen && !hideSidebar"
+                class="fixed inset-0 z-30 bg-slate-900/40 lg:hidden"
+                @click="mobileNavOpen = false"
+            />
+
             <main
                 class="min-h-0 flex-1"
                 :class="[
-                    isFullBleedPage ? 'flex flex-col' : 'p-6 lg:p-8',
+                    isFullBleedPage ? 'flex flex-col' : 'p-4 sm:p-6 lg:p-8',
                     isConformiteSaisieSection ? 'overflow-hidden' : 'overflow-y-auto',
                 ]"
             >
@@ -383,20 +374,22 @@ import { canCreateMission as userCanCreateMission, isRegulatorProfile } from '..
 import { useCartographieNavigation } from '../stores/cartographie';
 import { useAuthStore } from '../stores/auth';
 import { useCartographiePermissions } from '../composables/useCartographiePermissions';
+import { uniqueEnvironments } from '../utils/cartographyDashboard';
 import api from '../api/client';
 
 const auth = useAuthStore();
 const { canCreateRiskRow } = useCartographiePermissions();
-const canCreateMission = computed(() => userCanCreateMission(auth.user));
+const canCreateMission = computed(() => userCanCreateMission(auth.baseUser ?? auth.user));
 const route = useRoute();
 const router = useRouter();
-const { cartographie, navigateMethodology, goToDashboard, selectDepartmentEntity } = useCartographieNavigation();
+const { cartographie, navigateMethodology, selectDepartmentEntity } = useCartographieNavigation();
 
 const logoUrl = '/logo_Cofina.png';
 const isPortal = computed(() => route.name === 'portal');
 const activeModule = computed(() => getModuleFromRoute(route));
 const isFullBleedPage = computed(() =>
     route.name === 'cartographie.home'
+    || route.name === 'cartographie.cartographie'
     || route.name === 'cartographie.methodology.show'
     || route.name === 'cartographie.departement-analyse'
     || route.name === 'conformite.reporting.create'
@@ -410,24 +403,30 @@ const hideSidebar = computed(() =>
     || route.name === 'gouvernance-it.systemes-reseaux'
     || route.name === 'gouvernance-it.base-donnees',
 );
-const isDashboardActive = computed(() =>
-    route.name === 'cartographie.home' && cartographie.selectedDepartment === 'DASHBOARD',
-);
+const isCartographieSection = computed(() => route.name === 'cartographie.cartographie');
 const isMethodologySection = computed(() => route.name === 'cartographie.methodology.show');
 const isSaisieSection = computed(() => route.name === 'cartographie.saisie-risques');
 const isDepartmentsSection = computed(() =>
-    (route.name === 'cartographie.departement-analyse' || route.name === 'cartographie.departement-historique')
+    (route.name === 'cartographie.departement-analyse'
+        || route.name === 'cartographie.departement-dashboard'
+        || route.name === 'cartographie.departement-historique')
     && activeEntityType.value === 'department',
 );
 const isAgenciesSection = computed(() =>
-    (route.name === 'cartographie.departement-analyse' || route.name === 'cartographie.departement-historique')
+    (route.name === 'cartographie.departement-analyse'
+        || route.name === 'cartographie.departement-dashboard'
+        || route.name === 'cartographie.departement-historique')
     && activeEntityType.value === 'agency',
 );
 const isEnvironmentsSection = computed(() => route.path.startsWith('/environments'));
 const isUsersSection = computed(() => route.path.startsWith('/users'));
-const isEntitiesSection = computed(() => route.name === 'entities.members');
 const isUsersCreateSection = computed(() => route.name === 'users.create');
 const isUsersHistorySection = computed(() => route.name === 'users.history' || route.name === 'users.edit');
+const isAuditDashboardSection = computed(() =>
+    route.name === 'audit.dashboard'
+    || route.name === 'audit.missions'
+    || (route.name === 'audit.missions.show' && route.query.from === 'dashboard'),
+);
 const isAuditMissionsSection = computed(() =>
     route.name === 'audit.missions'
     || route.name === 'audit.missions.create'
@@ -454,8 +453,9 @@ const isConformiteReceptionSection = computed(() =>
     route.name === 'conformite.reporting.reception'
     || route.name === 'conformite.reporting.reception.show',
 );
+const platformProfile = computed(() => auth.baseUser?.profile ?? auth.user?.profile ?? null);
 const canManageConformiteSaisie = computed(() =>
-    ['super_admin', 'conformite'].includes(auth.user?.profile),
+    ['super_admin', 'admin', 'conformite'].includes(platformProfile.value),
 );
 const isGovStratSection = computed(() =>
     route.name === 'gouvernance-it.govstrat-itr'
@@ -464,15 +464,38 @@ const isGovStratSection = computed(() =>
     || route.name === 'gouvernance-it.systemes-reseaux'
     || route.name === 'gouvernance-it.base-donnees',
 );
-const isRegulatorOnly = computed(() => auth.user?.profile === 'regulateur');
-const showRegulatorNav = computed(() => isRegulatorProfile(auth.user?.profile));
-const canManageUsers = computed(() => ['super_admin', 'admin'].includes(auth.user?.profile));
+const isRegulatorOnly = computed(() => platformProfile.value === 'regulateur');
+const showRegulatorNav = computed(() => isRegulatorProfile(platformProfile.value));
+const canManageUsers = computed(() => ['super_admin', 'admin'].includes(platformProfile.value));
+
+const adminEnvironmentIds = computed(() => {
+    const user = auth.baseUser ?? auth.user;
+    if (Array.isArray(user?.environment_ids) && user.environment_ids.length) {
+        return user.environment_ids.map((id) => Number(id)).filter((id) => !Number.isNaN(id));
+    }
+
+    return (user?.environments ?? [])
+        .map((environment) => Number(environment.id))
+        .filter((id) => !Number.isNaN(id));
+});
+
+const adminEnvironmentRoute = computed(() => {
+    if (adminEnvironmentIds.value.length === 1) {
+        return { name: 'environments.detail', params: { id: adminEnvironmentIds.value[0] } };
+    }
+
+    return { name: 'environments' };
+});
+
 const departmentsOpen = ref(false);
 const agenciesOpen = ref(false);
 const entitiesLoading = ref(false);
+const mobileNavOpen = ref(false);
 
 const activeEntityType = computed(() => {
-    if (route.name !== 'cartographie.departement-analyse' && route.name !== 'cartographie.departement-historique') {
+    if (route.name !== 'cartographie.departement-analyse'
+        && route.name !== 'cartographie.departement-dashboard'
+        && route.name !== 'cartographie.departement-historique') {
         return null;
     }
 
@@ -487,6 +510,10 @@ function normalizeEntitiesPayload(payload) {
 
     if (Array.isArray(payload?.data)) {
         return payload.data;
+    }
+
+    if (Array.isArray(payload?.data?.data)) {
+        return payload.data.data;
     }
 
     return [];
@@ -513,6 +540,10 @@ async function loadNavigationEntities() {
     }
 }
 
+watch(() => route.fullPath, () => {
+    mobileNavOpen.value = false;
+});
+
 watch(activeModule, (module) => {
     if (module?.slug === 'cartographie') {
         loadNavigationEntities();
@@ -537,6 +568,7 @@ function isMethodologyItemActive(item) {
 
 function isEntityActive(entity) {
     const onEntityRoute = route.name === 'cartographie.departement-analyse'
+        || route.name === 'cartographie.departement-dashboard'
         || route.name === 'cartographie.departement-historique';
 
     if (!onEntityRoute || route.params.code !== entity.code) {
@@ -568,31 +600,45 @@ function entityNavLabel(entity) {
 }
 
 function openCartographie() {
-    cartographie.openCartographie();
-    router.push({ name: 'cartographie.home' });
+    cartographie.statusMessage = '';
+    cartographie.resetDashboard();
+
+    const environments = uniqueEnvironments(cartographie.navigationEntities);
+    const environment = environments.length > 1
+        ? 'all'
+        : (environments[0]?.code ?? null);
+
+    router.push({
+        name: 'cartographie.cartographie',
+        query: environment ? { environment } : {},
+    });
 }
 
 const userRoleLabel = computed(() => {
-    const user = auth.user;
+    const user = auth.baseUser ?? auth.user;
     if (!user) return '';
 
-    if (user.controle_role_fr) {
-        return `${user.profile_fr} — ${user.controle_role_fr}`;
+    if (user.profile === 'admin' || user.profile === 'super_admin') {
+        return user.profile_fr ?? '';
     }
 
-    if (user.audit_role_fr) {
-        return `${user.profile_fr} — ${user.audit_role_fr}`;
+    if (auth.user?.controle_role_fr) {
+        return `${auth.user.profile_fr} — ${auth.user.controle_role_fr}`;
     }
 
-    if (user.gouvernance_it_role_fr) {
-        return `${user.profile_fr} — ${user.gouvernance_it_role_fr}`;
+    if (auth.user?.audit_role_fr) {
+        return `${auth.user.profile_fr} — ${auth.user.audit_role_fr}`;
     }
 
-    if (user.metier_role_fr) {
-        return `${user.profile_fr} — ${user.metier_role_fr}`;
+    if (auth.user?.gouvernance_it_role_fr) {
+        return `${auth.user.profile_fr} — ${auth.user.gouvernance_it_role_fr}`;
     }
 
-    return user.profile_fr ?? '';
+    if (auth.user?.metier_role_fr) {
+        return `${auth.user.profile_fr} — ${auth.user.metier_role_fr}`;
+    }
+
+    return auth.user?.profile_fr ?? user.profile_fr ?? '';
 });
 
 async function handleLogout() {
@@ -628,12 +674,30 @@ async function handleLogout() {
     color: #64748b;
 }
 
-.nav-dashboard {
+.nav-cartographie {
+    display: block;
     width: 100%;
-    text-align: left;
+    margin-bottom: 0.35rem;
     border: none;
-    background: transparent;
+    border-radius: 0.5rem;
+    background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+    padding: 0.7rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #ffffff;
     cursor: pointer;
+    text-align: center;
+    transition: opacity 0.15s;
+}
+
+.nav-cartographie:hover {
+    opacity: 0.92;
+}
+
+.nav-cartographie-active {
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.85);
 }
 
 .nav-sublink-btn {
@@ -652,27 +716,6 @@ async function handleLogout() {
 .nav-dept {
     font-size: 0.75rem;
     line-height: 1.35;
-}
-
-.nav-cartographie {
-    display: block;
-    width: 100%;
-    margin-top: 0.75rem;
-    border: none;
-    border-radius: 0.5rem;
-    background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
-    padding: 0.7rem 0.75rem;
-    font-size: 0.8125rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #ffffff;
-    cursor: pointer;
-    transition: opacity 0.15s;
-}
-
-.nav-cartographie:hover {
-    opacity: 0.92;
 }
 
 .nav-group {

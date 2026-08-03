@@ -32,7 +32,6 @@
                 <li v-if="auth.workspace === 'controle'">Saisie et validation des évaluations de risques</li>
                 <li v-if="auth.workspace === 'audit'">Planification et suivi des missions d'audit</li>
                 <li v-if="auth.workspace === 'conformite'">Suivi réglementaire et dispositifs de conformité</li>
-                <li v-if="auth.workspace === 'gouvernance_it'">Pilotage des risques et contrôles des systèmes d'information</li>
                 <li v-if="auth.workspace === 'metier'">Consultation selon votre rôle métier</li>
                 <li v-if="auth.workspace === 'superviseur'">Supervision des évaluations sur vos périmètres</li>
                 <li v-if="auth.user?.profile === 'super_admin'">Configuration globale des environnements</li>

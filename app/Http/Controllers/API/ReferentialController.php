@@ -488,9 +488,9 @@ class ReferentialController extends APIController
     /**
      * Plus gros risques opérationnels à fort impact business.
      */
-    public function topRisques()
+    public function topRisques(Request $request)
     {
-        return $this->responseOk($this->buildTopRisquesPayload());
+        return $this->responseOk($this->buildTopRisquesPayload($request));
     }
 
     /**
@@ -520,33 +520,66 @@ class ReferentialController extends APIController
 
         $this->syncTopRisques($request->input('rows', []));
 
-        return $this->topRisques();
+        return $this->topRisques($request);
     }
 
-    private function buildTopRisquesPayload(): array
+    private function buildTopRisquesPayload(Request $request): array
     {
-        $rows = TopRisk::query()->orderBy('sort_order')->get()->map(function (TopRisk $row) {
-            $classification = ($row->gravity && $row->probability)
-                ? RiskClassification::forCell($row->gravity, $row->probability)
-                : null;
+        $user = $request->user();
+        $environmentCode = $request->query('environment');
+        $formatter = app(OperationalRiskRowController::class);
 
-            return [
-                'id' => $row->id,
-                'process_name' => $row->process_name,
-                'sub_process_name' => $row->sub_process_name,
-                'major_exceptions' => $row->major_exceptions,
-                'risk_family' => $row->risk_family,
-                'gravity' => $row->gravity,
-                'probability' => $row->probability,
-                'gross_risk' => $row->gross_risk,
-                'classification' => $classification,
-                'sort_order' => $row->sort_order,
-            ];
-        });
+        $entitiesQuery = Entity::query()
+            ->whereIn('type', ['department', 'agency'])
+            ->where('is_active', true)
+            ->visibleToUser($user);
+
+        if ($user->environment_id) {
+            $entitiesQuery->where('environment_id', $user->environment_id);
+        } elseif ($environmentCode) {
+            $entitiesQuery->whereHas(
+                'environment',
+                fn ($query) => $query->where('code', $environmentCode)
+            );
+        } elseif ($user->isSuperAdmin()) {
+            $environmentId = Environment::query()->orderBy('id')->value('id');
+
+            if ($environmentId) {
+                $entitiesQuery->where('environment_id', $environmentId);
+            }
+        }
+
+        $entityIds = $entitiesQuery->pluck('id');
+
+        $rowsQuery = OperationalRiskRow::query()
+            ->with(['entity'])
+            ->visibleInAnalyse()
+            ->whereIn('entity_id', $entityIds)
+            ->whereNotNull('gravity')
+            ->whereNotNull('probability')
+            ->whereRaw('gravity * probability >= 20');
+
+        if ($user->isEntityResponsable()) {
+            $rowsQuery->visibleToEntityResponsable($user);
+        }
+
+        $rows = $rowsQuery
+            ->orderByDesc(\Illuminate\Support\Facades\DB::raw('gravity * probability'))
+            ->orderBy('process_name')
+            ->orderBy('sub_process_name')
+            ->get()
+            ->map(function (OperationalRiskRow $row) use ($formatter) {
+                $formatted = $formatter->formatRow($row);
+                $formatted['process_name'] = $row->process_name ?: $row->entity?->name;
+                $formatted['classification'] = $formatted['gross_classification'];
+
+                return $formatted;
+            });
 
         return [
             'title' => 'RISQUES OPERATIONNELS A FORT IMPACT BUSINESS',
             'rows' => $rows,
+            'is_dynamic' => true,
         ];
     }
 
@@ -588,13 +621,22 @@ class ReferentialController extends APIController
     {
         $user = $request->user();
 
-        if (! $user->isSuperAdmin() && ! in_array($user->profile, ['controle', 'audit'], true)) {
+        if (! $user->isPlatformAdministrator() && ! in_array($user->profile, ['controle', 'audit'], true)) {
             return $this->responseError(['auth' => ['Accès non autorisé.']], 403);
         }
 
         $query = Environment::query()
             ->where('is_active', true)
             ->orderBy('name');
+
+        if ($user->isEnvironmentAdmin()) {
+            $environmentIds = $user->environment_ids;
+            if ($environmentIds === []) {
+                return $this->responseOk([]);
+            }
+
+            $query->whereIn('id', $environmentIds);
+        }
 
         return $this->responseOk(
             $query->get(['id', 'name', 'code'])
@@ -608,19 +650,41 @@ class ReferentialController extends APIController
     {
         $user = $request->user();
 
-        $entities = Entity::query()
-            ->with('environment')
+        $query = Entity::query()
+            ->with(['environment', 'responsables:id,name'])
             ->whereIn('type', ['department', 'agency'])
             ->where('is_active', true)
             ->visibleToUser($user)
             ->orderBy('environment_id')
             ->orderBy('sort_order')
-            ->orderBy('name')
+            ->orderBy('name');
+
+        if ($request->filled('environment_id')) {
+            $query->where('environment_id', (int) $request->input('environment_id'));
+        }
+
+        $entities = $query
             ->get()
             ->unique('id')
-            ->values();
+            ->values()
+            ->map(function (Entity $entity) {
+                $entity->setAttribute(
+                    'responsible_name',
+                    $entity->responsables->pluck('name')->filter()->implode(', ') ?: null
+                );
+
+                return $entity;
+            });
 
         return $this->responseOk($entities);
+    }
+
+    /**
+     * Dashboard cartographie global (risques bruts et résiduels par entité).
+     */
+    public function cartographieDashboard(Request $request)
+    {
+        return $this->responseOk($this->buildCartographieDashboardPayload($request));
     }
 
     /**
@@ -638,22 +702,35 @@ class ReferentialController extends APIController
             ->with('environment:id,code,name')
             ->whereIn('type', ['department', 'agency'])
             ->where('is_active', true)
+            ->visibleToUser($user)
             ->orderBy('environment_id')
             ->orderBy('sort_order')
             ->orderBy('name');
 
-        $user = $request->user();
-
-        if ($user->environment_id) {
-            $query->where('environment_id', $user->environment_id);
-        } elseif ($user->isSuperAdmin()) {
+        if ($user->isSuperAdmin() && $user->environment_ids === []) {
             $environmentId = Environment::query()->orderBy('id')->value('id');
             if ($environmentId) {
-                $query->where('environment_id', $environmentId);
+                $entitiesQuery->where('environment_id', $environmentId);
             }
         }
 
-        return $this->responseOk($query->get());
+        return $this->responseOk([
+            'entities' => $entitiesQuery->get()->toArray(),
+            'risk_families' => RiskFamily::query()
+                ->orderBy('sort_order')
+                ->pluck('name')
+                ->values()
+                ->all(),
+            'risk_categories' => RiskCategory::query()
+                ->with(['families' => fn ($query) => $query->orderBy('sort_order')])
+                ->orderBy('sort_order')
+                ->get()
+                ->toArray(),
+            'risk_classifications' => RiskClassification::query()
+                ->orderBy('sort_order')
+                ->get()
+                ->toArray(),
+        ]);
     }
 
     /**
@@ -714,18 +791,24 @@ class ReferentialController extends APIController
     }
 
     /**
-     * Mise à jour de l'analyse des risques d'un département (super administrateur).
+     * Mise à jour de l'analyse des risques d'un département (super admin / admin d'environnement).
      */
     public function updateAnalyseRisques(Request $request, string $code)
     {
-        if (! $request->user()->isSuperAdmin()) {
-            return $this->responseError(['auth' => ['Action réservée au super administrateur']], 403);
+        $user = $request->user();
+
+        if (! $user->isPlatformAdministrator()) {
+            return $this->responseError(['auth' => ['Action réservée aux administrateurs']], 403);
         }
 
         $entity = $this->resolveDepartmentEntity($request, $code);
 
         if (! $entity) {
             return $this->responseError(['code' => ['Département introuvable']], 404);
+        }
+
+        if ($user->isEnvironmentAdmin() && ! $user->canAccessEnvironmentId((int) $entity->environment_id)) {
+            return $this->responseError(['auth' => ['Environnement non autorisé']], 403);
         }
 
         $validator = Validator::make($request->all(), [
@@ -760,24 +843,12 @@ class ReferentialController extends APIController
 
     private function resolveDepartmentEntity(Request $request, string $code): ?Entity
     {
-        $query = Entity::query()
-            ->with('environment')
-            ->where('type', 'department')
-            ->where('code', $code)
-            ->where('is_active', true);
-
-        $user = $request->user();
-
-        if ($user->environment_id) {
-            $query->where('environment_id', $user->environment_id);
-        } elseif ($user->isSuperAdmin()) {
-            $environmentId = Environment::query()->orderBy('id')->value('id');
-            if ($environmentId) {
-                $query->where('environment_id', $environmentId);
-            }
-        }
-
-        return $query->first();
+        return Entity::resolveDepartmentForUser(
+            $request->user(),
+            $code,
+            $request->query('environment'),
+            $request->integer('entity_id') ?: null
+        );
     }
 
     private function buildAnalyseRisquesPayload(Entity $entity, bool $includeDrafts = false): array
@@ -819,16 +890,21 @@ class ReferentialController extends APIController
                 ->orderBy('sort_order')
                 ->pluck('name')
                 ->values(),
+            'risk_categories' => RiskCategory::query()
+                ->with(['families' => fn ($query) => $query->orderBy('sort_order')])
+                ->orderBy('sort_order')
+                ->get(),
             'risk_classifications' => RiskClassification::query()
                 ->orderBy('sort_order')
                 ->get(),
             'permissions' => [
                 'can_create_row' => $user->canCreateOperationalRiskRow(),
                 'can_edit_methodology' => $user->canEditMethodology(),
-                'can_validate' => $user->isSuperAdmin() || $user->isControleResponsable(),
-                'can_complete_entity' => $user->isSuperAdmin() || $user->isControleResponsable(),
+                'can_validate' => $user->isPlatformAdministrator() || $user->isControleResponsable(),
+                'can_complete_entity' => $user->isPlatformAdministrator() || $user->isControleResponsable(),
                 'is_entity_responsable' => $user->isEntityResponsable(),
-                'is_super_admin' => $user->isSuperAdmin(),
+                'is_super_admin' => $user->isPlatformAdministrator(),
+                'is_environment_admin' => $user->isEnvironmentAdmin(),
                 'entity_id' => $user->entity_id,
             ],
         ];
@@ -884,5 +960,291 @@ class ReferentialController extends APIController
             ->where('entity_id', $entity->id)
             ->whereNotIn('id', $keptIds)
             ->delete();
+    }
+
+    private function buildCartographieDashboardPayload(Request $request): array
+    {
+        $user = $request->user();
+        $environmentCode = $request->query('environment');
+        $isGroupeScope = $environmentCode === 'all' || $environmentCode === 'groupe';
+        $formatter = app(OperationalRiskRowController::class);
+
+        $entitiesQuery = Entity::query()
+            ->with('environment:id,code,name')
+            ->whereIn('type', ['department', 'agency'])
+            ->where('is_active', true)
+            ->visibleToUser($user)
+            ->orderBy('environment_id')
+            ->orderBy('sort_order')
+            ->orderBy('name');
+
+        if ($isGroupeScope) {
+            // Toutes les filiales visibles pour l'utilisateur (pas de filtre mono-env).
+        } elseif ($environmentCode) {
+            $entitiesQuery->whereHas(
+                'environment',
+                fn ($query) => $query->where('code', $environmentCode)
+            );
+        } elseif ($user->environment_id) {
+            $entitiesQuery->where('environment_id', $user->environment_id);
+        } elseif ($user->isSuperAdmin()) {
+            $environmentId = Environment::query()->orderBy('id')->value('id');
+
+            if ($environmentId) {
+                $entitiesQuery->where('environment_id', $environmentId);
+            }
+        }
+
+        $entities = $entitiesQuery->get();
+        $environment = $isGroupeScope ? null : $entities->first()?->environment;
+
+        $rowsQuery = OperationalRiskRow::query()
+            ->visibleInAnalyse()
+            ->whereIn('entity_id', $entities->pluck('id'));
+
+        if ($user->isEntityResponsable()) {
+            $rowsQuery->visibleToEntityResponsable($user);
+        }
+
+        $rowsByEntity = $rowsQuery
+            ->get()
+            ->groupBy('entity_id');
+
+        $formattedRows = $rowsByEntity
+            ->flatten(1)
+            ->map(fn (OperationalRiskRow $row) => $formatter->formatRow($row))
+            ->values();
+
+        $matrice = $this->buildMatricePayload();
+
+        return [
+            'title' => 'CARTOGRAPHIE DES RISQUES',
+            'subtitle' => $isGroupeScope
+                ? 'Vue consolidée de toutes les filiales'
+                : ($environment
+                    ? 'Vue d\'ensemble des principaux risques — '.$environment->name
+                    : 'Vue d\'ensemble des principaux risques'),
+            'environment' => $environment,
+            'scope' => $isGroupeScope ? 'groupe' : 'filiale',
+            'classifications' => $matrice['classifications'],
+            'matrix' => $matrice['matrix'],
+            'risk_categories' => RiskCategory::query()
+                ->with(['families' => fn ($query) => $query->orderBy('sort_order')])
+                ->orderBy('sort_order')
+                ->get(),
+            'rows' => $formattedRows,
+            'gross' => $this->buildCartographyModePayload($entities, $rowsByEntity, 'gross', $isGroupeScope),
+            'residual' => $this->buildCartographyModePayload($entities, $rowsByEntity, 'residual', $isGroupeScope),
+        ];
+    }
+
+    private function buildCartographyModePayload($entities, $rowsByEntity, string $mode, bool $groupeScope = false): array
+    {
+        $entitySummaries = [];
+
+        foreach ($entities as $entity) {
+            $entityRows = $rowsByEntity->get($entity->id, collect());
+            $summary = $this->computeEntityCartographySummary($entityRows, $mode);
+
+            if ($summary === null) {
+                continue;
+            }
+
+            $entitySummaries[] = array_merge($summary, [
+                'id' => $entity->id,
+                'name' => $entity->name,
+                'code' => $entity->code,
+                'type' => $entity->type,
+                'environment' => $entity->environment
+                    ? [
+                        'id' => $entity->environment->id,
+                        'code' => $entity->environment->code,
+                        'name' => $entity->environment->name,
+                    ]
+                    : null,
+            ]);
+        }
+
+        if ($groupeScope) {
+            $entitySummaries = $this->aggregateCartographyByEnvironment($entitySummaries);
+        }
+
+        $gravities = array_column($entitySummaries, 'gravity');
+        $probabilities = array_column($entitySummaries, 'probability');
+
+        $averages = null;
+        if ($gravities !== []) {
+            $avgG = (int) round(array_sum($gravities) / count($gravities));
+            $avgP = (int) round(array_sum($probabilities) / count($probabilities));
+            $avgRisk = $avgG * $avgP;
+            $classification = RiskClassification::forScore($avgRisk);
+
+            $averages = [
+                'gravity' => $avgG,
+                'probability' => $avgP,
+                'risk_score' => $avgRisk,
+                'rows_count' => array_sum(array_column($entitySummaries, 'rows_count')),
+                'high_impact_count' => array_sum(array_column($entitySummaries, 'high_impact_count')),
+                'entities_count' => array_sum(array_map(
+                    fn ($item) => (int) ($item['entities_count'] ?? 1),
+                    $entitySummaries
+                )),
+                'classification' => $classification,
+                'level_label' => $classification?->name ?? 'Non significatif',
+            ];
+        }
+
+        $distribution = $this->buildClassificationDistribution($entitySummaries);
+
+        return [
+            'entities' => $entitySummaries,
+            'averages' => $averages,
+            'distribution' => $distribution,
+            'total_entities' => count($entitySummaries),
+            'scope' => $groupeScope ? 'groupe' : 'filiale',
+            'summary_label' => $groupeScope ? 'GROUPE' : 'FILIALE',
+        ];
+    }
+
+    /**
+     * Agrège les entités par filiale (environnement) pour le dashboard groupe.
+     */
+    private function aggregateCartographyByEnvironment(array $entitySummaries): array
+    {
+        $grouped = [];
+
+        foreach ($entitySummaries as $summary) {
+            $envCode = $summary['environment']['code'] ?? 'unknown';
+
+            if (! isset($grouped[$envCode])) {
+                $grouped[$envCode] = [
+                    'items' => [],
+                    'environment' => $summary['environment'],
+                ];
+            }
+
+            $grouped[$envCode]['items'][] = $summary;
+        }
+
+        $filiales = [];
+
+        foreach ($grouped as $envCode => $group) {
+            $items = $group['items'];
+            $avgG = (int) round(array_sum(array_column($items, 'gravity')) / count($items));
+            $avgP = (int) round(array_sum(array_column($items, 'probability')) / count($items));
+            $riskScore = $avgG * $avgP;
+            $classification = RiskClassification::forScore($riskScore);
+            $environment = $group['environment'];
+
+            $filiales[] = [
+                'id' => 'env-'.($environment['id'] ?? $envCode),
+                'name' => $environment['name'] ?? $envCode,
+                'code' => $environment['code'] ?? $envCode,
+                'type' => 'filiale',
+                'environment' => $environment,
+                'gravity' => $avgG,
+                'probability' => $avgP,
+                'risk_score' => $riskScore,
+                'cell_gravity' => max(1, min(6, $avgG)),
+                'cell_probability' => max(1, min(6, $avgP)),
+                'rows_count' => array_sum(array_column($items, 'rows_count')),
+                'high_impact_count' => array_sum(array_column($items, 'high_impact_count')),
+                'entities_count' => count($items),
+                'classification' => $classification,
+                'level_label' => $classification?->name ?? 'Non significatif',
+            ];
+        }
+
+        usort($filiales, fn ($a, $b) => ($b['risk_score'] <=> $a['risk_score']) ?: strcmp($a['name'], $b['name']));
+
+        return $filiales;
+    }
+
+    private function computeEntityCartographySummary($rows, string $mode): ?array
+    {
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        $gravities = [];
+        $probabilities = [];
+        $highImpactCount = 0;
+
+        foreach ($rows as $row) {
+            if ($mode === 'residual') {
+                $gravity = $row->resolvedResidualGravity();
+                $probability = $row->resolvedResidualProbability();
+            } else {
+                $gravity = $row->gravity;
+                $probability = $row->probability;
+            }
+
+            if ($gravity === null || $probability === null) {
+                continue;
+            }
+
+            $score = (float) $gravity * (float) $probability;
+            $gravities[] = (float) $gravity;
+            $probabilities[] = (float) $probability;
+
+            if ($score >= 20) {
+                $highImpactCount++;
+            }
+        }
+
+        if ($gravities === []) {
+            return null;
+        }
+
+        $avgG = (int) round(array_sum($gravities) / count($gravities));
+        $avgP = (int) round(array_sum($probabilities) / count($probabilities));
+        $riskScore = $avgG * $avgP;
+        $cellG = max(1, min(6, $avgG));
+        $cellP = max(1, min(6, $avgP));
+        $classification = RiskClassification::forScore($riskScore);
+
+        return [
+            'gravity' => $avgG,
+            'probability' => $avgP,
+            'risk_score' => $riskScore,
+            'cell_gravity' => $cellG,
+            'cell_probability' => $cellP,
+            'rows_count' => count($gravities),
+            'high_impact_count' => $highImpactCount,
+            'classification' => $classification,
+            'level_label' => $classification?->name ?? 'Non significatif',
+        ];
+    }
+
+    private function buildClassificationDistribution(array $entitySummaries): array
+    {
+        $counts = [];
+
+        foreach ($entitySummaries as $summary) {
+            $code = $summary['classification']?->code ?? 'non_significatif';
+            $counts[$code] = ($counts[$code] ?? 0) + 1;
+        }
+
+        $total = array_sum($counts);
+
+        if ($total === 0) {
+            return [];
+        }
+
+        return collect($counts)
+            ->map(function (int $count, string $code) use ($total) {
+                $classification = RiskClassification::query()->where('code', $code)->first();
+
+                return [
+                    'code' => $code,
+                    'name' => $classification?->name ?? $code,
+                    'color' => $classification?->color ?? '#94a3b8',
+                    'count' => $count,
+                    'percent' => round(($count / $total) * 100),
+                ];
+            })
+            ->sortByDesc('count')
+            ->values()
+            ->all();
     }
 }

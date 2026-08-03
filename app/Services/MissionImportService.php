@@ -341,7 +341,9 @@ class MissionImportService
                 $mission->recipients()->sync($syncData);
             }
 
-            return $mission->load(['recommendations.entities', 'entities', 'creator', 'recipients']);
+            $this->syncMissionnaires($mission, $data['missionnaires'] ?? []);
+
+            return $mission->load(['recommendations.entities', 'entities', 'creator', 'recipients', 'missionnaires']);
         });
 
         if ($mission->recommendations->isNotEmpty() && $mission->recipients->isNotEmpty()) {
@@ -356,6 +358,38 @@ class MissionImportService
     private function shouldCreateRecommendation(array $data): bool
     {
         return ! empty($data['recommendation_label']);
+    }
+
+    public function syncMissionnaires(Mission $mission, array $missionnaires): void
+    {
+        $mission->missionnaires()->delete();
+
+        foreach (array_values($missionnaires) as $index => $row) {
+            $nom = trim((string) ($row['nom'] ?? ''));
+            $email = trim((string) ($row['email'] ?? ''));
+
+            if ($nom === '' || $email === '') {
+                continue;
+            }
+
+            $entiteType = ($row['entite_type'] ?? 'interne') === 'externe' ? 'externe' : 'interne';
+
+            $mission->missionnaires()->create([
+                'nom' => $nom,
+                'email' => $email,
+                'telephone' => trim((string) ($row['telephone'] ?? '')) ?: null,
+                'poste' => trim((string) ($row['poste'] ?? '')) ?: null,
+                'entite_type' => $entiteType,
+                'responsable_equipe' => in_array(
+                    strtolower(trim((string) ($row['responsable_equipe'] ?? ''))),
+                    ['responsable', 'membre'],
+                    true
+                )
+                    ? strtolower(trim((string) $row['responsable_equipe']))
+                    : 'membre',
+                'ordre' => $index,
+            ]);
+        }
     }
 
     private function mapColumns(array $headerRow): array

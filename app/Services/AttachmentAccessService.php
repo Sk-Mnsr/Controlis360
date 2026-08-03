@@ -29,9 +29,9 @@ class AttachmentAccessService
                 return false;
             }
 
-            if (in_array($user->profile, ['conformite'], true)) {
+            if ($user->isEnvironmentAdmin() || in_array($user->profile, ['conformite'], true)) {
                 if ($fiche->environment_id === null) {
-                    return true;
+                    return $user->isEnvironmentAdmin() ? false : true;
                 }
 
                 return $user->belongsToEnvironment((int) $fiche->environment_id);
@@ -63,6 +63,14 @@ class AttachmentAccessService
 
         if (preg_match('#^gouvernance-it/(\d+)/#', $path, $matches)) {
             return $this->canViewGouvernanceItActivity($user, (int) $matches[1]);
+        }
+
+        if (str_starts_with($path, 'mission-reports/')) {
+            $mission = Mission::query()
+                ->whereJsonContains('report_attachment_paths', $path)
+                ->first();
+
+            return $mission ? $this->canViewMission($user, (int) $mission->id) : false;
         }
 
         return false;
@@ -113,7 +121,7 @@ class AttachmentAccessService
 
     private function canViewRecommendations(User $user): bool
     {
-        if ($user->isSuperAdmin()) {
+        if ($user->isPlatformAdministrator()) {
             return true;
         }
 
@@ -140,8 +148,14 @@ class AttachmentAccessService
             return;
         }
 
-        if (in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isEnvironmentAdmin() || in_array($user->profile, ['controle', 'audit'], true)) {
             $environmentIds = $user->environment_ids;
+
+            if ($user->isEnvironmentAdmin() && empty($environmentIds)) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
 
             if (! empty($environmentIds)) {
                 $query->whereHas('entities', function ($entityQuery) use ($environmentIds) {

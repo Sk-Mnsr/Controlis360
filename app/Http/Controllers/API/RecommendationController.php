@@ -745,7 +745,7 @@ class RecommendationController extends APIController
 
     private function canManageActionPlans(User $user, Recommendation $recommendation): bool
     {
-        if ($user->isSuperAdmin() || in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isPlatformAdministrator() || in_array($user->profile, ['controle', 'audit'], true)) {
             return $this->canViewRecommendation($user, $recommendation);
         }
 
@@ -852,6 +852,10 @@ class RecommendationController extends APIController
             return true;
         }
 
+        if ($user->isEnvironmentAdmin()) {
+            return $user->canAccessMissionEnvironments($mission->entities);
+        }
+
         return in_array($user->profile, ['controle', 'audit'], true)
             && (int) $mission->created_by === (int) $user->id;
     }
@@ -862,8 +866,8 @@ class RecommendationController extends APIController
             return false;
         }
 
-        if ($user->isSuperAdmin()) {
-            return true;
+        if ($user->isPlatformAdministrator()) {
+            return $this->canViewRecommendation($user, $recommendation);
         }
 
         if (! in_array($user->profile, ['controle', 'audit'], true)) {
@@ -886,8 +890,8 @@ class RecommendationController extends APIController
             return false;
         }
 
-        if ($user->isSuperAdmin()) {
-            return true;
+        if ($user->isPlatformAdministrator()) {
+            return $this->canViewRecommendation($user, $recommendation);
         }
 
         if (! in_array($user->profile, ['controle', 'audit'], true)) {
@@ -1057,7 +1061,7 @@ class RecommendationController extends APIController
 
     private function canViewRecommendations(User $user): bool
     {
-        if ($user->isSuperAdmin()) {
+        if ($user->isPlatformAdministrator()) {
             return true;
         }
 
@@ -1084,8 +1088,14 @@ class RecommendationController extends APIController
             return;
         }
 
-        if (in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isEnvironmentAdmin() || in_array($user->profile, ['controle', 'audit'], true)) {
             $environmentIds = $user->environment_ids;
+
+            if ($user->isEnvironmentAdmin() && empty($environmentIds)) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
 
             if (! empty($environmentIds)) {
                 $query->whereHas('entities', function ($entityQuery) use ($environmentIds) {

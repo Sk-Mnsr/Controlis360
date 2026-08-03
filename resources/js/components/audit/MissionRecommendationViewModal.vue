@@ -193,7 +193,7 @@ const showCloseButton = computed(() => {
     const profile = auth.user?.profile;
     const status = recommendation.value?.status;
 
-    return ['controle', 'audit', 'super_admin'].includes(profile) && closableStatuses.includes(status);
+    return ['controle', 'audit', 'super_admin', 'admin'].includes(profile) && closableStatuses.includes(status);
 });
 
 const showTransmitButton = computed(() => {
@@ -203,7 +203,7 @@ const showTransmitButton = computed(() => {
     const profile = auth.user?.profile;
     const status = recommendation.value?.status;
 
-    return ['controle', 'audit', 'super_admin'].includes(profile)
+    return ['controle', 'audit', 'super_admin', 'admin'].includes(profile)
         && closableStatuses.includes(status);
 });
 
@@ -224,7 +224,7 @@ const showRegulatorComments = computed(() => {
 
     const profile = auth.user?.profile;
 
-    return ['controle', 'audit', 'super_admin'].includes(profile)
+    return ['controle', 'audit', 'super_admin', 'admin'].includes(profile)
         && recommendation.value?.regulator_transmitted_at;
 });
 
