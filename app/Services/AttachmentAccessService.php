@@ -2,14 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\GouvernanceItActivity;
 use App\Models\Mission;
 use App\Models\MissionResponse;
 use App\Models\Recommendation;
 use App\Models\RecommendationActionPlan;
-<<<<<<< HEAD
 use App\Models\RegulatoryReportingFiche;
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
 use App\Models\User;
 
 class AttachmentAccessService
@@ -24,7 +22,6 @@ class AttachmentAccessService
             return true;
         }
 
-<<<<<<< HEAD
         if (preg_match('#^regulatory-reporting/(\d+)/#', $path, $matches)) {
             $fiche = RegulatoryReportingFiche::query()->find((int) $matches[1]);
 
@@ -48,8 +45,6 @@ class AttachmentAccessService
             return false;
         }
 
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
         if (preg_match('#^action-plans/(\d+)/#', $path, $matches)) {
             $plan = RecommendationActionPlan::query()
                 ->with(['recommendation'])
@@ -66,7 +61,33 @@ class AttachmentAccessService
             return $this->canViewMission($user, (int) $matches[1]);
         }
 
+        if (preg_match('#^gouvernance-it/(\d+)/#', $path, $matches)) {
+            return $this->canViewGouvernanceItActivity($user, (int) $matches[1]);
+        }
+
         return false;
+    }
+
+    private function canViewGouvernanceItActivity(User $user, int $activityId): bool
+    {
+        $activity = GouvernanceItActivity::query()->find($activityId);
+        if (! $activity) {
+            return false;
+        }
+
+        if ($user->isSuperAdmin() || $user->profile === 'admin') {
+            return true;
+        }
+
+        if (! in_array($user->profile, ['agent_it', 'responsable_it', 'responsable_regional'], true)) {
+            return false;
+        }
+
+        if ($user->profile === 'responsable_regional') {
+            return $user->belongsToEnvironment((int) $activity->environment_id);
+        }
+
+        return $user->belongsToEnvironment((int) $activity->environment_id);
     }
 
     private function canViewMission(User $user, int $missionId): bool

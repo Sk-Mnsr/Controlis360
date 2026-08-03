@@ -23,6 +23,7 @@ class User extends AuthenticatableBase
         'metier_role',
         'controle_role',
         'audit_role',
+        'gouvernance_it_role',
         'subsidiary_id',
         'department_id',
         'job_title',
@@ -53,10 +54,10 @@ class User extends AuthenticatableBase
                 'regulateur' => 'Régulateur',
                 'controle' => 'Contrôle',
                 'audit' => 'Audit',
-<<<<<<< HEAD
                 'conformite' => 'Conformité',
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
+                'agent_it' => 'Agent IT',
+                'responsable_it' => 'Responsable IT',
+                'responsable_regional' => 'Responsable Régional',
                 'metier' => 'Métier',
             ],
         ],
@@ -82,12 +83,18 @@ class User extends AuthenticatableBase
                 'audit' => [
                     ['subject' => ['recommendation', 'mission'], 'action' => ['create', 'read', 'update', 'validate']],
                 ],
-<<<<<<< HEAD
                 'conformite' => [
                     ['subject' => ['recommendation', 'mission', 'compliance'], 'action' => ['create', 'read', 'update', 'validate']],
                 ],
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
+                'agent_it' => [
+                    ['subject' => ['governance_it'], 'action' => ['read', 'update']],
+                ],
+                'responsable_it' => [
+                    ['subject' => ['governance_it'], 'action' => ['create', 'read', 'update', 'validate']],
+                ],
+                'responsable_regional' => [
+                    ['subject' => ['governance_it'], 'action' => ['create', 'read', 'update', 'validate']],
+                ],
                 'metier' => [
                     ['subject' => ['evaluation', 'report'], 'action' => ['read']],
                 ],
@@ -117,6 +124,15 @@ class User extends AuthenticatableBase
             'choices' => [
                 'agent_audit' => 'Agent audit',
                 'responsable_audit' => 'Responsable audit',
+            ],
+        ],
+        [
+            'colum_name' => 'gouvernance_it_role',
+            'additional_column_name' => 'gouvernance_it_role_fr',
+            'choices' => [
+                'agit' => 'AGIT',
+                'respit' => 'RESPIT',
+                'respreg' => 'RESPREG',
             ],
         ],
         [
@@ -212,40 +228,12 @@ class User extends AuthenticatableBase
         return $this->profile === UserProfile::Admin->value;
     }
 
-<<<<<<< HEAD
-=======
-    public function isControleAgent(): bool
-    {
-        return $this->profile === UserProfile::Controle->value
-            && $this->controle_role === 'agent_controle_interne';
-    }
-
-    public function isControleResponsable(): bool
-    {
-        return $this->profile === UserProfile::Controle->value
-            && $this->controle_role === 'responsable_controle_permanent';
-    }
-
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
     public function isEntityResponsable(): bool
     {
         return $this->profile === UserProfile::Metier->value
             && $this->metier_role === 'responsable_entite';
     }
 
-<<<<<<< HEAD
-=======
-    public function canEditMethodology(): bool
-    {
-        return $this->isSuperAdmin() || $this->isControleResponsable();
-    }
-
-    public function canCreateOperationalRiskRow(): bool
-    {
-        return $this->isSuperAdmin() || $this->isControleAgent() || $this->isControleResponsable();
-    }
-
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
     public function belongsToEnvironment(?int $environmentId): bool
     {
         if ($environmentId === null) {

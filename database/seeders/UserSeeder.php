@@ -14,6 +14,7 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         $togo = Environment::query()->where('code', 'TG')->first();
+        $senegal = Environment::query()->where('code', 'SN')->first();
         $credit = Entity::query()
             ->where('environment_id', $togo?->id)
             ->where('code', 'CREDIT')
@@ -101,7 +102,6 @@ class UserSeeder extends Seeder
                 'entity_ids' => [],
                 'job_title' => 'Régulateur',
             ],
-<<<<<<< HEAD
             [
                 'name' => 'Mariama BA',
                 'email' => 'mariama.ba@cofinacorp.com',
@@ -109,6 +109,7 @@ class UserSeeder extends Seeder
                 'metier_role' => null,
                 'controle_role' => null,
                 'audit_role' => null,
+                'gouvernance_it_role' => null,
                 'environment_ids' => [$togo?->id],
                 'entity_ids' => array_filter([
                     Entity::query()
@@ -118,8 +119,42 @@ class UserSeeder extends Seeder
                 ]),
                 'job_title' => 'Responsable Conformité',
             ],
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
+            [
+                'name' => 'Ibrahima FALL',
+                'email' => 'ibrahima.fall@cofinacorp.com',
+                'profile' => 'agent_it',
+                'metier_role' => null,
+                'controle_role' => null,
+                'audit_role' => null,
+                'gouvernance_it_role' => 'agit',
+                'environment_ids' => [$togo?->id],
+                'entity_ids' => array_filter([$it?->id]),
+                'job_title' => 'Agent IT',
+            ],
+            [
+                'name' => 'Sophie MENSAH',
+                'email' => 'sophie.mensah@cofinacorp.com',
+                'profile' => 'responsable_it',
+                'metier_role' => null,
+                'controle_role' => null,
+                'audit_role' => null,
+                'gouvernance_it_role' => 'respit',
+                'environment_ids' => [$togo?->id],
+                'entity_ids' => array_filter([$it?->id]),
+                'job_title' => 'Responsable IT',
+            ],
+            [
+                'name' => 'Jean-Baptiste KOFFI',
+                'email' => 'jeanbaptiste.koffi@cofinacorp.com',
+                'profile' => 'responsable_regional',
+                'metier_role' => null,
+                'controle_role' => null,
+                'audit_role' => null,
+                'gouvernance_it_role' => 'respreg',
+                'environment_ids' => array_values(array_filter([$togo?->id, $senegal?->id])),
+                'entity_ids' => [],
+                'job_title' => 'Responsable Régional',
+            ],
         ];
 
         foreach ($users as $userData) {
@@ -129,6 +164,63 @@ class UserSeeder extends Seeder
         $this->seedMetierUsersForAllEntities();
         $this->seedAgencesTestAgent();
         $this->seedItAndProfileUsers();
+        $this->seedSenegalItUsers();
+    }
+
+    private function seedSenegalItUsers(): void
+    {
+        $senegal = Environment::query()->where('code', 'SN')->first();
+        $itSn = Entity::query()
+            ->where('environment_id', $senegal?->id)
+            ->where('code', 'IT')
+            ->first();
+
+        if (! $senegal || ! $itSn) {
+            return;
+        }
+
+        $users = [
+            [
+                'name' => 'Mareme SECK',
+                'email' => 'mareme.seck@cofinacorp.com',
+                'profile' => 'responsable_it',
+                'metier_role' => null,
+                'controle_role' => null,
+                'audit_role' => null,
+                'gouvernance_it_role' => 'respit',
+                'environment_ids' => [$senegal->id],
+                'entity_ids' => [$itSn->id],
+                'job_title' => 'Responsable IT Sénégal',
+            ],
+            [
+                'name' => 'Modou NGOM',
+                'email' => 'modou.ngom@cofinacorp.com',
+                'profile' => 'agent_it',
+                'metier_role' => null,
+                'controle_role' => null,
+                'audit_role' => null,
+                'gouvernance_it_role' => 'agit',
+                'environment_ids' => [$senegal->id],
+                'entity_ids' => [$itSn->id],
+                'job_title' => 'Agent IT Sénégal',
+            ],
+            [
+                'name' => 'Mansour SECK',
+                'email' => 'mansour.seck.sn@cofinacorp.com',
+                'profile' => 'agent_it',
+                'metier_role' => null,
+                'controle_role' => null,
+                'audit_role' => null,
+                'gouvernance_it_role' => 'agit',
+                'environment_ids' => [$senegal->id],
+                'entity_ids' => [$itSn->id],
+                'job_title' => 'Agent IT Sénégal',
+            ],
+        ];
+
+        foreach ($users as $userData) {
+            $this->upsertUser($userData);
+        }
     }
 
     private function seedItAndProfileUsers(): void
@@ -274,6 +366,7 @@ class UserSeeder extends Seeder
                 'metier_role' => $userData['metier_role'],
                 'controle_role' => $userData['controle_role'],
                 'audit_role' => $userData['audit_role'],
+                'gouvernance_it_role' => $userData['gouvernance_it_role'] ?? null,
                 'job_title' => $userData['job_title'],
                 'activated' => true,
                 'password_change_required' => false,

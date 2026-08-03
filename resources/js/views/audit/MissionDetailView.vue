@@ -185,10 +185,6 @@
                                                     <td class="border border-white px-4 py-3">
                                                         <span
                                                             class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-<<<<<<< HEAD
-=======
-                                                            class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                                                             :style="deadlineToneStyle(recoDeadlineStatus(reco).tone)"
                                                         >
                                                             {{ recoDeadlineStatus(reco).label }}

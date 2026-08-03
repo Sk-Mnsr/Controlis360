@@ -21,17 +21,19 @@ export const modules = [
         slug: 'conformite',
         name: 'Conformité',
         description: 'Suivi réglementaire et dispositifs de conformité.',
-<<<<<<< HEAD
         entryRoute: 'conformite.home',
         active: true,
         comingSoon: false,
         accent: '#a3181f',
-=======
-        entryRoute: null,
-        active: false,
-        comingSoon: true,
-        accent: '#2563eb',
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
+    },
+    {
+        slug: 'gouvernance-it',
+        name: 'Gouvernance IT',
+        description: 'Pilotage des risques, contrôles et conformité des systèmes d’information.',
+        entryRoute: 'gouvernance-it.home',
+        active: true,
+        comingSoon: false,
+        accent: '#1e3a5f',
     },
 ];
 

@@ -44,6 +44,7 @@
                         {{ user.profile_fr }}
                         <span v-if="user.controle_role_fr" class="text-slate-500">({{ user.controle_role_fr }})</span>
                         <span v-else-if="user.audit_role_fr" class="text-slate-500">({{ user.audit_role_fr }})</span>
+                        <span v-else-if="user.gouvernance_it_role_fr" class="text-slate-500">({{ user.gouvernance_it_role_fr }})</span>
                         <span v-else-if="user.metier_role_fr" class="text-slate-500">({{ user.metier_role_fr }})</span>
                     </td>
                     <td v-if="isSuperAdmin" class="px-4 py-3">{{ environmentNames(user) }}</td>
@@ -130,6 +131,7 @@ const filteredUsers = computed(() => {
             || user.profile_fr?.toLowerCase().includes(term)
             || user.controle_role_fr?.toLowerCase().includes(term)
             || user.audit_role_fr?.toLowerCase().includes(term)
+            || user.gouvernance_it_role_fr?.toLowerCase().includes(term)
             || user.metier_role_fr?.toLowerCase().includes(term),
     );
 });

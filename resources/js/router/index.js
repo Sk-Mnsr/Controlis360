@@ -94,14 +94,6 @@ const routes = [
                         component: () => import('../views/HomeView.vue'),
                     },
                     {
-<<<<<<< HEAD
-=======
-                        path: 'cartographie',
-                        name: 'cartographie.cartographie',
-                        component: () => import('../views/cartographie/CartographieView.vue'),
-                    },
-                    {
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                         path: 'methodology/:slug',
                         name: 'cartographie.methodology.show',
                         component: () => import('../views/methodology/MethodologyPageView.vue'),
@@ -179,14 +171,6 @@ const routes = [
                         component: () => import('../views/cartographie/DepartementAnalyseView.vue'),
                     },
                     {
-<<<<<<< HEAD
-=======
-                        path: 'departements/:code/dashboard',
-                        name: 'cartographie.departement-dashboard',
-                        component: () => import('../views/cartographie/DepartementDashboardView.vue'),
-                    },
-                    {
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                         path: 'departements/:code/historique',
                         name: 'cartographie.departement-historique',
                         component: () => import('../views/cartographie/HistoriqueView.vue'),
@@ -276,7 +260,6 @@ const routes = [
                 ],
             },
             {
-<<<<<<< HEAD
                 path: 'conformite',
                 meta: { module: 'conformite' },
                 children: [
@@ -317,8 +300,49 @@ const routes = [
                 ],
             },
             {
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
+                path: 'gouvernance-it',
+                meta: { module: 'gouvernance-it' },
+                children: [
+                    {
+                        path: '',
+                        redirect: { name: 'gouvernance-it.home' },
+                    },
+                    {
+                        path: 'home',
+                        name: 'gouvernance-it.home',
+                        component: () => import('../views/gouvernance-it/GouvernanceItHomeView.vue'),
+                    },
+                    {
+                        path: 'govstrat-itr',
+                        name: 'gouvernance-it.govstrat-itr',
+                        component: () => import('../views/gouvernance-it/GovStratItrView.vue'),
+                    },
+                    {
+                        path: 'task-activity',
+                        name: 'gouvernance-it.task-activity',
+                        component: () => import('../views/gouvernance-it/TaskActivityItView.vue'),
+                    },
+                    {
+                        path: 'centre-support',
+                        name: 'gouvernance-it.centre-support',
+                        component: () => import('../views/gouvernance-it/GovItOperationsSectionView.vue'),
+                        props: { title: 'CENTRE SUPPORT', moduleSlug: 'centre_support' },
+                    },
+                    {
+                        path: 'systemes-reseaux',
+                        name: 'gouvernance-it.systemes-reseaux',
+                        component: () => import('../views/gouvernance-it/GovItOperationsSectionView.vue'),
+                        props: { title: 'SYSTEMES ET RESEAUX', moduleSlug: 'systemes_reseaux' },
+                    },
+                    {
+                        path: 'base-donnees',
+                        name: 'gouvernance-it.base-donnees',
+                        component: () => import('../views/gouvernance-it/GovItOperationsSectionView.vue'),
+                        props: { title: 'BASE DE DONNEES', moduleSlug: 'base_donnees' },
+                    },
+                ],
+            },
+            {
                 path: 'home',
                 redirect: { name: 'cartographie.home' },
             },

@@ -18,11 +18,11 @@
         <form v-else class="mt-6 grid gap-4 md:grid-cols-2" @submit.prevent="updateUser">
             <div>
                 <label class="mb-1 block text-sm font-medium">Nom</label>
-                <input v-model="form.name" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                <input v-model="form.name" required autocomplete="name" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <div>
                 <label class="mb-1 block text-sm font-medium">E-mail</label>
-                <input v-model="form.email" type="email" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                <input v-model="form.email" type="email" required autocomplete="username" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <div>
                 <label class="mb-1 block text-sm font-medium">Profil</label>
@@ -37,10 +37,10 @@
                     <option value="regulateur">Régulateur</option>
                     <option value="controle">Contrôle</option>
                     <option value="audit">Audit</option>
-<<<<<<< HEAD
                     <option value="conformite">Conformité</option>
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
+                    <option value="agent_it">Agent IT</option>
+                    <option value="responsable_it">Responsable IT</option>
+                    <option value="responsable_regional">Responsable Régional</option>
                     <option value="metier">Métier</option>
                 </select>
             </div>
@@ -57,6 +57,15 @@
                     <option value="agent_audit">Agent audit</option>
                     <option value="responsable_audit">Responsable audit</option>
                 </select>
+            </div>
+            <div v-if="isGouvernanceItProfile">
+                <label class="mb-1 block text-sm font-medium">Rôle Gouvernance IT</label>
+                <input
+                    type="text"
+                    readonly
+                    class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold tracking-wide text-slate-700"
+                    :value="gouvernanceItRoleLabel"
+                />
             </div>
             <div v-if="form.profile === 'metier'">
                 <label class="mb-1 block text-sm font-medium">Rôle métier</label>
@@ -81,6 +90,7 @@
                 <input
                     v-model="form.password"
                     type="password"
+                    autocomplete="new-password"
                     minlength="8"
                     class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                     placeholder="Laisser vide pour ne pas changer"
@@ -120,6 +130,13 @@ const router = useRouter();
 
 const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
 const needsEnvironment = computed(() => form.profile !== 'super_admin');
+const gouvernanceItRoleByProfile = {
+    agent_it: 'AGIT',
+    responsable_it: 'RESPIT',
+    responsable_regional: 'RESPREG',
+};
+const isGouvernanceItProfile = computed(() => form.profile in gouvernanceItRoleByProfile);
+const gouvernanceItRoleLabel = computed(() => gouvernanceItRoleByProfile[form.profile] ?? '');
 const canChangeProfile = computed(() => {
     if (isSuperAdmin.value) return true;
     return form.profile !== 'super_admin';
@@ -249,6 +266,13 @@ async function updateUser() {
             metier_role: form.profile === 'metier' ? form.metier_role : null,
             controle_role: form.profile === 'controle' ? form.controle_role : null,
             audit_role: form.profile === 'audit' ? form.audit_role : null,
+            gouvernance_it_role: isGouvernanceItProfile.value
+                ? form.profile === 'agent_it'
+                    ? 'agit'
+                    : form.profile === 'responsable_it'
+                        ? 'respit'
+                        : 'respreg'
+                : null,
             activated: form.activated,
         };
 

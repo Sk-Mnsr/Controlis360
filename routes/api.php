@@ -13,10 +13,8 @@ use App\Http\Controllers\API\MissionResponseController;
 use App\Http\Controllers\API\MissionParametrageController;
 use App\Http\Controllers\API\MissionTypeController;
 use App\Http\Controllers\API\RecommendationController;
-<<<<<<< HEAD
 use App\Http\Controllers\API\RegulatoryReportingFicheController;
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
+use App\Http\Controllers\API\GouvernanceItController;
 use App\Http\Controllers\API\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -67,10 +65,6 @@ Route::controller(AuthController::class)->group(function () {
                 Route::get('top-risques', 'topRisques')->name('top-risques');
                 Route::put('top-risques', 'updateTopRisques')->name('top-risques.update');
                 Route::get('entities-departments', 'entitiesDepartments')->name('entities-departments');
-<<<<<<< HEAD
-=======
-                Route::get('cartographie-dashboard', 'cartographieDashboard')->name('cartographie-dashboard');
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
                 Route::get('analyse-risques/{code}', 'analyseRisques')->name('analyse-risques');
                 Route::get('analyse-risques/{code}/historique', 'analyseRisquesHistorique')->name('analyse-risques.historique');
                 Route::put('analyse-risques/{code}', 'updateAnalyseRisques')->name('analyse-risques.update');
@@ -176,7 +170,6 @@ Route::controller(AuthController::class)->group(function () {
                 Route::delete('/{id}', 'destroy')->name('destroy');
             });
 
-<<<<<<< HEAD
             Route::prefix('regulatory-reporting-fiches')->name('regulatory-reporting-fiche.')->controller(RegulatoryReportingFicheController::class)->group(function () {
                 Route::get('/', 'index')->name('index');
                 Route::get('/inbox', 'inbox')->name('inbox');
@@ -187,8 +180,23 @@ Route::controller(AuthController::class)->group(function () {
                 Route::delete('/{id}', 'destroy')->name('destroy');
             });
 
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
+            Route::prefix('gouvernance-it')->name('gouvernance-it.')->controller(GouvernanceItController::class)->group(function () {
+                Route::get('/context', 'context')->name('context');
+                Route::get('/ensembles', 'ensemblesIndex')->name('ensembles.index');
+                Route::post('/ensembles', 'ensemblesStore')->name('ensembles.store');
+                Route::delete('/ensembles/{id}', 'ensemblesDestroy')->name('ensembles.destroy');
+                Route::get('/regional-inbox', 'regionalInbox')->name('regional-inbox');
+                Route::post('/activities', 'activitiesStore')->name('activities.store');
+                Route::put('/activities/{id}', 'activitiesUpdate')->name('activities.update');
+                Route::post('/activities/{id}/send', 'activitiesSend')->name('activities.send');
+                Route::post('/activities/{id}/submit-validation', 'activitiesSubmitValidation')->name('activities.submit-validation');
+                Route::post('/activities/{id}/validate', 'activitiesValidate')->name('activities.validate');
+                Route::get('/activities/{id}/messages', 'messagesIndex')->name('activities.messages.index');
+                Route::post('/activities/{id}/messages', 'messagesStore')->name('activities.messages.store');
+                Route::post('/activities/{id}/attachments', 'attachmentsUpdate')->name('activities.attachments');
+                Route::delete('/activities/{id}', 'activitiesDestroy')->name('activities.destroy');
+            });
+
             // Routes supplémentaires sous autorisation
         });
     });

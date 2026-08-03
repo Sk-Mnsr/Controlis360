@@ -24,11 +24,15 @@ class UserController extends APIController
 
     protected array $updateRelationArray = ['environments', 'entities'];
 
-<<<<<<< HEAD
-    private const PROFILE_RULE = 'super_admin,admin,superviseur,regulateur,controle,audit,conformite,metier';
-=======
-    private const PROFILE_RULE = 'super_admin,admin,superviseur,regulateur,controle,audit,metier';
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
+    private const PROFILE_RULE = 'super_admin,admin,superviseur,regulateur,controle,audit,conformite,agent_it,responsable_it,responsable_regional,metier';
+
+    private const GOUVERNANCE_IT_PROFILES = ['agent_it', 'responsable_it', 'responsable_regional'];
+
+    private const GOUVERNANCE_IT_ROLE_BY_PROFILE = [
+        'agent_it' => 'agit',
+        'responsable_it' => 'respit',
+        'responsable_regional' => 'respreg',
+    ];
 
     public function __construct()
     {
@@ -61,6 +65,7 @@ class UserController extends APIController
             'metier_role' => 'nullable|required_if:profile,metier|in:responsable_entite,groupe,visiteur,agent',
             'controle_role' => 'nullable|required_if:profile,controle|in:agent_controle_interne,responsable_controle_permanent',
             'audit_role' => 'nullable|required_if:profile,audit|in:agent_audit,responsable_audit',
+            'gouvernance_it_role' => 'nullable|in:agit,respit,respreg',
             'subsidiary_id' => 'nullable|exists:subsidiaries,id',
             'department_id' => 'nullable|exists:departments,id',
             'job_title' => 'nullable|string|max:255',
@@ -81,6 +86,7 @@ class UserController extends APIController
                 'metier_role' => 'nullable|in:responsable_entite,groupe,visiteur,agent',
                 'controle_role' => 'nullable|in:agent_controle_interne,responsable_controle_permanent',
                 'audit_role' => 'nullable|in:agent_audit,responsable_audit',
+                'gouvernance_it_role' => 'nullable|in:agit,respit,respreg',
                 'subsidiary_id' => 'nullable|exists:subsidiaries,id',
                 'department_id' => 'nullable|exists:departments,id',
                 'job_title' => 'nullable|string|max:255',
@@ -265,6 +271,7 @@ class UserController extends APIController
             $requestData['metier_role'] = null;
             $requestData['controle_role'] = null;
             $requestData['audit_role'] = null;
+            $requestData['gouvernance_it_role'] = null;
             $requestData['environment_ids'] = [];
             $requestData['entity_ids'] = [];
         }
@@ -279,6 +286,12 @@ class UserController extends APIController
 
         if ($profile !== 'audit') {
             $requestData['audit_role'] = null;
+        }
+
+        if (in_array($profile, self::GOUVERNANCE_IT_PROFILES, true)) {
+            $requestData['gouvernance_it_role'] = self::GOUVERNANCE_IT_ROLE_BY_PROFILE[$profile];
+        } else {
+            $requestData['gouvernance_it_role'] = null;
         }
 
         unset($requestData['environment_id'], $requestData['entity_id']);

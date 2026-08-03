@@ -21,10 +21,10 @@
                     <option value="regulateur">Régulateur</option>
                     <option value="controle">Contrôle</option>
                     <option value="audit">Audit</option>
-<<<<<<< HEAD
                     <option value="conformite">Conformité</option>
-=======
->>>>>>> bcf451b4361af2c5fd10eee26bde208691bd95ec
+                    <option value="agent_it">Agent IT</option>
+                    <option value="responsable_it">Responsable IT</option>
+                    <option value="responsable_regional">Responsable Régional</option>
                     <option value="metier">Métier</option>
                 </select>
             </div>
@@ -41,6 +41,15 @@
                     <option value="agent_audit">Agent audit</option>
                     <option value="responsable_audit">Responsable audit</option>
                 </select>
+            </div>
+            <div v-if="isGouvernanceItProfile">
+                <label class="mb-1 block text-sm font-medium">Rôle Gouvernance IT</label>
+                <input
+                    type="text"
+                    readonly
+                    class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold tracking-wide text-slate-700"
+                    :value="gouvernanceItRoleLabel"
+                />
             </div>
             <div v-if="form.profile === 'metier'">
                 <label class="mb-1 block text-sm font-medium">Rôle métier</label>
@@ -62,7 +71,7 @@
 
             <div>
                 <label class="mb-1 block text-sm font-medium">Mot de passe</label>
-                <input v-model="form.password" type="password" required minlength="8" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                <input v-model="form.password" type="password" autocomplete="new-password" required minlength="8" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
             </div>
             <div class="md:col-span-2 flex items-center justify-between gap-4">
                 <p v-if="success" class="text-sm text-emerald-700">{{ success }}</p>
@@ -91,6 +100,13 @@ const router = useRouter();
 
 const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
 const needsEnvironment = computed(() => form.profile !== 'super_admin');
+const gouvernanceItRoleByProfile = {
+    agent_it: 'AGIT',
+    responsable_it: 'RESPIT',
+    responsable_regional: 'RESPREG',
+};
+const isGouvernanceItProfile = computed(() => form.profile in gouvernanceItRoleByProfile);
+const gouvernanceItRoleLabel = computed(() => gouvernanceItRoleByProfile[form.profile] ?? '');
 const selectableEnvironments = computed(() => {
     if (isSuperAdmin.value) {
         return environments.value;
@@ -162,6 +178,13 @@ async function createUser() {
             metier_role: form.profile === 'metier' ? form.metier_role : null,
             controle_role: form.profile === 'controle' ? form.controle_role : null,
             audit_role: form.profile === 'audit' ? form.audit_role : null,
+            gouvernance_it_role: isGouvernanceItProfile.value
+                ? form.profile === 'agent_it'
+                    ? 'agit'
+                    : form.profile === 'responsable_it'
+                        ? 'respit'
+                        : 'respreg'
+                : null,
         });
 
         success.value = `Utilisateur « ${form.name} » créé avec succès.`;
