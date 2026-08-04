@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+  <rect width="960" height="540" fill="#f1f5f9"/>
+  <rect x="24" y="24" width="912" height="492" rx="12" fill="#fff" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="10 8"/>
+  <text x="480" y="250" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" fill="#64748b">Capture à fournir</text>
+  <text x="480" y="290" text-anchor="middle" font-family="system-ui,sans-serif" font-size="16" fill="#94a3b8">Figure 8 — Analyse entité</text>
+  <text x="480" y="325" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" fill="#94a3b8">08-analyse-entite.png</text>
+</svg>

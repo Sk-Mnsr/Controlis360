@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manuel d’utilisation — Controlis360</title>
+  <style>
+    :root {
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #e2e8f0;
+      --brand: #c00000;
+      --brand-soft: #fef2f2;
+      --soft: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      line-height: 1.55;
+      background: #e2e8f0;
+    }
+    .page {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: #fff;
+      padding: 18mm 16mm;
+      box-shadow: 0 0 24px rgba(15, 23, 42, 0.12);
+    }
+    .cover {
+      min-height: 250mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-left: 8px solid var(--brand);
+      padding-left: 28px;
+      page-break-after: always;
+    }
+    .cover-logo {
+      height: 56px;
+      width: auto;
+      max-width: 220px;
+      object-fit: contain;
+      object-position: left center;
+      margin-bottom: 28px;
+    }
+    .cover h1 { font-size: 2.4rem; margin: 0 0 8px; }
+    .cover .sub { color: var(--muted); font-size: 1.1rem; margin: 0 0 32px; }
+    .cover .meta { color: var(--muted); font-size: 0.95rem; }
+    .badge {
+      display: inline-block;
+      background: var(--brand-soft);
+      color: var(--brand);
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: 1.45rem;
+      border-bottom: 2px solid var(--brand);
+      padding-bottom: 6px;
+      margin-top: 2.2rem;
+      page-break-after: avoid;
+    }
+    h3 { font-size: 1.1rem; margin-top: 1.4rem; color: #9f1239; page-break-after: avoid; }
+    p, li { font-size: 0.95rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 18px;
+      font-size: 0.88rem;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: var(--soft); }
+    .figure {
+      margin: 16px 0 22px;
+      page-break-inside: avoid;
+    }
+    .figure img {
+      display: block;
+      width: 100%;
+      max-height: 105mm;
+      object-fit: contain;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+    }
+    .figure figcaption {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-top: 6px;
+      font-style: italic;
+    }
+    .callout {
+      border-left: 4px solid var(--brand);
+      background: var(--brand-soft);
+      padding: 10px 14px;
+      margin: 14px 0;
+      font-size: 0.9rem;
+      page-break-inside: avoid;
+    }
+    .callout.warn {
+      border-left-color: #b45309;
+      background: #fffbeb;
+    }
+    .toc a { color: var(--ink); text-decoration: none; }
+    .toc li { margin: 6px 0; }
+    pre.flow {
+      background: var(--soft);
+      border: 1px solid var(--line);
+      padding: 12px;
+      overflow-x: auto;
+      font-size: 0.78rem;
+      line-height: 1.35;
+    }
+    .footer-note {
+      margin-top: 40px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .page-header img {
+      height: 36px;
+      width: auto;
+      object-fit: contain;
+    }
+    .page-header span {
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    @media print {
+      body { background: #fff; }
+      .page { box-shadow: none; max-width: none; padding: 12mm; }
+      .no-print { display: none !important; }
+      a { text-decoration: none; color: inherit; }
+      h2 { break-after: avoid; }
+      .figure { break-inside: avoid; }
+      .cover .cover-logo { height: 64px; }
+    }
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: #0f172a;
+      color: #fff;
+      padding: 10px 16px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.9rem;
+    }
+    .toolbar button {
+      background: var(--brand);
+      color: #fff;
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <span>Manuel Controlis360 — version PDF. Remplacez les SVG dans <code>docs/captures/</code> par vos PNG du même nom.</span>
+    <button type="button" onclick="window.print()">Imprimer / Enregistrer en PDF</button>
+  </div>
+
+  <div class="page">
+    <section class="cover">
+      <img class="cover-logo" src="logo_Cofina.png" alt="COFINA — Compagnie Financière Africaine" />
+      <div class="badge">Usage interne COFINA</div>
+      <h1>Manuel d’utilisation</h1>
+      <p class="sub">Controlis360 — Cartographie des risques &amp; Suivi des recommandations</p>
+      <p class="meta">
+        Compagnie Financière Africaine<br />
+        Version illustrée · À compléter avec les captures d’écran
+      </p>
+    </section>
+
+    <div class="page-header">
+      <img src="logo_Cofina.png" alt="COFINA" />
+      <span>Controlis360 — Manuel d’utilisation</span>
+    </div>
+
+    <h2>Sommaire</h2>
+    <ol class="toc">
+      <li><a href="#intro">Introduction</a></li>
+      <li><a href="#connexion">Connexion et session</a></li>
+      <li><a href="#portail">Portail et modules</a></li>
+      <li><a href="#profils">Profils et droits</a></li>
+      <li><a href="#cartographie">Module Cartographie des risques</a></li>
+      <li><a href="#audit">Module Suivi des reco</a></li>
+      <li><a href="#workflows">Workflows détaillés (pas à pas)</a></li>
+      <li><a href="#annexes">Glossaire et annexes</a></li>
+    </ol>
+
+    <h2 id="intro">1. Introduction</h2>
+    <p><strong>Controlis360</strong> centralise la gouvernance des risques et du contrôle pour COFINA.</p>
+    <table>
+      <thead><tr><th>Module</th><th>Objectif</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Cartographie des risques</strong></td><td>Identifier, évaluer et piloter les risques opérationnels</td></tr>
+        <tr><td><strong>Suivi des reco</strong></td><td>Planifier les missions et suivre les recommandations</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <strong>Organisation :</strong> Environnement (filiale) → Entité (Département / Agence) → Utilisateurs.
+      Chaque utilisateur est limité aux environnements et entités qui lui sont attribués.
+    </div>
+
+    <h2 id="connexion">2. Connexion et session</h2>
+    <h3>2.1 Se connecter</h3>
+    <ol>
+      <li>Ouvrir l’adresse de l’application.</li>
+      <li>Saisir e-mail et mot de passe.</li>
+      <li>Cliquer sur <strong>Se connecter</strong>.</li>
+    </ol>
+    <figure class="figure">
+      <img src="captures/01-connexion.png" alt="Écran de connexion" onerror="this.onerror=null;this.src='captures/01-connexion.svg'" />
+      <figcaption>Figure 1 — Écran de connexion Controlis360</figcaption>
+    </figure>
+
+    <h3>2.2 Premier changement de mot de passe</h3>
+    <p>Si le compte l’exige : mot de passe actuel, nouveau (≥ 8 caractères), confirmation → <strong>Enregistrer et continuer</strong>.</p>
+    <figure class="figure">
+      <img src="captures/02-changer-mot-de-passe.png" alt="Changer le mot de passe" onerror="this.onerror=null;this.src='captures/02-changer-mot-de-passe.svg'" />
+      <figcaption>Figure 2 — Changement de mot de passe obligatoire</figcaption>
+    </figure>
+
+    <h3>2.3 Déconnexion</h3>
+    <p>Bouton <strong>Déconnexion</strong> en bas de la barre latérale. Session fermée automatiquement après environ <strong>2 heures</strong> d’inactivité.</p>
+
+    <h2 id="portail">3. Portail et modules</h2>
+    <p>Après connexion : <em>Sélectionnez un module pour continuer</em>.</p>
+    <figure class="figure">
+      <img src="captures/03-portail.png" alt="Portail" onerror="this.onerror=null;this.src='captures/03-portail.svg'" />
+      <figcaption>Figure 3 — Portail Controlis360</figcaption>
+    </figure>
+<h2 id="profils">4. Profils et droits</h2>
+    <table>
+      <thead><tr><th>Profil</th><th>Rôle principal</th></tr></thead>
+      <tbody>
+        <tr><td>Administrateur</td><td>Gestion du périmètre rattaché</td></tr>
+        <tr><td>Contrôle / Audit</td><td>Missions et recommandations selon type</td></tr>
+        <tr><td>Métier</td><td>Réponses aux reco / phase 2 risques</td></tr>
+        <tr><td>Régulateur</td><td>File des recommandations transmises</td></tr>
+      </tbody>
+    </table>
+    <p>Sous-rôles fréquents : <strong>Agent contrôle</strong>, <strong>Responsable contrôle</strong>, <strong>Responsable entité</strong>, <strong>Agent métier</strong>.</p>
+
+    <h2 id="cartographie">5. Module Cartographie des risques</h2>
+    <figure class="figure">
+      <img src="captures/04-sidebar-cartographie.png" alt="Sidebar cartographie" onerror="this.onerror=null;this.src='captures/04-sidebar-cartographie.svg'" />
+      <figcaption>Figure 4 — Menu Cartographie</figcaption>
+    </figure>
+
+    <h3>5.2 Cartographie consolidée</h3>
+    <p>Écran <strong>CARTOGRAPHIE DES RISQUES</strong> — vue consolidée des filiales.</p>
+    <figure class="figure">
+      <img src="captures/05-cartographie-heatmaps.png" alt="Heatmaps" onerror="this.onerror=null;this.src='captures/05-cartographie-heatmaps.svg'" />
+      <figcaption>Figure 5 — Vue consolidée : cartographie des risques</figcaption>
+    </figure>
+    <ul>
+      <li>Filtre <strong>environnement / filiale</strong> en haut à droite.</li>
+      <li>Onglets <strong>risques bruts</strong> et <strong>risques résiduels</strong>.</li>
+      <li>Cartes de synthèse par famille de risque + total.</li>
+      <li><strong>Heatmap</strong> P (probabilité) × G (gravité), du vert (faible) au rouge (élevé).</li>
+      <li>Panneau <strong>Détail des risques</strong> à droite.</li>
+      <li>Bouton <strong>Plus gros risques</strong> (fort impact, Rb ≥ 20 en général).</li>
+    </ul>
+
+    <h3>5.3 Méthodologie</h3>
+    <p>Menu <strong>Méthodologie</strong> : Définitions, Préambule, Principes, Échelles, Matrice, Lexique, Plus Gros Risques.</p>
+    <figure class="figure">
+      <img src="captures/06-methodologie-matrice.png" alt="Méthodologie" onerror="this.onerror=null;this.src='captures/06-methodologie-matrice.svg'" />
+      <figcaption>Figure 6 — Référentiel méthodologique (ex. Préambule)</figcaption>
+    </figure>
+    <ul>
+      <li>Ces pages expliquent <strong>comment</strong> évaluer les risques.</li>
+      <li>Le Préambule rappelle le processus en <strong>3 étapes</strong> : risque inhérent (G, P) → dispositifs de contrôle → risque résiduel.</li>
+      <li>Des liens mènent vers les échelles et la matrice.</li>
+      <li>L’édition est réservée aux profils autorisés (ex. responsable contrôle).</li>
+    </ul>
+
+    <h3>5.4 Saisie</h3>
+    <div class="callout">Qui : Agent / Responsable contrôle, Administrateur.</div>
+    <ol>
+      <li>Saisie → Nouvelle ligne</li>
+      <li>Choisir l’entité</li>
+      <li>Sous-processus + risque (G, P → Rb)</li>
+      <li>Enregistrer (brouillon) puis Soumettre</li>
+    </ol>
+    <figure class="figure">
+      <img src="captures/07-saisie-nouvelle-ligne.png" alt="Saisie" onerror="this.onerror=null;this.src='captures/07-saisie-nouvelle-ligne.svg'" />
+      <figcaption>Figure 7 — Saisie d’une ligne de risque</figcaption>
+    </figure>
+
+    <h3>5.5 Validation</h3>
+    <div class="callout">
+      <strong>Circuit :</strong> Agent → Soumettre → Responsable contrôle → Valider → Responsable entité (phase 2) → Finaliser
+    </div>
+    <p style="font-size:0.9rem;color:#475569">En cas de correction : le responsable contrôle peut <strong>Renvoyer</strong> → l’agent corrige → Soumettre à nouveau.</p>
+    <figure class="figure">
+      <img src="captures/08-analyse-entite.png" alt="Analyse entité" onerror="this.onerror=null;this.src='captures/08-analyse-entite.svg'" />
+      <figcaption>Figure 8 — Analyse d’entité et soumissions</figcaption>
+    </figure>
+    <figure class="figure">
+      <img src="captures/09-plus-gros-risques.png" alt="Plus gros risques" onerror="this.onerror=null;this.src='captures/09-plus-gros-risques.svg'" />
+      <figcaption>Figure 9 — Plus Gros Risques (Rb ≥ 20)</figcaption>
+    </figure>
+
+    <h2 id="audit">6. Module Suivi des reco</h2>
+    <figure class="figure">
+      <img src="captures/10-sidebar-suivi-reco.png" alt="Sidebar audit" onerror="this.onerror=null;this.src='captures/10-sidebar-suivi-reco.svg'" />
+      <figcaption>Figure 10 — Menu Suivi des reco</figcaption>
+    </figure>
+    <figure class="figure">
+      <img src="captures/11-dashboard-audit.png" alt="Dashboard" onerror="this.onerror=null;this.src='captures/11-dashboard-audit.svg'" />
+      <figcaption>Figure 11 — Tableau de bord KPI</figcaption>
+    </figure>
+
+    <h3>6.3 Créer une mission</h3>
+    <figure class="figure">
+      <img src="captures/12-nouvelle-mission.png" alt="Nouvelle mission" onerror="this.onerror=null;this.src='captures/12-nouvelle-mission.svg'" />
+      <figcaption>Figure 12 — Formulaire Nouvelle mission</figcaption>
+    </figure>
+    <figure class="figure">
+      <img src="captures/13-modal-missionnaires.png" alt="Missionnaires" onerror="this.onerror=null;this.src='captures/13-modal-missionnaires.svg'" />
+      <figcaption>Figure 13 — Missionnaires : rôle Responsable ou Membre</figcaption>
+    </figure>
+    <div class="callout warn">
+      Le champ <strong>Rôle dans la mission</strong> indique si la personne est <strong>Responsable</strong> ou <strong>Membre</strong> — ce n’est pas le nom d’une équipe à saisir librement.
+    </div>
+
+    <h3>6.4 Recommandations</h3>
+    <figure class="figure">
+      <img src="captures/14-detail-mission.png" alt="Détail mission" onerror="this.onerror=null;this.src='captures/14-detail-mission.svg'" />
+      <figcaption>Figure 14 — Détail mission</figcaption>
+    </figure>
+    <figure class="figure">
+      <img src="captures/15-nouvelle-recommandation.png" alt="Nouvelle reco" onerror="this.onerror=null;this.src='captures/15-nouvelle-recommandation.svg'" />
+      <figcaption>Figure 15 — Nouvelle recommandation</figcaption>
+    </figure>
+    <figure class="figure">
+      <img src="captures/16-plan-action-metier.png" alt="Plan d'action" onerror="this.onerror=null;this.src='captures/16-plan-action-metier.svg'" />
+      <figcaption>Figure 16 — Réponse métier / plan d’action</figcaption>
+    </figure>
+    <figure class="figure">
+      <img src="captures/18-parametrage.png" alt="Paramétrage" onerror="this.onerror=null;this.src='captures/18-parametrage.svg'" />
+      <figcaption>Figure 18 — Paramétrage</figcaption>
+    </figure>
+
+    <h2 id="workflows">7. Workflows détaillés (pas à pas)</h2>
+    <p>Cette section décrit <strong>qui fait quoi</strong>, <strong>dans quel ordre</strong>, et <strong>quel statut</strong> apparaît à l’écran.</p>
+
+    <h3>7.1 Cartographie des risques</h3>
+    <div class="callout">
+      <strong>Circuit :</strong> Agent → Soumettre → Responsable contrôle → Valider → Responsable entité (phase 2) → Finaliser
+    </div>
+    <p><strong>Objectif :</strong> passer d’une saisie contrôle (phase 1) à un risque <strong>Complété</strong> avec dispositifs et risque résiduel (phase 2 métier).</p>
+    <table>
+      <thead><tr><th>Acteur</th><th>Rôle</th></tr></thead>
+      <tbody>
+        <tr><td>Agent contrôle</td><td>Crée / corrige la phase 1, soumet</td></tr>
+        <tr><td>Responsable contrôle</td><td>Valide ou renvoie phase 1 et phase 2</td></tr>
+        <tr><td>Responsable entité</td><td>Complète la phase 2 et soumet</td></tr>
+      </tbody>
+    </table>
+    <table>
+      <thead><tr><th>Statut affiché</th><th>Qui agit ensuite</th></tr></thead>
+      <tbody>
+        <tr><td>Brouillon</td><td>Agent</td></tr>
+        <tr><td>En attente de validation</td><td>Responsable contrôle</td></tr>
+        <tr><td>Modifications demandées</td><td>Agent</td></tr>
+        <tr><td>Affecté à l’entité</td><td>Responsable entité</td></tr>
+        <tr><td>Soumis par l’entité</td><td>Responsable contrôle</td></tr>
+        <tr><td>Complété</td><td>Terminé</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <strong>Étape A (Agent) :</strong> Saisie → Enregistrer (Brouillon) → Soumettre.<br />
+      <strong>Étape B (Resp. contrôle) :</strong> Valider (= Affecté à l’entité) ou Renvoyer (= Modifications demandées).<br />
+      <strong>Étape C (Resp. entité) :</strong> Dispositifs / efficacité / Rr → Soumettre.<br />
+      <strong>Étape D (Resp. contrôle) :</strong> Valider → Complété, ou renvoyer à l’entité.
+    </div>
+
+    <h3>7.2 Suivi des recommandations</h3>
+    <div class="callout">
+      <strong>Circuit :</strong> Créer mission → Ajouter recommandation(s) → Métier répond (Action / Affecter) → Audit/Contrôle suit → (optionnel) Transmettre au Régulateur → Clôture
+    </div>
+    <table>
+      <thead><tr><th>Étape</th><th>Acteur</th><th>Actions clés</th></tr></thead>
+      <tbody>
+        <tr><td>1. Mission</td><td>Audit / Contrôle</td><td>+ Créer mission, entités, missionnaires, dates</td></tr>
+        <tr><td>2. Reco</td><td>Audit / Contrôle</td><td>+ Reco, owners, priorité, risque, échéance</td></tr>
+        <tr><td>3. Affecter</td><td>Responsable entité</td><td>Self ou membre d’équipe</td></tr>
+        <tr><td>4. Plan d’action</td><td>Owner / Agent</td><td>Lignes d’actions, PJ, commentaires</td></tr>
+        <tr><td>5. Validation</td><td>Resp. entité (si agent)</td><td>À valider → Transmis</td></tr>
+        <tr><td>6. Régulateur</td><td>Audit / Contrôle</td><td>Bouton Transmettre</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn">
+      Sans l’onglet <strong>Affecter</strong> (moi-même ou membre), le plan d’action n’est en général pas accessible.<br />
+      Alternative : déclarer une <strong>passivité</strong> (motif + pièces) si aucune action n’est engagée.
+    </div>
+    <table>
+      <thead><tr><th>Statut réponse</th><th>Signification</th></tr></thead>
+      <tbody>
+        <tr><td>En saisie</td><td>Plan en rédaction</td></tr>
+        <tr><td>À valider</td><td>Agent a soumis ; responsable doit valider</td></tr>
+        <tr><td>Transmis</td><td>Réponse envoyée à l’audit / contrôle</td></tr>
+      </tbody>
+    </table>
+
+    <h3>7.3 Régulateur</h3>
+    <ol>
+      <li>Audit / Contrôle clique <strong>Transmettre</strong>.</li>
+      <li>La reco apparaît dans le menu <strong>Régulateur</strong>.</li>
+      <li>Le régulateur consulte / commente selon ses droits.</li>
+    </ol>
+    <div class="callout warn">Sans <strong>Transmettre</strong>, le régulateur ne voit pas la recommandation.</div>
+<h3>7.4 Mémo « Qui fait quoi »</h3>
+    <table>
+      <thead><tr><th>Si je suis…</th><th>Mon parcours type</th></tr></thead>
+      <tbody>
+        <tr><td>Agent contrôle</td><td>Saisie → Brouillon → Soumettre → corriger si Modifications demandées</td></tr>
+        <tr><td>Responsable contrôle</td><td>Soumissions agent → Valider/Renvoyer → Soumissions entité → Compléter</td></tr>
+        <tr><td>Responsable entité (carto)</td><td>Affecté à l’entité → Phase 2 → Soumettre</td></tr>
+        <tr><td>Audit / Contrôle (reco)</td><td>Mission → + Reco → suivre plans → Transmettre régulateur</td></tr>
+        <tr><td>Responsable entité (reco)</td><td>Affecter → Plan d’action → Transmettre à l’audit</td></tr>
+        <tr><td>Agent métier</td><td>Remplir le plan affecté → soumettre au responsable</td></tr>
+        <tr><td>Régulateur</td><td>Menu Régulateur → dossiers transmis</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="annexes">8. Glossaire</h2>
+    <table>
+      <thead><tr><th>Terme</th><th>Signification</th></tr></thead>
+      <tbody>
+        <tr><td>G / P</td><td>Gravité / Probabilité</td></tr>
+        <tr><td>Rb / Rr</td><td>Risque brut / résiduel</td></tr>
+        <tr><td>Phase 1 / 2</td><td>Risque inhérent (contrôle) / dispositifs &amp; résiduel (entité)</td></tr>
+        <tr><td>Fort impact</td><td>Rb ≥ 20 (seuil usuel)</td></tr>
+      </tbody>
+    </table>
+
+  
+  </div>
+</body>
+</html>

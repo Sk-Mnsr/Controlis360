@@ -37,7 +37,45 @@
                             type="text"
                             required
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-violet-500"
+                            @blur="suggestCodeFromName"
                         />
+                    </div>
+
+                    <div>
+                        <label class="mb-1 block text-sm font-medium">Code ISO pays (optionnel)</label>
+                        <select
+                            v-model="selectedIso"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-violet-500"
+                            @change="applyIsoCode"
+                        >
+                            <option value="">— Saisir un code libre ou choisir un pays —</option>
+                            <option
+                                v-for="country in isoCountries"
+                                :key="country.code"
+                                :value="country.code"
+                            >
+                                {{ country.code }} — {{ country.name }}
+                            </option>
+                        </select>
+                        <p class="mt-1 text-xs text-slate-500">
+                            Remplit automatiquement le code avec l’ISO 3166-1 alpha-2 (ex. CI, SN, TG).
+                        </p>
+                    </div>
+
+                    <div>
+                        <label class="mb-1 block text-sm font-medium">Code *</label>
+                        <input
+                            v-model="form.code"
+                            type="text"
+                            required
+                            maxlength="50"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm uppercase outline-none focus:border-violet-500"
+                            placeholder="Ex. CI, SN, TG ou FINELLE"
+                            @input="onCodeInput"
+                        />
+                        <p class="mt-1 text-xs text-slate-500">
+                            Identifiant unique de l’environnement. Préférez un code ISO pour un pays ; un code libre pour une entité non géographique (ex. Finelle).
+                        </p>
                     </div>
                 </div>
             </section>
@@ -68,6 +106,11 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
+import {
+    ENVIRONMENT_ISO_COUNTRIES,
+    normalizeEnvironmentCode,
+    suggestIsoCodeFromName,
+} from '../../utils/environmentCodes';
 
 const route = useRoute();
 const router = useRouter();
@@ -75,9 +118,13 @@ const isEdit = computed(() => Boolean(route.params.id));
 const saving = ref(false);
 const error = ref('');
 const baseOptions = ref([]);
+const isoCountries = ENVIRONMENT_ISO_COUNTRIES;
+const selectedIso = ref('');
+const codeTouched = ref(false);
 
 const form = reactive({
     name: '',
+    code: '',
     duplicate_from_environment_id: null,
 });
 
@@ -85,7 +132,8 @@ function extractError(err) {
     const data = err.response?.data;
     if (!data) return 'Erreur lors de l\'enregistrement';
 
-    if (data.message) return data.message;
+    if (typeof data.message === 'string' && data.message.trim()) return data.message;
+    if (Array.isArray(data.message) && data.message[0]) return String(data.message[0]);
 
     const errors = data.errors ?? data.data?.errors;
     if (errors) {
@@ -101,6 +149,33 @@ function extractEnvironment(responseData) {
     return payload.environment ?? payload.Environment ?? payload;
 }
 
+function syncSelectedIsoFromCode() {
+    const code = normalizeEnvironmentCode(form.code);
+    selectedIso.value = isoCountries.some((country) => country.code === code) ? code : '';
+}
+
+function onCodeInput() {
+    codeTouched.value = true;
+    form.code = normalizeEnvironmentCode(form.code);
+    syncSelectedIsoFromCode();
+}
+
+function applyIsoCode() {
+    if (!selectedIso.value) return;
+    form.code = selectedIso.value;
+    codeTouched.value = true;
+}
+
+function suggestCodeFromName() {
+    if (codeTouched.value && form.code) return;
+
+    const suggested = suggestIsoCodeFromName(form.name);
+    if (suggested) {
+        form.code = suggested;
+        selectedIso.value = suggested;
+    }
+}
+
 async function loadOptions() {
     const { data } = await api.get('/environments/options');
     baseOptions.value = data.data ?? [];
@@ -112,12 +187,18 @@ async function loadEnvironment() {
     const { data } = await api.get(`/environments/${route.params.id}`);
     const environment = extractEnvironment(data);
 
-    form.name = environment.name;
+    form.name = environment.name ?? '';
+    form.code = normalizeEnvironmentCode(environment.code ?? '');
+    codeTouched.value = true;
+    syncSelectedIsoFromCode();
 }
 
 function reset() {
     form.name = '';
+    form.code = '';
     form.duplicate_from_environment_id = null;
+    selectedIso.value = '';
+    codeTouched.value = false;
     error.value = '';
 }
 
@@ -125,13 +206,24 @@ async function submit() {
     saving.value = true;
     error.value = '';
 
+    const code = normalizeEnvironmentCode(form.code);
+    if (!code) {
+        error.value = 'Le code est obligatoire.';
+        saving.value = false;
+        return;
+    }
+
     try {
         if (isEdit.value) {
-            await api.put(`/environments/${route.params.id}`, { name: form.name });
+            await api.put(`/environments/${route.params.id}`, {
+                name: form.name,
+                code,
+            });
             router.push({ name: 'environments.detail', params: { id: route.params.id } });
         } else {
             const { data } = await api.post('/environments', {
                 name: form.name,
+                code,
                 duplicate_from_environment_id: form.duplicate_from_environment_id,
             });
             const created = extractEnvironment(data);
