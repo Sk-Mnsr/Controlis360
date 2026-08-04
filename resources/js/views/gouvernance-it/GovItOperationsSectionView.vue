@@ -25,6 +25,7 @@
             <GovItWorkspaceHeader
                 v-if="canAccess"
                 :filiale="filiale"
+                :filiale-code="filialeCode"
                 :responsable="responsable"
                 :team="team"
                 :loading="loading"
@@ -72,6 +73,7 @@ const router = useRouter();
 const loading = ref(true);
 const error = ref('');
 const filiale = ref('—');
+const filialeCode = ref('');
 const responsable = ref('—');
 const team = ref('—');
 const owners = ref([]);
@@ -90,6 +92,7 @@ async function loadContext() {
         const { data } = await api.get('/gouvernance-it/context');
         const payload = data.data ?? data;
         filiale.value = payload.filiale ?? '—';
+        filialeCode.value = payload.filiale_code ?? '';
         responsable.value = payload.responsable ?? '—';
         team.value = payload.team ?? '—';
         owners.value = payload.owners ?? [];

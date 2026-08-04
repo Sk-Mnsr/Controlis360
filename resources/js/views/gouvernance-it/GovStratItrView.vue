@@ -5,9 +5,6 @@
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Gouvernance IT</p>
                     <h2 class="mt-1 text-xl font-semibold text-slate-900">GovStrat IT-R</h2>
-                    <p class="mt-2 max-w-2xl text-slate-600">
-                        Sélectionnez un module selon votre rôle : le formulaire s’affiche directement en dessous.
-                    </p>
                 </div>
                 <RouterLink
                     :to="{ name: 'gouvernance-it.home' }"
@@ -197,19 +194,24 @@ function selectModule(moduleKey) {
 
 <style scoped>
 .govit-gears-wrap {
+    position: relative;
     display: flex;
     justify-content: center;
-    overflow-x: auto;
-    padding: 1.5rem 0.5rem 2rem;
-    background:
-        radial-gradient(ellipse at 50% 40%, rgba(148, 163, 184, 0.18), transparent 65%),
-        linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+    overflow: hidden;
+    min-height: 22rem;
+    padding: 2.5rem 0.75rem 2.75rem;
     border-radius: 1rem;
     border: 1px solid #e2e8f0;
+    background-color: #e8eef5;
+    background-image: url('/images/gouvernance-it/gears-bg.png');
+    background-size: cover;
+    background-position: center 45%;
+    background-repeat: no-repeat;
 }
 
 .govit-gears {
     position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -228,6 +230,7 @@ function selectModule(moduleKey) {
     margin-left: -1.75rem;
     transition: transform 0.35s ease, filter 0.25s ease;
     z-index: 1;
+    filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35));
 }
 
 .govit-gears > .govit-gear:first-child {
@@ -237,12 +240,12 @@ function selectModule(moduleKey) {
 .govit-gear:hover {
     transform: scale(1.05) rotate(8deg);
     z-index: 5;
-    filter: drop-shadow(0 10px 18px rgba(15, 23, 42, 0.22));
+    filter: drop-shadow(0 12px 22px rgba(0, 0, 0, 0.45));
 }
 
 .govit-gear--active {
     z-index: 6;
-    filter: drop-shadow(0 12px 22px rgba(163, 24, 31, 0.28));
+    filter: drop-shadow(0 14px 26px rgba(163, 24, 31, 0.45));
 }
 
 .govit-gear-svg {
@@ -251,51 +254,52 @@ function selectModule(moduleKey) {
     display: block;
 }
 
+/* Engrenages sombres type photo corporate */
 .govit-gear--dark .govit-gear-body {
-    fill: #4b5563;
-    stroke: #374151;
-    stroke-width: 1.2;
+    fill: rgba(30, 41, 59, 0.88);
+    stroke: rgba(15, 23, 42, 0.95);
+    stroke-width: 1.4;
 }
 
 .govit-gear--dark .govit-gear-hub {
-    fill: #6b7280;
+    fill: rgba(51, 65, 85, 0.92);
 }
 
 .govit-gear--dark .govit-gear-hole {
-    fill: #e5e7eb;
+    fill: rgba(226, 232, 240, 0.85);
 }
 
 .govit-gear--mid .govit-gear-body {
-    fill: #9ca3af;
-    stroke: #6b7280;
-    stroke-width: 1.2;
+    fill: rgba(51, 65, 85, 0.82);
+    stroke: rgba(30, 41, 59, 0.95);
+    stroke-width: 1.4;
 }
 
 .govit-gear--mid .govit-gear-hub {
-    fill: #d1d5db;
+    fill: rgba(71, 85, 105, 0.9);
 }
 
 .govit-gear--mid .govit-gear-hole {
-    fill: #f3f4f6;
+    fill: rgba(241, 245, 249, 0.88);
 }
 
 .govit-gear--light .govit-gear-body {
-    fill: #d1d5db;
-    stroke: #9ca3af;
-    stroke-width: 1.2;
+    fill: rgba(71, 85, 105, 0.78);
+    stroke: rgba(30, 41, 59, 0.9);
+    stroke-width: 1.4;
 }
 
 .govit-gear--light .govit-gear-hub {
-    fill: #e5e7eb;
+    fill: rgba(100, 116, 139, 0.88);
 }
 
 .govit-gear--light .govit-gear-hole {
-    fill: #f9fafb;
+    fill: rgba(248, 250, 252, 0.9);
 }
 
 .govit-gear--active .govit-gear-body {
     stroke: #a3181f;
-    stroke-width: 2;
+    stroke-width: 2.4;
 }
 
 .govit-gear-label {
@@ -311,16 +315,18 @@ function selectModule(moduleKey) {
     line-height: 1.15;
     letter-spacing: 0.02em;
     text-transform: uppercase;
-    color: #1f2937;
+    color: #f8fafc;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
     pointer-events: none;
 }
 
 .govit-gear--dark .govit-gear-label {
-    color: #f9fafb;
+    color: #f8fafc;
 }
 
 .govit-gear-label--accent {
-    color: #a3181f;
+    color: #ef4444;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .govit-gears--1 .govit-gear {
@@ -383,6 +389,12 @@ function selectModule(moduleKey) {
 }
 
 @media (max-width: 640px) {
+    .govit-gears-wrap {
+        min-height: 14rem;
+        padding: 1.5rem 0.5rem 2rem;
+        background-position: center 40%;
+    }
+
     .govit-gears {
         min-height: 12rem;
     }

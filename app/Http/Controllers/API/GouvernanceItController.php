@@ -46,6 +46,7 @@ class GouvernanceItController extends APIController
 
         return $this->responseOk([
             'filiale' => $environment?->name ?? '—',
+            'filiale_code' => $environment?->code,
             'environment_id' => $environment?->id,
             'responsable' => $this->formatNameList($staff['responsables']),
             'team' => $this->formatNameList($staff['agents']),
