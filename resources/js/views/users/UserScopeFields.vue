@@ -1,5 +1,5 @@
 <template>
-    <div v-if="visible" class="md:col-span-2 grid gap-4 md:grid-cols-2">
+    <div v-if="visible" class="user-scope-grid">
         <div>
             <label class="mb-1 block text-sm font-medium">
                 Environnements
@@ -127,3 +127,17 @@ function entityLabel(entity) {
     return environment ? `${entity.name} (${environment.name})` : entity.name;
 }
 </script>
+
+<style scoped>
+.user-scope-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 768px) {
+    .user-scope-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>

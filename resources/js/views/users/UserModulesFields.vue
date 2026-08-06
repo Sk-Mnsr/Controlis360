@@ -1,11 +1,14 @@
 <template>
-    <div class="md:col-span-2 space-y-3">
-        <div>
+    <div class="space-y-3">
+        <div v-if="!hideHeading">
             <label class="mb-1 block text-sm font-medium">Modules et profils</label>
             <p class="text-xs text-slate-500">
                 Activez un module et choisissez le profil (et le rôle) pour ce module.
             </p>
         </div>
+        <p v-else class="text-xs text-slate-500">
+            Activez un module et choisissez le profil (et le rôle) pour ce module.
+        </p>
 
         <div
             v-for="assignment in modelValue"
@@ -40,6 +43,16 @@
                             {{ option.label }}
                         </option>
                     </select>
+                </div>
+
+                <div v-if="isGouvernanceProfile(assignment.profile)">
+                    <label class="mb-1 block text-xs font-medium text-slate-500">Rôle Gouvernance IT</label>
+                    <input
+                        type="text"
+                        readonly
+                        class="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold tracking-wide text-slate-700"
+                        :value="gouvernanceRoleLabel(assignment.profile)"
+                    />
                 </div>
 
                 <div v-if="assignment.profile === 'controle'">
@@ -89,7 +102,11 @@
 
 <script setup>
 import { modules } from '../../config/modules';
-import { MODULE_PROFILE_OPTIONS } from '../../config/module-access';
+import {
+    GOUVERNANCE_IT_PROFILES,
+    GOUVERNANCE_IT_ROLE_BY_PROFILE,
+    MODULE_PROFILE_OPTIONS,
+} from '../../config/module-access';
 
 const props = defineProps({
     modelValue: {
@@ -97,6 +114,10 @@ const props = defineProps({
         default: () => [],
     },
     disabled: {
+        type: Boolean,
+        default: false,
+    },
+    hideHeading: {
         type: Boolean,
         default: false,
     },
@@ -110,6 +131,14 @@ function moduleName(slug) {
 
 function profileOptions(slug) {
     return MODULE_PROFILE_OPTIONS[slug] ?? [];
+}
+
+function isGouvernanceProfile(profile) {
+    return GOUVERNANCE_IT_PROFILES.includes(profile);
+}
+
+function gouvernanceRoleLabel(profile) {
+    return GOUVERNANCE_IT_ROLE_BY_PROFILE[profile] ?? '';
 }
 
 function updateAssignment(slug, patch) {

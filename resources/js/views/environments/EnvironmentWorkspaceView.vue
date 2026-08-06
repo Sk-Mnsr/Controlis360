@@ -24,7 +24,7 @@
                         :to="{ name: 'environments.create' }"
                         class="rounded-lg bg-violet-700 px-4 py-2 text-sm font-medium text-white hover:bg-violet-800"
                     >
-                        + Nouveau
+                        + Nouvel environnement
                     </RouterLink>
                 </div>
             </div>
@@ -72,21 +72,21 @@
                                 <td class="px-4 py-3 font-medium text-violet-700">{{ env.name }}</td>
                                 <td class="px-4 py-3 text-slate-500">{{ env.code }}</td>
                                 <td class="px-4 py-3">{{ entitiesCount(env) }}</td>
-                                <td class="px-4 py-3">
-                                    <div class="flex justify-end gap-2" @click.stop>
+                                <td class="px-4 py-3 text-right">
+                                    <div
+                                        class="env-menu"
+                                        :class="{ open: openMenuId === env.id }"
+                                        @click.stop
+                                    >
                                         <button
                                             type="button"
-                                            class="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-100"
-                                            @click="openEnvironment(env.id)"
+                                            class="env-menu-trigger"
+                                            :aria-expanded="openMenuId === env.id"
+                                            aria-haspopup="menu"
+                                            aria-label="Actions"
+                                            @click.stop="toggleMenu(env, $event)"
                                         >
-                                            Configurer
-                                        </button>
-                                        <button
-                                            type="button"
-                                            class="rounded border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
-                                            @click="removeEnvironment(env)"
-                                        >
-                                            Supprimer
+                                            <span aria-hidden="true">⋮</span>
                                         </button>
                                     </div>
                                 </td>
@@ -138,6 +138,51 @@
                     </div>
                 </template>
             </div>
+
+            <Teleport to="body">
+                <div
+                    v-if="menuEnv"
+                    class="env-menu-panel"
+                    role="menu"
+                    :style="menuStyle"
+                    @click.stop
+                >
+                    <button
+                        type="button"
+                        class="env-menu-item"
+                        role="menuitem"
+                        @click="configureEnvironment(menuEnv)"
+                    >
+                        Configurer
+                    </button>
+                    <RouterLink
+                        v-if="isSuperAdmin"
+                        :to="{ name: 'environments.edit', params: { id: menuEnv.id } }"
+                        class="env-menu-item"
+                        role="menuitem"
+                        @click="closeMenu"
+                    >
+                        Modifier
+                    </RouterLink>
+                    <button
+                        v-if="isSuperAdmin"
+                        type="button"
+                        class="env-menu-item"
+                        role="menuitem"
+                        @click="duplicateEnvironment(menuEnv)"
+                    >
+                        Dupliquer
+                    </button>
+                    <button
+                        type="button"
+                        class="env-menu-item danger"
+                        role="menuitem"
+                        @click="removeEnvironment(menuEnv)"
+                    >
+                        Supprimer
+                    </button>
+                </div>
+            </Teleport>
         </template>
 
         <!-- Détail environnement : entités uniquement -->
@@ -155,13 +200,23 @@
                     <p class="text-sm text-slate-500">Environnement</p>
                     <h2 class="text-xl font-semibold">{{ environment?.name ?? 'Chargement...' }}</h2>
                 </div>
-                <RouterLink
-                    v-if="isSuperAdmin && environment"
-                    :to="{ name: 'environments.edit', params: { id: environment.id } }"
-                    class="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100"
-                >
-                    Modifier
-                </RouterLink>
+                <div v-if="isSuperAdmin && environment" class="flex gap-2">
+                    <RouterLink
+                        :to="{
+                            name: 'environments.create',
+                            query: { duplicate_from: String(environment.id) },
+                        }"
+                        class="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100"
+                    >
+                        Dupliquer
+                    </RouterLink>
+                    <RouterLink
+                        :to="{ name: 'environments.edit', params: { id: environment.id } }"
+                        class="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100"
+                    >
+                        Modifier
+                    </RouterLink>
+                </div>
             </div>
 
             <EnvironmentEntitiesPanel
@@ -205,8 +260,42 @@ const page = ref(1);
 const perPage = ref(8);
 const lastPage = ref(1);
 const total = ref(0);
+const openMenuId = ref(null);
+const menuEnv = ref(null);
+const menuStyle = ref({});
 
 let searchTimer = null;
+
+function toggleMenu(env, event) {
+    if (openMenuId.value === env.id) {
+        closeMenu();
+        return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const openUp = window.innerHeight - rect.bottom < 180;
+
+    menuStyle.value = {
+        top: openUp ? `${rect.top - 4}px` : `${rect.bottom + 4}px`,
+        right: `${window.innerWidth - rect.right}px`,
+        transform: openUp ? 'translateY(-100%)' : 'none',
+    };
+    openMenuId.value = env.id;
+    menuEnv.value = env;
+}
+
+function closeMenu() {
+    openMenuId.value = null;
+    menuEnv.value = null;
+}
+
+function onDocumentClick() {
+    closeMenu();
+}
+
+function onWindowScrollOrResize() {
+    closeMenu();
+}
 
 const fromItem = computed(() => {
     if (!total.value) return 0;
@@ -322,7 +411,20 @@ async function loadWorkspace() {
 }
 
 function openEnvironment(id) {
+    closeMenu();
     router.push({ name: 'environments.detail', params: { id } });
+}
+
+function configureEnvironment(env) {
+    openEnvironment(env.id);
+}
+
+function duplicateEnvironment(env) {
+    closeMenu();
+    router.push({
+        name: 'environments.create',
+        query: { duplicate_from: String(env.id) },
+    });
 }
 
 function backToList() {
@@ -330,6 +432,7 @@ function backToList() {
 }
 
 async function removeEnvironment(env) {
+    closeMenu();
     if (!confirm(`Supprimer l'environnement « ${env.name} » ?`)) return;
     await api.delete(`/environments/${env.id}`);
     if (environments.value.length === 1 && page.value > 1) {
@@ -348,6 +451,10 @@ watch(environmentId, (id) => {
 });
 
 onMounted(() => {
+    document.addEventListener('click', onDocumentClick);
+    window.addEventListener('scroll', onWindowScrollOrResize, true);
+    window.addEventListener('resize', onWindowScrollOrResize);
+
     if (environmentId.value) {
         loadWorkspace();
     } else if (showEnvironmentsList.value) {
@@ -356,6 +463,79 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    document.removeEventListener('click', onDocumentClick);
+    window.removeEventListener('scroll', onWindowScrollOrResize, true);
+    window.removeEventListener('resize', onWindowScrollOrResize);
     clearTimeout(searchTimer);
 });
 </script>
+
+<style scoped>
+.env-menu {
+    position: relative;
+    display: inline-flex;
+    justify-content: flex-end;
+}
+
+.env-menu-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid transparent;
+    border-radius: 0.55rem;
+    background: transparent;
+    color: #64748b;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.env-menu-trigger:hover,
+.env-menu.open .env-menu-trigger {
+    border-color: #e2e8f0;
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.env-menu-panel {
+    position: fixed;
+    z-index: 80;
+    min-width: 10.5rem;
+    padding: 0.35rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.65rem;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.env-menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    border: 0;
+    border-radius: 0.45rem;
+    background: transparent;
+    padding: 0.55rem 0.7rem;
+    color: #334155;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.env-menu-item:hover {
+    background: #f8fafc;
+}
+
+.env-menu-item.danger {
+    color: #b91c1c;
+}
+
+.env-menu-item.danger:hover {
+    background: #fef2f2;
+}
+</style>

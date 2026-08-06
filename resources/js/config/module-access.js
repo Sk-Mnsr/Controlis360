@@ -8,6 +8,9 @@ export const PROFILE_LABELS = {
     controle: 'Contrôle',
     audit: 'Audit',
     conformite: 'Conformité',
+    agent_it: 'Agent IT',
+    responsable_it: 'Responsable IT',
+    responsable_regional: 'Responsable Régional',
     metier: 'Métier',
 };
 
@@ -28,6 +31,11 @@ export const MODULE_PROFILE_OPTIONS = {
     conformite: [
         { value: 'conformite', label: PROFILE_LABELS.conformite },
         { value: 'metier', label: PROFILE_LABELS.metier },
+    ],
+    'gouvernance-it': [
+        { value: 'agent_it', label: PROFILE_LABELS.agent_it },
+        { value: 'responsable_it', label: PROFILE_LABELS.responsable_it },
+        { value: 'responsable_regional', label: PROFILE_LABELS.responsable_regional },
     ],
 };
 
@@ -124,10 +132,31 @@ export function assignmentsToPayload(assignments = []) {
 
 export const GOUVERNANCE_IT_PROFILES = ['agent_it', 'responsable_it', 'responsable_regional'];
 
+export const GOUVERNANCE_IT_ROLE_BY_PROFILE = {
+    agent_it: 'AGIT',
+    responsable_it: 'RESPIT',
+    responsable_regional: 'RESPREG',
+};
+
 export function primaryProfileFromAssignments(assignments = [], platformProfile = null) {
-    if (platformProfile === 'super_admin' || platformProfile === 'admin' || GOUVERNANCE_IT_PROFILES.includes(platformProfile)) {
+    if (platformProfile === 'super_admin' || platformProfile === 'admin') {
         return {
             profile: platformProfile,
+            controle_role: null,
+            audit_role: null,
+            metier_role: null,
+        };
+    }
+
+    const gouvernance = assignments.find((item) => (
+        item?.enabled
+        && item.slug === 'gouvernance-it'
+        && GOUVERNANCE_IT_PROFILES.includes(item.profile)
+    ));
+
+    if (gouvernance) {
+        return {
+            profile: gouvernance.profile,
             controle_role: null,
             audit_role: null,
             metier_role: null,

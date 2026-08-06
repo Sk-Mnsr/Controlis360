@@ -236,8 +236,35 @@ async function submit() {
     }
 }
 
+async function applyDuplicateFromQuery() {
+    if (isEdit.value) return;
+
+    const sourceId = route.query.duplicate_from;
+    if (!sourceId) return;
+
+    const id = Number(sourceId);
+    if (!Number.isFinite(id) || id <= 0) return;
+
+    form.duplicate_from_environment_id = id;
+
+    try {
+        const { data } = await api.get(`/environments/${id}`);
+        const environment = extractEnvironment(data);
+        if (!environment?.name) return;
+
+        form.name = `${environment.name} (copie)`;
+        form.code = '';
+        codeTouched.value = false;
+        selectedIso.value = '';
+        suggestCodeFromName();
+    } catch {
+        // Le sélecteur reste prérempli même si le détail source est indisponible.
+    }
+}
+
 onMounted(async () => {
     await loadOptions();
     await loadEnvironment();
+    await applyDuplicateFromQuery();
 });
 </script>

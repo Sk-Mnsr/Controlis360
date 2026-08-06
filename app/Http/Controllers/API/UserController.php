@@ -26,7 +26,7 @@ class UserController extends APIController
 
     private const PROFILE_RULE = 'super_admin,admin,superviseur,regulateur,controle,audit,conformite,agent_it,responsable_it,responsable_regional,metier';
 
-    private const MODULE_RULE = 'cartographie,audit,conformite';
+    private const MODULE_RULE = 'cartographie,audit,conformite,gouvernance-it';
 
     private const GOUVERNANCE_IT_PROFILES = ['agent_it', 'responsable_it', 'responsable_regional'];
 
@@ -40,7 +40,7 @@ class UserController extends APIController
     {
         parent::__construct();
 
-        $this->indexManualFilter = function ($query, $user) {
+        $this->indexManualFilter = function ($query, $user, $requestData = []) {
             $query->with(['environments', 'entities']);
 
             if ($user->isEnvironmentAdmin()) {
@@ -50,6 +50,24 @@ class UserController extends APIController
                         $environmentQuery->whereIn('environments.id', $adminEnvironmentIds);
                     });
                 }
+            }
+
+            $environmentId = (int) ($requestData['environment_id'] ?? 0);
+            if ($environmentId > 0) {
+                $query->whereHas('environments', function ($environmentQuery) use ($environmentId) {
+                    $environmentQuery->where('environments.id', $environmentId);
+                });
+            }
+
+            if (array_key_exists('activated', $requestData) && $requestData['activated'] !== '' && $requestData['activated'] !== null) {
+                $activated = filter_var($requestData['activated'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+                if ($activated !== null) {
+                    $query->where('activated', $activated);
+                }
+            }
+
+            if (! empty($requestData['profile'])) {
+                $query->where('profile', $requestData['profile']);
             }
 
             return $query;
@@ -360,7 +378,7 @@ class UserController extends APIController
         if (array_key_exists('modules', $requestData)) {
             $requestData['modules'] = array_values(array_unique(array_filter(
                 array_map('strval', $requestData['modules'] ?? []),
-                fn ($slug) => in_array($slug, ['cartographie', 'audit', 'conformite'], true),
+                fn ($slug) => in_array($slug, ['cartographie', 'audit', 'conformite', 'gouvernance-it'], true),
             )));
         }
 
@@ -388,7 +406,7 @@ class UserController extends APIController
 
         foreach ($moduleProfiles as $slug => $assignment) {
             $slug = (string) $slug;
-            if (! in_array($slug, ['cartographie', 'audit', 'conformite'], true) || ! is_array($assignment)) {
+            if (! in_array($slug, ['cartographie', 'audit', 'conformite', 'gouvernance-it'], true) || ! is_array($assignment)) {
                 continue;
             }
 

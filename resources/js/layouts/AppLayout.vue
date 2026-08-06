@@ -663,8 +663,8 @@ async function handleLogout() {
 }
 
 .nav-link-active {
-    background-color: #ecfdf5;
-    color: #047857;
+    background-color: #fef2f2;
+    color: #c00000;
     font-weight: 600;
 }
 
@@ -680,7 +680,7 @@ async function handleLogout() {
     margin-bottom: 0.35rem;
     border: none;
     border-radius: 0.5rem;
-    background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+    background: linear-gradient(180deg, #c00000 0%, #9f0000 100%);
     padding: 0.7rem 0.75rem;
     font-size: 0.8125rem;
     font-weight: 700;
@@ -732,7 +732,7 @@ async function handleLogout() {
 }
 
 .nav-group-label-active {
-    color: #047857;
+    color: #c00000;
 }
 
 .nav-group-toggle {
@@ -758,7 +758,7 @@ async function handleLogout() {
 }
 
 .nav-group-toggle-active {
-    color: #047857;
+    color: #c00000;
 }
 
 .nav-group-chevron {
@@ -794,8 +794,8 @@ async function handleLogout() {
 }
 
 .nav-sublink-active {
-    background-color: #ecfdf5;
-    color: #047857;
+    background-color: #fef2f2;
+    color: #c00000;
     font-weight: 600;
 }
 </style>

@@ -76,20 +76,16 @@
                     <td class="py-3">{{ entity.name }}</td>
                     <td class="py-3">{{ entity.type_fr }}</td>
                     <td class="py-3 text-right">
-                        <div class="flex justify-end gap-3">
+                        <div class="entity-menu" :class="{ open: openMenuId === entity.id }">
                             <button
                                 type="button"
-                                class="text-xs font-medium text-violet-700 hover:underline"
-                                @click="openEditForm(entity)"
+                                class="entity-menu-trigger"
+                                :aria-expanded="openMenuId === entity.id"
+                                aria-haspopup="menu"
+                                aria-label="Actions"
+                                @click.stop="toggleMenu(entity, $event)"
                             >
-                                Modifier
-                            </button>
-                            <button
-                                type="button"
-                                class="text-xs text-red-600 hover:underline"
-                                @click="removeEntity(entity)"
-                            >
-                                Supprimer
+                                <span aria-hidden="true">⋮</span>
                             </button>
                         </div>
                     </td>
@@ -99,11 +95,46 @@
                 </tr>
             </tbody>
         </table>
+
+        <Teleport to="body">
+            <div
+                v-if="menuEntity"
+                class="entity-menu-panel"
+                role="menu"
+                :style="menuStyle"
+                @click.stop
+            >
+                <button
+                    type="button"
+                    class="entity-menu-item"
+                    role="menuitem"
+                    @click="openEditForm(menuEntity)"
+                >
+                    Modifier
+                </button>
+                <button
+                    type="button"
+                    class="entity-menu-item"
+                    role="menuitem"
+                    @click="duplicateEntity(menuEntity)"
+                >
+                    Dupliquer
+                </button>
+                <button
+                    type="button"
+                    class="entity-menu-item danger"
+                    role="menuitem"
+                    @click="removeEntity(menuEntity)"
+                >
+                    Supprimer
+                </button>
+            </div>
+        </Teleport>
     </section>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue';
+import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import api from '../../api/client';
 
 const props = defineProps({
@@ -117,11 +148,45 @@ const showEntityForm = ref(false);
 const saving = ref(false);
 const formError = ref('');
 const editingEntity = ref(null);
+const openMenuId = ref(null);
+const menuEntity = ref(null);
+const menuStyle = ref({});
 const entityForm = reactive({
     type: 'department',
     name: '',
     code: '',
 });
+
+function toggleMenu(entity, event) {
+    if (openMenuId.value === entity.id) {
+        closeMenu();
+        return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const openUp = window.innerHeight - rect.bottom < 160;
+
+    menuStyle.value = {
+        top: openUp ? `${rect.top - 4}px` : `${rect.bottom + 4}px`,
+        right: `${window.innerWidth - rect.right}px`,
+        transform: openUp ? 'translateY(-100%)' : 'none',
+    };
+    openMenuId.value = entity.id;
+    menuEntity.value = entity;
+}
+
+function closeMenu() {
+    openMenuId.value = null;
+    menuEntity.value = null;
+}
+
+function onDocumentClick() {
+    closeMenu();
+}
+
+function onWindowScrollOrResize() {
+    closeMenu();
+}
 
 function resetForm() {
     entityForm.type = 'department';
@@ -132,15 +197,27 @@ function resetForm() {
 }
 
 function openCreateForm() {
+    closeMenu();
     resetForm();
     showEntityForm.value = true;
 }
 
 function openEditForm(entity) {
+    closeMenu();
     editingEntity.value = entity;
     entityForm.type = entity.type === 'agency' ? 'agency' : 'department';
     entityForm.name = entity.name ?? '';
     entityForm.code = entity.code ?? '';
+    formError.value = '';
+    showEntityForm.value = true;
+}
+
+function duplicateEntity(entity) {
+    closeMenu();
+    editingEntity.value = null;
+    entityForm.type = entity.type === 'agency' ? 'agency' : 'department';
+    entityForm.name = entity.name ? `${entity.name} (copie)` : '';
+    entityForm.code = '';
     formError.value = '';
     showEntityForm.value = true;
 }
@@ -196,6 +273,7 @@ async function saveEntity() {
 }
 
 async function removeEntity(entity) {
+    closeMenu();
     if (!confirm(`Supprimer l'entité « ${entity.name} » ?`)) return;
 
     try {
@@ -208,4 +286,86 @@ async function removeEntity(entity) {
         alert(extractError(err));
     }
 }
+
+onMounted(() => {
+    document.addEventListener('click', onDocumentClick);
+    window.addEventListener('scroll', onWindowScrollOrResize, true);
+    window.addEventListener('resize', onWindowScrollOrResize);
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', onDocumentClick);
+    window.removeEventListener('scroll', onWindowScrollOrResize, true);
+    window.removeEventListener('resize', onWindowScrollOrResize);
+});
 </script>
+
+<style scoped>
+.entity-menu {
+    position: relative;
+    display: inline-flex;
+    justify-content: flex-end;
+}
+
+.entity-menu-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid transparent;
+    border-radius: 0.55rem;
+    background: transparent;
+    color: #64748b;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.entity-menu-trigger:hover,
+.entity-menu.open .entity-menu-trigger {
+    border-color: #e2e8f0;
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.entity-menu-panel {
+    position: fixed;
+    z-index: 80;
+    min-width: 10.5rem;
+    padding: 0.35rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.65rem;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.entity-menu-item {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    border: 0;
+    border-radius: 0.45rem;
+    background: transparent;
+    padding: 0.55rem 0.7rem;
+    color: #334155;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.entity-menu-item:hover {
+    background: #f8fafc;
+}
+
+.entity-menu-item.danger {
+    color: #b91c1c;
+}
+
+.entity-menu-item.danger:hover {
+    background: #fef2f2;
+}
+</style>
