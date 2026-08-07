@@ -10,7 +10,7 @@
                     <th class="operational-risk-head" rowspan="2">Processus</th>
                     <th class="operational-risk-head" rowspan="2">Ratio</th>
                     <th class="operational-risk-head" rowspan="2">Sous processus</th>
-                    <th class="operational-risk-head" rowspan="2">Exceptions majeures</th>
+                    <th class="operational-risk-head" rowspan="2">Risques identifiés</th>
                     <th class="operational-risk-head" rowspan="2">Risques corrélés</th>
                     <th class="operational-risk-head operational-risk-head-family" rowspan="2">Famille de risque</th>
                     <th class="operational-risk-head" colspan="3">Risque brut (Rb)</th>

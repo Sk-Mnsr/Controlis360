@@ -3,7 +3,7 @@
         <thead>
             <tr>
                 <th class="risk-form-head">Date ligne</th>
-                <th class="risk-form-head">Exceptions majeures</th>
+                <th class="risk-form-head">Risques identifiés</th>
                 <th class="risk-form-head">Risques corrélés</th>
                 <th class="risk-form-head risk-form-head-family">Famille de risque</th>
                 <th class="risk-form-head risk-form-head-score">G</th>

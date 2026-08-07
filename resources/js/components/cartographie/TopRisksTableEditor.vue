@@ -19,7 +19,7 @@
             </div>
 
             <div class="top-risks-editor-field top-risks-editor-field-wide">
-                <label class="top-risks-editor-label">Exceptions majeures constatées</label>
+                <label class="top-risks-editor-label">Risques identifiés</label>
                 <textarea v-model="row.major_exceptions" rows="2" class="top-risks-editor-textarea" />
             </div>
 

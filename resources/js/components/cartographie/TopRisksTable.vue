@@ -8,7 +8,7 @@
                 <tr>
                     <th class="top-risks-head">Processus</th>
                     <th class="top-risks-head">Sous processus</th>
-                    <th class="top-risks-head">Exceptions majeures constatées</th>
+                    <th class="top-risks-head">Risques identifiés</th>
                     <th class="top-risks-head top-risks-head-family">Famille de risque</th>
                     <th class="top-risks-head">Description</th>
                     <th class="top-risks-head">Existant</th>

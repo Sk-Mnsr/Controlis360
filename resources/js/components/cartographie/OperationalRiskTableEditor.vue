@@ -28,7 +28,7 @@
 
             <div class="operational-risk-editor-grid">
                 <div class="operational-risk-editor-wide">
-                    <label class="operational-risk-editor-label">Exceptions majeures</label>
+                    <label class="operational-risk-editor-label">Risques identifiés</label>
                     <textarea v-model="row.major_exceptions" rows="2" class="operational-risk-editor-textarea" />
                 </div>
                 <div class="operational-risk-editor-wide">
