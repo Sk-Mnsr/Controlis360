@@ -355,6 +355,12 @@ const routes = [
                         component: () => import('../views/gouvernance-it/GovItOperationsSectionView.vue'),
                         props: { title: 'BASE DE DONNEES', moduleSlug: 'base_donnees' },
                     },
+                    {
+                        path: 'projets/:activityId/retroplanning',
+                        name: 'gouvernance-it.retroplanning',
+                        component: () => import('../views/gouvernance-it/GovItRetroplanningView.vue'),
+                        props: true,
+                    },
                 ],
             },
             {

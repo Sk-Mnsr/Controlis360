@@ -401,7 +401,8 @@ const hideSidebar = computed(() =>
     || route.name === 'gouvernance-it.task-activity'
     || route.name === 'gouvernance-it.centre-support'
     || route.name === 'gouvernance-it.systemes-reseaux'
-    || route.name === 'gouvernance-it.base-donnees',
+    || route.name === 'gouvernance-it.base-donnees'
+    || route.name === 'gouvernance-it.retroplanning',
 );
 const isCartographieSection = computed(() => route.name === 'cartographie.cartographie');
 const isMethodologySection = computed(() => route.name === 'cartographie.methodology.show');

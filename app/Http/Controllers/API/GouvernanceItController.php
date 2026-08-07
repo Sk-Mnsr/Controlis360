@@ -7,6 +7,8 @@ use App\Models\Environment;
 use App\Models\GouvernanceItActivity;
 use App\Models\GouvernanceItActivityMessage;
 use App\Models\GouvernanceItEnsemble;
+use App\Models\GouvernanceItRetroplanningEnsemble;
+use App\Models\GouvernanceItRetroplanningItem;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -723,6 +725,199 @@ class GouvernanceItController extends APIController
         return $this->responseOk($this->serializeActivity($activity->fresh()));
     }
 
+    public function retroplanningIndex(Request $request, int $id)
+    {
+        $user = $request->user();
+        $activity = GouvernanceItActivity::query()->findOrFail($id);
+
+        if (! $this->userCanViewRetroplanning($user, $activity)) {
+            return $this->responseError(['auth' => ['Accès non autorisé']], 403);
+        }
+
+        if ($activity->section !== 'projets_en_cours') {
+            return $this->responseError(['section' => ['Le rétroplanning est réservé aux Projets en cours']], 422);
+        }
+
+        $ensembles = GouvernanceItRetroplanningEnsemble::query()
+            ->with(['items' => fn ($q) => $q->orderBy('sort_order')->orderBy('id')])
+            ->where('activity_id', $activity->id)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (GouvernanceItRetroplanningEnsemble $ensemble) => $this->serializeRetroplanningEnsemble($ensemble))
+            ->values()
+            ->all();
+
+        $staff = $this->itStaffForEnvironment($activity->environment_id);
+        $owners = array_values(array_unique(array_merge(
+            $staff['responsables'] ?? [],
+            $staff['agents'] ?? [],
+        )));
+
+        return $this->responseOk([
+            'activity' => [
+                'id' => $activity->id,
+                'title' => $activity->title ?: 'Projet',
+                'module_slug' => $activity->module_slug,
+                'section' => $activity->section,
+            ],
+            'statuses' => GouvernanceItRetroplanningItem::STATUSES,
+            'categories' => GouvernanceItRetroplanningItem::CATEGORIES,
+            'owners' => $owners,
+            'can_edit' => $this->userCanEditRetroplanning($user, $activity),
+            'ensembles' => $ensembles,
+        ]);
+    }
+
+    public function retroplanningEnsembleStore(Request $request, int $id)
+    {
+        $user = $request->user();
+        $activity = GouvernanceItActivity::query()->findOrFail($id);
+
+        if (! $this->userCanEditRetroplanning($user, $activity)) {
+            return $this->responseError(['auth' => ['Accès non autorisé']], 403);
+        }
+
+        if ($activity->section !== 'projets_en_cours') {
+            return $this->responseError(['section' => ['Le rétroplanning est réservé aux Projets en cours']], 422);
+        }
+
+        $count = GouvernanceItRetroplanningEnsemble::query()
+            ->where('activity_id', $activity->id)
+            ->count();
+
+        $maxOrder = (int) GouvernanceItRetroplanningEnsemble::query()
+            ->where('activity_id', $activity->id)
+            ->max('sort_order');
+
+        $ensemble = GouvernanceItRetroplanningEnsemble::query()->create([
+            'activity_id' => $activity->id,
+            'label' => 'Ensemble '.($count + 1),
+            'sort_order' => $maxOrder + 1,
+        ]);
+
+        return $this->responseOk($this->serializeRetroplanningEnsemble($ensemble->load('items')), 201);
+    }
+
+    public function retroplanningEnsembleDestroy(Request $request, int $id, int $ensembleId)
+    {
+        $user = $request->user();
+        $activity = GouvernanceItActivity::query()->findOrFail($id);
+
+        if (! $this->userCanEditRetroplanning($user, $activity)) {
+            return $this->responseError(['auth' => ['Accès non autorisé']], 403);
+        }
+
+        $ensemble = GouvernanceItRetroplanningEnsemble::query()
+            ->where('activity_id', $activity->id)
+            ->findOrFail($ensembleId);
+
+        $ensemble->delete();
+
+        return $this->responseOk(['deleted' => true]);
+    }
+
+    public function retroplanningStore(Request $request, int $id)
+    {
+        $user = $request->user();
+        $activity = GouvernanceItActivity::query()->findOrFail($id);
+
+        if (! $this->userCanEditRetroplanning($user, $activity)) {
+            return $this->responseError(['auth' => ['Accès non autorisé']], 403);
+        }
+
+        if ($activity->section !== 'projets_en_cours') {
+            return $this->responseError(['section' => ['Le rétroplanning est réservé aux Projets en cours']], 422);
+        }
+
+        $validator = Validator::make($request->all(), $this->retroplanningRules(true));
+
+        if ($validator->fails()) {
+            return $this->responseError($validator->errors()->toArray(), 422);
+        }
+
+        $data = $validator->validated();
+
+        $ensemble = GouvernanceItRetroplanningEnsemble::query()
+            ->where('activity_id', $activity->id)
+            ->findOrFail($data['ensemble_id']);
+
+        $maxOrder = (int) GouvernanceItRetroplanningItem::query()
+            ->where('ensemble_id', $ensemble->id)
+            ->max('sort_order');
+
+        $item = GouvernanceItRetroplanningItem::query()->create([
+            'activity_id' => $activity->id,
+            'ensemble_id' => $ensemble->id,
+            'category' => $data['category'] ?? null,
+            'activity' => $data['activity'] ?? null,
+            'is_subheader' => (bool) ($data['is_subheader'] ?? false),
+            'due_date' => $data['due_date'] ?? null,
+            'status' => $data['status'] ?? 'not_started',
+            'owner' => $data['owner'] ?? null,
+            'comments1' => $data['comments1'] ?? null,
+            'comments2' => $data['comments2'] ?? null,
+            'sort_order' => $maxOrder + 1,
+        ]);
+
+        return $this->responseOk($this->serializeRetroplanningItem($item), 201);
+    }
+
+    public function retroplanningUpdate(Request $request, int $id, int $itemId)
+    {
+        $user = $request->user();
+        $activity = GouvernanceItActivity::query()->findOrFail($id);
+
+        if (! $this->userCanEditRetroplanning($user, $activity)) {
+            return $this->responseError(['auth' => ['Accès non autorisé']], 403);
+        }
+
+        $item = GouvernanceItRetroplanningItem::query()
+            ->where('activity_id', $activity->id)
+            ->findOrFail($itemId);
+
+        $validator = Validator::make($request->all(), $this->retroplanningRules(false));
+
+        if ($validator->fails()) {
+            return $this->responseError($validator->errors()->toArray(), 422);
+        }
+
+        $data = $validator->validated();
+        $item->fill([
+            'category' => $data['category'] ?? $item->category,
+            'activity' => $data['activity'] ?? $item->activity,
+            'is_subheader' => array_key_exists('is_subheader', $data)
+                ? (bool) $data['is_subheader']
+                : $item->is_subheader,
+            'due_date' => array_key_exists('due_date', $data) ? $data['due_date'] : $item->due_date,
+            'status' => array_key_exists('status', $data) ? $data['status'] : $item->status,
+            'owner' => array_key_exists('owner', $data) ? $data['owner'] : $item->owner,
+            'comments1' => array_key_exists('comments1', $data) ? $data['comments1'] : $item->comments1,
+            'comments2' => array_key_exists('comments2', $data) ? $data['comments2'] : $item->comments2,
+        ]);
+        $item->save();
+
+        return $this->responseOk($this->serializeRetroplanningItem($item->fresh()));
+    }
+
+    public function retroplanningDestroy(Request $request, int $id, int $itemId)
+    {
+        $user = $request->user();
+        $activity = GouvernanceItActivity::query()->findOrFail($id);
+
+        if (! $this->userCanEditRetroplanning($user, $activity)) {
+            return $this->responseError(['auth' => ['Accès non autorisé']], 403);
+        }
+
+        $item = GouvernanceItRetroplanningItem::query()
+            ->where('activity_id', $activity->id)
+            ->findOrFail($itemId);
+
+        $item->delete();
+
+        return $this->responseOk(['deleted' => true]);
+    }
+
     private function activityRules(bool $creating = true): array
     {
         return [
@@ -898,6 +1093,78 @@ class GouvernanceItController extends APIController
         [$environment] = $this->resolveScope($user);
 
         return $environment && (int) $activity->environment_id === (int) $environment->id;
+    }
+
+    private function userCanViewRetroplanning(User $user, GouvernanceItActivity $activity): bool
+    {
+        if (! in_array($user->profile, self::GOUVERNANCE_IT_PROFILES, true) && ! $user->isSuperAdmin()) {
+            return false;
+        }
+
+        if ($user->profile === 'responsable_regional') {
+            return $this->availableFilialesForUser($user)
+                ->pluck('id')
+                ->contains((int) $activity->environment_id);
+        }
+
+        return $this->userCanAccessActivity($user, $activity);
+    }
+
+    private function userCanEditRetroplanning(User $user, GouvernanceItActivity $activity): bool
+    {
+        if (! in_array($user->profile, self::OPERATIONS_PROFILES, true) && ! $user->isSuperAdmin()) {
+            return false;
+        }
+
+        return $this->userCanAccessActivity($user, $activity);
+    }
+
+    private function retroplanningRules(bool $creating = false): array
+    {
+        return [
+            'ensemble_id' => ($creating ? 'required' : 'sometimes').'|integer|exists:gouvernance_it_retroplanning_ensembles,id',
+            'category' => 'nullable|string|max:120',
+            'activity' => 'nullable|string|max:500',
+            'is_subheader' => 'nullable|boolean',
+            'due_date' => 'nullable|date',
+            'status' => 'nullable|string|in:'.implode(',', array_keys(GouvernanceItRetroplanningItem::STATUSES)),
+            'owner' => 'nullable|string|max:255',
+            'comments1' => 'nullable|string|max:5000',
+            'comments2' => 'nullable|string|max:5000',
+        ];
+    }
+
+    private function serializeRetroplanningEnsemble(GouvernanceItRetroplanningEnsemble $ensemble): array
+    {
+        return [
+            'id' => $ensemble->id,
+            'activity_id' => $ensemble->activity_id,
+            'label' => $ensemble->label,
+            'sort_order' => $ensemble->sort_order,
+            'items' => $ensemble->items
+                ->map(fn (GouvernanceItRetroplanningItem $item) => $this->serializeRetroplanningItem($item))
+                ->values()
+                ->all(),
+        ];
+    }
+
+    private function serializeRetroplanningItem(GouvernanceItRetroplanningItem $item): array
+    {
+        return [
+            'id' => $item->id,
+            'activity_id' => $item->activity_id,
+            'ensemble_id' => $item->ensemble_id,
+            'category' => $item->category,
+            'activity' => $item->activity,
+            'is_subheader' => (bool) $item->is_subheader,
+            'due_date' => $item->due_date,
+            'status' => $item->status,
+            'status_label' => GouvernanceItRetroplanningItem::STATUSES[$item->status] ?? $item->status,
+            'owner' => $item->owner,
+            'comments1' => $item->comments1,
+            'comments2' => $item->comments2,
+            'sort_order' => $item->sort_order,
+        ];
     }
 
     private function userCanAccessEnsemble(User $user, GouvernanceItEnsemble $ensemble): bool

@@ -197,6 +197,12 @@ Route::controller(AuthController::class)->group(function () {
                 Route::get('/activities/{id}/messages', 'messagesIndex')->name('activities.messages.index');
                 Route::post('/activities/{id}/messages', 'messagesStore')->name('activities.messages.store');
                 Route::post('/activities/{id}/attachments', 'attachmentsUpdate')->name('activities.attachments');
+                Route::get('/activities/{id}/retroplanning', 'retroplanningIndex')->name('activities.retroplanning.index');
+                Route::post('/activities/{id}/retroplanning/ensembles', 'retroplanningEnsembleStore')->name('activities.retroplanning.ensembles.store');
+                Route::delete('/activities/{id}/retroplanning/ensembles/{ensembleId}', 'retroplanningEnsembleDestroy')->name('activities.retroplanning.ensembles.destroy');
+                Route::post('/activities/{id}/retroplanning', 'retroplanningStore')->name('activities.retroplanning.store');
+                Route::put('/activities/{id}/retroplanning/{itemId}', 'retroplanningUpdate')->name('activities.retroplanning.update');
+                Route::delete('/activities/{id}/retroplanning/{itemId}', 'retroplanningDestroy')->name('activities.retroplanning.destroy');
                 Route::delete('/activities/{id}', 'activitiesDestroy')->name('activities.destroy');
             });
 

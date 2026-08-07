@@ -88,6 +88,13 @@ class GouvernanceItActivity extends Model
         return $this->hasMany(GouvernanceItActivityMessage::class, 'activity_id');
     }
 
+    public function retroplanningItems(): HasMany
+    {
+        return $this->hasMany(GouvernanceItRetroplanningItem::class, 'activity_id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
+    }
+
     public static function computeLeadTimeDays(?string $startDate, ?string $finishDate): ?int
     {
         if (! $startDate || ! $finishDate) {

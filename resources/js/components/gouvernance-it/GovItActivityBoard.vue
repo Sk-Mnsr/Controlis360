@@ -268,6 +268,17 @@
                                             </span>
                                         </button>
 
+                                        <button
+                                            v-if="section.key === 'projets_en_cours'"
+                                            type="button"
+                                            class="inline-flex h-7 w-7 items-center justify-center rounded border border-violet-400 bg-violet-50 text-[11px] font-bold text-violet-800 hover:bg-violet-100 disabled:opacity-40"
+                                            title="Ouvrir le rétroplanning"
+                                            :disabled="!row.id"
+                                            @click="onProjetR(row)"
+                                        >
+                                            R
+                                        </button>
+
                                         <template v-if="canManageRow(section.key, row)">
                                             <button
                                                 v-if="!row.editing"
@@ -461,6 +472,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '../../api/client';
 import { useAuthStore } from '../../stores/auth';
 import GovItActivityChatModal from './GovItActivityChatModal.vue';
@@ -478,6 +490,7 @@ const props = defineProps({
 });
 
 const auth = useAuthStore();
+const router = useRouter();
 
 const SECTION_DEFS = [
     { key: 'projets_en_cours', label: 'Projets en cours' },
@@ -763,6 +776,14 @@ function openAttachmentsModal(row) {
     attachmentsModal.attachments = [...(row.attachments || [])];
     attachmentsModal.canEdit = true;
     attachmentsModal.rowRef = row;
+}
+
+function onProjetR(row) {
+    if (!row?.id) return;
+    router.push({
+        name: 'gouvernance-it.retroplanning',
+        params: { activityId: String(row.id) },
+    });
 }
 
 function closeAttachmentsModal() {
