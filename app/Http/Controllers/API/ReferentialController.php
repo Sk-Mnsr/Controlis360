@@ -746,8 +746,8 @@ class ReferentialController extends APIController
 
         return $this->responseOk($this->buildAnalyseRisquesPayload(
             $entity,
-            $request->boolean('include_drafts')
-                && $request->user()->canCreateOperationalRiskRow()
+            $request->user()->canCreateOperationalRiskRow()
+                && ($request->boolean('include_drafts', true))
         ));
     }
 

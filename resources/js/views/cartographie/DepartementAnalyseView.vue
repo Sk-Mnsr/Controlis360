@@ -110,15 +110,19 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../../api/client';
+import { useAuthStore } from '../../stores/auth';
 import { useCartographieStore } from '../../stores/cartographie';
 import { environmentQueryParams } from '../../utils/entityEnvironment';
+import { canCreateOperationalRiskRow } from '../../utils/cartographiePermissions';
 import OperationalRiskTable from '../../components/cartographie/OperationalRiskTable.vue';
 import OperationalRiskRowEditModal from '../../components/cartographie/OperationalRiskRowEditModal.vue';
 import OperationalRiskValidateModal from '../../components/cartographie/OperationalRiskValidateModal.vue';
 import OperationalRiskRevisionModal from '../../components/cartographie/OperationalRiskRevisionModal.vue';
 
 const route = useRoute();
+const auth = useAuthStore();
 const cartographie = useCartographieStore();
+const canIncludeDrafts = computed(() => canCreateOperationalRiskRow(auth.user));
 
 const loading = ref(true);
 const error = ref('');
@@ -207,7 +211,7 @@ async function loadAnalyse() {
 
     try {
         const { data } = await api.get(`/referentials/analyse-risques/${route.params.code}`, {
-            params: environmentQueryParams(route),
+            params: environmentQueryParams(route, canIncludeDrafts.value ? { include_drafts: 1 } : {}),
         });
         const payload = extractPayload(data);
         entity.value = payload.entity;
