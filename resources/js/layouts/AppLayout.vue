@@ -353,13 +353,13 @@
             />
 
             <main
-                class="min-h-0 flex-1"
+                class="min-h-0 min-w-0 flex-1"
                 :class="[
                     isFullBleedPage ? 'flex flex-col' : 'p-4 sm:p-6 lg:p-8',
-                    isConformiteSaisieSection ? 'overflow-hidden' : 'overflow-y-auto',
+                    (isConformiteSaisieSection || isAnalyseFullBleed) ? 'overflow-hidden' : 'overflow-y-auto',
                 ]"
             >
-                <RouterView />
+                <RouterView class="min-h-0 min-w-0 w-full flex-1" />
             </main>
         </div>
     </div>
@@ -395,6 +395,7 @@ const isFullBleedPage = computed(() =>
     || route.name === 'conformite.reporting.create'
     || route.name === 'conformite.reporting.edit',
 );
+const isAnalyseFullBleed = computed(() => route.name === 'cartographie.departement-analyse');
 const hideSidebar = computed(() =>
     route.name === 'audit.missions.show'
     || route.name === 'gouvernance-it.govstrat-itr'

@@ -3,7 +3,7 @@
         <div class="phase2-grid">
             <div class="phase2-wide">
                 <label class="phase2-label">Description du dispositif</label>
-                <textarea v-model="model.control_description" rows="2" class="phase2-textarea" />
+                <textarea v-model="model.control_description" rows="4" class="phase2-textarea" />
             </div>
             <div>
                 <label class="phase2-label">Dispositif existant</label>
@@ -117,6 +117,11 @@ watch([residualGravity, residualPr], () => {
     padding: 0.5rem 0.65rem;
     font-size: 0.8125rem;
     font-family: inherit;
+}
+
+.phase2-textarea {
+    min-height: 5.5rem;
+    resize: vertical;
 }
 
 .phase2-readonly {

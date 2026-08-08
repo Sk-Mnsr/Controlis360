@@ -499,12 +499,16 @@ function residualScoreStyle(row) {
 
 <style scoped>
 .operational-risk-section {
-    overflow-x: auto;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    overflow: auto;
 }
 
 .operational-risk-table {
-    min-width: 82rem;
     width: 100%;
+    min-width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 0.75rem;
     line-height: 1.35;
@@ -516,6 +520,8 @@ function residualScoreStyle(row) {
     border: 1px solid #111111;
     padding: 0.45rem 0.5rem;
     vertical-align: middle;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .operational-risk-title {
@@ -541,8 +547,8 @@ function residualScoreStyle(row) {
 }
 
 .operational-risk-head-actions {
-    width: 3.5rem;
-    min-width: 3.5rem;
+    width: 7rem;
+    min-width: 7rem;
     position: sticky;
     right: 0;
     z-index: 4;
