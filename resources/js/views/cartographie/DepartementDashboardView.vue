@@ -274,11 +274,14 @@ onMounted(loadDashboard);
 
 <style scoped>
 .entity-cartography-page {
-    max-width: 72rem;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
     display: flex;
     flex-direction: column;
     gap: 1.35rem;
+    padding: 1rem 1.25rem 1.5rem;
+    box-sizing: border-box;
 }
 
 .entity-cartography-toolbar {

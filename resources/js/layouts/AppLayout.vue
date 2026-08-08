@@ -392,6 +392,15 @@ const isFullBleedPage = computed(() =>
     || route.name === 'cartographie.cartographie'
     || route.name === 'cartographie.methodology.show'
     || route.name === 'cartographie.departement-analyse'
+    || route.name === 'cartographie.departement-dashboard'
+    || route.name === 'cartographie.plus-gros-risques'
+    || route.name === 'cartographie.definitions-objectifs'
+    || route.name === 'cartographie.preambule'
+    || route.name === 'cartographie.principes'
+    || route.name === 'cartographie.echelle-pg'
+    || route.name === 'cartographie.echelle-controle'
+    || route.name === 'cartographie.matrice-risques'
+    || route.name === 'cartographie.lexique'
     || route.name === 'conformite.reporting.create'
     || route.name === 'conformite.reporting.edit',
 );
@@ -406,7 +415,17 @@ const hideSidebar = computed(() =>
     || route.name === 'gouvernance-it.retroplanning',
 );
 const isCartographieSection = computed(() => route.name === 'cartographie.cartographie');
-const isMethodologySection = computed(() => route.name === 'cartographie.methodology.show');
+const isMethodologySection = computed(() => [
+    'cartographie.methodology.show',
+    'cartographie.definitions-objectifs',
+    'cartographie.preambule',
+    'cartographie.principes',
+    'cartographie.echelle-pg',
+    'cartographie.echelle-controle',
+    'cartographie.matrice-risques',
+    'cartographie.lexique',
+    'cartographie.plus-gros-risques',
+].includes(route.name));
 const isSaisieSection = computed(() => route.name === 'cartographie.saisie-risques');
 const isDepartmentsSection = computed(() =>
     (route.name === 'cartographie.departement-analyse'

@@ -33,8 +33,8 @@
                 </div>
 
                 <div>
-                    <label class="preambule-label">Contenu HTML</label>
-                    <textarea v-model="form.body_html" rows="28" class="preambule-textarea font-mono text-xs" />
+                    <label class="preambule-label">Contenu</label>
+                    <MethodologyRichEditor v-model="form.body_html" />
                 </div>
 
                 <p v-if="error" class="preambule-error">{{ error }}</p>
@@ -57,6 +57,7 @@ import { onMounted, reactive, ref } from 'vue';
 import api from '../../api/client';
 import { useCartographiePermissions } from '../../composables/useCartographiePermissions';
 import MethodologyPreambuleContent from '../../components/methodology/MethodologyPreambuleContent.vue';
+import MethodologyRichEditor from '../../components/methodology/MethodologyRichEditor.vue';
 
 const { canEditMethodology } = useCartographiePermissions();
 
@@ -129,8 +130,11 @@ onMounted(loadPage);
 
 <style scoped>
 .preambule-page {
-    max-width: 52rem;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 1rem 1.25rem 1.5rem;
+    box-sizing: border-box;
 }
 
 .preambule-actions {

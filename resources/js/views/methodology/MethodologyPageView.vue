@@ -68,8 +68,8 @@
 
                 <template v-if="isPreambuleLayout">
                     <div>
-                        <label class="edit-label">Contenu HTML</label>
-                        <textarea v-model="form.body_html" rows="24" class="edit-textarea font-mono text-xs" />
+                        <label class="edit-label">Contenu</label>
+                        <MethodologyRichEditor v-model="form.body_html" />
                     </div>
                 </template>
 
@@ -128,7 +128,9 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../../api/client';
 import { useCartographiePermissions } from '../../composables/useCartographiePermissions';
-
+import MethodologyGrid from '../../components/methodology/MethodologyGrid.vue';
+import MethodologyGridEditor from '../../components/methodology/MethodologyGridEditor.vue';
+import MethodologyRichEditor from '../../components/methodology/MethodologyRichEditor.vue';
 const route = useRoute();
 const { canEditMethodology } = useCartographiePermissions();
 
@@ -227,18 +229,21 @@ onMounted(loadPage);
 
 <style scoped>
 .methodology-page {
-    margin: -1.5rem -1.5rem 0;
+    width: 100%;
+    max-width: none;
+    margin: 0;
     min-height: 100%;
     background: #ffffff;
-    padding: 2rem 2.5rem 3rem;
+    padding: 1.25rem 1.5rem 2rem;
+    box-sizing: border-box;
     color: #111111;
     font-family: Arial, Helvetica, sans-serif;
 }
 
 @media (min-width: 1024px) {
     .methodology-page {
-        margin: -2rem -2rem 0;
-        padding: 2.5rem 3.5rem 4rem;
+        margin: 0;
+        padding: 1.5rem 2rem 2.5rem;
     }
 }
 
@@ -306,15 +311,17 @@ onMounted(loadPage);
 }
 
 .methodology-body {
-    max-width: 52rem;
+    max-width: none;
+    width: 100%;
     font-size: 0.95rem;
     line-height: 1.55;
 }
 
 .methodology-page-preambule .methodology-body,
 .methodology-page-grid .methodology-body {
-    max-width: 56rem;
-    margin: 0 auto;
+    max-width: none;
+    width: 100%;
+    margin: 0;
 }
 
 .methodology-page-grid .methodology-body {
@@ -366,7 +373,8 @@ onMounted(loadPage);
 }
 
 .methodology-edit {
-    max-width: 52rem;
+    max-width: none;
+    width: 100%;
     display: flex;
     flex-direction: column;
     gap: 1rem;

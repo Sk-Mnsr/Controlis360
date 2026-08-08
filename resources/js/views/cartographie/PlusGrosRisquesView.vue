@@ -111,6 +111,8 @@ onMounted(loadTopRisques);
     width: 100%;
     max-width: none;
     margin: 0;
+    padding: 1rem 1.25rem 1.5rem;
+    box-sizing: border-box;
 }
 
 .plus-gros-risques-actions {
