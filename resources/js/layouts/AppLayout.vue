@@ -247,6 +247,28 @@
                     </RouterLink>
                 </template>
 
+                <template v-else-if="activeModule?.slug === 'cartographie-applications'">
+                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
+                        ← Tous les modules
+                    </RouterLink>
+
+                    <RouterLink
+                        class="nav-link"
+                        :class="{ 'nav-link-active': route.name === 'cartographie-applications.home' }"
+                        :to="{ name: 'cartographie-applications.home' }"
+                    >
+                        Accueil
+                    </RouterLink>
+
+                    <RouterLink
+                        class="nav-link"
+                        :class="{ 'nav-link-active': route.name === 'cartographie-applications.applications' }"
+                        :to="{ name: 'cartographie-applications.applications' }"
+                    >
+                        Applications
+                    </RouterLink>
+                </template>
+
                 <template v-else-if="activeModule?.slug === 'gouvernance-it'">
                     <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
                         ← Tous les modules
@@ -402,7 +424,9 @@ const isFullBleedPage = computed(() =>
     || route.name === 'cartographie.matrice-risques'
     || route.name === 'cartographie.lexique'
     || route.name === 'conformite.reporting.create'
-    || route.name === 'conformite.reporting.edit',
+    || route.name === 'conformite.reporting.edit'
+    || route.name === 'cartographie-applications.home'
+    || route.name === 'cartographie-applications.applications',
 );
 const isAnalyseFullBleed = computed(() => route.name === 'cartographie.departement-analyse');
 const hideSidebar = computed(() =>

@@ -208,6 +208,7 @@ function enableAllModulesAsSuperAdmin() {
             cartographie: 'controle',
             audit: 'audit',
             conformite: 'conformite',
+            'cartographie-applications': 'metier',
             'gouvernance-it': 'agent_it',
         })[module.slug] ?? 'metier',
     }));

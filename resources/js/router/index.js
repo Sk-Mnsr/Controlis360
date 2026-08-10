@@ -315,6 +315,36 @@ const routes = [
                 ],
             },
             {
+                path: 'cartographie-applications',
+                meta: { module: 'cartographie-applications' },
+                children: [
+                    {
+                        path: '',
+                        redirect: { name: 'cartographie-applications.home' },
+                    },
+                    {
+                        path: 'home',
+                        name: 'cartographie-applications.home',
+                        component: () => import('../views/cartographie-applications/CartographieApplicationsHomeView.vue'),
+                    },
+                    {
+                        path: 'applications',
+                        name: 'cartographie-applications.applications',
+                        component: () => import('../views/cartographie-applications/ApplicationsView.vue'),
+                    },
+                    {
+                        path: 'contrats-it',
+                        name: 'cartographie-applications.contrats',
+                        component: () => import('../views/cartographie-applications/ContratsItView.vue'),
+                    },
+                    {
+                        path: 'projets-it',
+                        name: 'cartographie-applications.projets',
+                        component: () => import('../views/cartographie-applications/ProjetsItView.vue'),
+                    },
+                ],
+            },
+            {
                 path: 'gouvernance-it',
                 meta: { module: 'gouvernance-it' },
                 children: [

@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\API\ApplicationController;
+use App\Http\Controllers\API\ItServiceController;
 use App\Http\Controllers\API\AttachmentController;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\EntityController;
@@ -181,6 +183,21 @@ Route::controller(AuthController::class)->group(function () {
                 Route::match(['put', 'post'], '/{id}', 'update')->name('update');
                 Route::post('/{id}/contributions', 'storeContribution')->name('contributions.store');
                 Route::delete('/{id}', 'destroy')->name('destroy');
+            });
+
+            Route::prefix('applications')->name('application.')->controller(ApplicationController::class)->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::get('/{id}', 'show')->name('show');
+                Route::put('/{id}', 'update')->name('update');
+                Route::delete('/{id}', 'destroy')->name('destroy');
+            });
+
+            Route::prefix('it-services')->name('it-service.')->controller(ItServiceController::class)->group(function () {
+                Route::get('/dashboard', 'dashboard')->name('dashboard');
+                Route::get('/questions', 'questions')->name('questions');
+                Route::post('/answers', 'saveAnswers')->name('answers.save');
+                Route::put('/{applicationTypeId}', 'updateService')->name('update');
             });
 
             Route::prefix('gouvernance-it')->name('gouvernance-it.')->controller(GouvernanceItController::class)->group(function () {

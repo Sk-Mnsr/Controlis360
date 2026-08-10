@@ -32,6 +32,11 @@ export const MODULE_PROFILE_OPTIONS = {
         { value: 'conformite', label: PROFILE_LABELS.conformite },
         { value: 'metier', label: PROFILE_LABELS.metier },
     ],
+    'cartographie-applications': [
+        { value: 'admin', label: PROFILE_LABELS.admin },
+        { value: 'controle', label: PROFILE_LABELS.controle },
+        { value: 'metier', label: PROFILE_LABELS.metier },
+    ],
     'gouvernance-it': [
         { value: 'agent_it', label: PROFILE_LABELS.agent_it },
         { value: 'responsable_it', label: PROFILE_LABELS.responsable_it },
@@ -43,6 +48,7 @@ const MODULE_PROFILES = {
     cartographie: ['super_admin', 'admin', 'superviseur', 'controle', 'metier'],
     audit: ['super_admin', 'admin', 'regulateur', 'controle', 'audit', 'metier'],
     conformite: ['super_admin', 'admin', 'conformite', 'metier'],
+    'cartographie-applications': ['super_admin', 'admin', 'controle', 'metier'],
     'gouvernance-it': ['super_admin', 'admin', 'agent_it', 'responsable_it', 'responsable_regional'],
 };
 
