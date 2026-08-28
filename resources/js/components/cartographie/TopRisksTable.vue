@@ -84,11 +84,14 @@ function rbStyle(row) {
 
 <style scoped>
 .top-risks-section {
+    width: 100%;
     overflow-x: auto;
 }
 
 .top-risks-table {
     width: 100%;
+    min-width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     font-size: 0.8125rem;
     line-height: 1.4;
@@ -100,6 +103,8 @@ function rbStyle(row) {
     border: 1px solid #111111;
     padding: 0.55rem 0.65rem;
     vertical-align: top;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .top-risks-title {

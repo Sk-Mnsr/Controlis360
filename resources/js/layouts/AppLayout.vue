@@ -247,6 +247,28 @@
                     </RouterLink>
                 </template>
 
+                <template v-else-if="activeModule?.slug === 'cartographie-applications'">
+                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
+                        ← Tous les modules
+                    </RouterLink>
+
+                    <RouterLink
+                        class="nav-link"
+                        :class="{ 'nav-link-active': route.name === 'cartographie-applications.home' }"
+                        :to="{ name: 'cartographie-applications.home' }"
+                    >
+                        Accueil
+                    </RouterLink>
+
+                    <RouterLink
+                        class="nav-link"
+                        :class="{ 'nav-link-active': route.name === 'cartographie-applications.applications' }"
+                        :to="{ name: 'cartographie-applications.applications' }"
+                    >
+                        Applications
+                    </RouterLink>
+                </template>
+
                 <template v-else-if="activeModule?.slug === 'gouvernance-it'">
                     <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
                         ← Tous les modules
@@ -353,13 +375,13 @@
             />
 
             <main
-                class="min-h-0 flex-1"
+                class="min-h-0 min-w-0 flex-1"
                 :class="[
                     isFullBleedPage ? 'flex flex-col' : 'p-4 sm:p-6 lg:p-8',
-                    isConformiteSaisieSection ? 'overflow-hidden' : 'overflow-y-auto',
+                    (isConformiteSaisieSection || isAnalyseFullBleed) ? 'overflow-hidden' : 'overflow-y-auto',
                 ]"
             >
-                <RouterView />
+                <RouterView class="min-h-0 min-w-0 w-full flex-1" />
             </main>
         </div>
     </div>
@@ -392,9 +414,21 @@ const isFullBleedPage = computed(() =>
     || route.name === 'cartographie.cartographie'
     || route.name === 'cartographie.methodology.show'
     || route.name === 'cartographie.departement-analyse'
+    || route.name === 'cartographie.departement-dashboard'
+    || route.name === 'cartographie.plus-gros-risques'
+    || route.name === 'cartographie.definitions-objectifs'
+    || route.name === 'cartographie.preambule'
+    || route.name === 'cartographie.principes'
+    || route.name === 'cartographie.echelle-pg'
+    || route.name === 'cartographie.echelle-controle'
+    || route.name === 'cartographie.matrice-risques'
+    || route.name === 'cartographie.lexique'
     || route.name === 'conformite.reporting.create'
-    || route.name === 'conformite.reporting.edit',
+    || route.name === 'conformite.reporting.edit'
+    || route.name === 'cartographie-applications.home'
+    || route.name === 'cartographie-applications.applications',
 );
+const isAnalyseFullBleed = computed(() => route.name === 'cartographie.departement-analyse');
 const hideSidebar = computed(() =>
     route.name === 'audit.missions.show'
     || route.name === 'gouvernance-it.govstrat-itr'
@@ -405,7 +439,17 @@ const hideSidebar = computed(() =>
     || route.name === 'gouvernance-it.retroplanning',
 );
 const isCartographieSection = computed(() => route.name === 'cartographie.cartographie');
-const isMethodologySection = computed(() => route.name === 'cartographie.methodology.show');
+const isMethodologySection = computed(() => [
+    'cartographie.methodology.show',
+    'cartographie.definitions-objectifs',
+    'cartographie.preambule',
+    'cartographie.principes',
+    'cartographie.echelle-pg',
+    'cartographie.echelle-controle',
+    'cartographie.matrice-risques',
+    'cartographie.lexique',
+    'cartographie.plus-gros-risques',
+].includes(route.name));
 const isSaisieSection = computed(() => route.name === 'cartographie.saisie-risques');
 const isDepartmentsSection = computed(() =>
     (route.name === 'cartographie.departement-analyse'

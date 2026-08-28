@@ -148,8 +148,11 @@ onMounted(loadPage);
 
 <style scoped>
 .definitions-page {
-    max-width: 52rem;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 1rem 1.25rem 1.5rem;
+    box-sizing: border-box;
 }
 
 .definitions-actions {

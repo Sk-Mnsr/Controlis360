@@ -108,8 +108,11 @@ onMounted(loadTopRisques);
 
 <style scoped>
 .plus-gros-risques-page {
-    max-width: 80rem;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 1rem 1.25rem 1.5rem;
+    box-sizing: border-box;
 }
 
 .plus-gros-risques-actions {
@@ -160,6 +163,7 @@ onMounted(loadTopRisques);
 }
 
 .plus-gros-risques-content {
+    width: 100%;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;

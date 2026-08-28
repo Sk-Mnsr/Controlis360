@@ -24,9 +24,9 @@
                 <td class="risk-form-cell">
                     <textarea
                         v-model="model.major_exceptions"
-                        rows="1"
+                        rows="3"
                         required
-                        class="risk-form-textarea"
+                        class="risk-form-textarea risk-form-textarea-risk"
                         :readonly="readonly"
                     />
                 </td>
@@ -175,5 +175,10 @@ function onLegacyDetailSelected(event) {
 .risk-form-cell-date {
     width: 9rem;
     min-width: 9rem;
+}
+
+.risk-form-textarea-risk {
+    min-height: 4.5rem;
+    resize: vertical;
 }
 </style>

@@ -6,12 +6,12 @@
                     <th colspan="18" class="operational-risk-title">{{ title }}</th>
                 </tr>
                 <tr>
-                    <th class="operational-risk-head" rowspan="2">N°</th>
-                    <th class="operational-risk-head" rowspan="2">Processus</th>
-                    <th class="operational-risk-head" rowspan="2">Ratio</th>
-                    <th class="operational-risk-head" rowspan="2">Sous processus</th>
-                    <th class="operational-risk-head" rowspan="2">Risques identifiés</th>
-                    <th class="operational-risk-head" rowspan="2">Risques corrélés</th>
+                    <th class="operational-risk-head operational-risk-col-num" rowspan="2">N°</th>
+                    <th class="operational-risk-head operational-risk-col-process" rowspan="2">Processus</th>
+                    <th class="operational-risk-head operational-risk-col-ratio" rowspan="2">Ratio</th>
+                    <th class="operational-risk-head operational-risk-col-subprocess" rowspan="2">Sous processus</th>
+                    <th class="operational-risk-head operational-risk-col-exceptions" rowspan="2">Risques identifiés</th>
+                    <th class="operational-risk-head operational-risk-col-correlated" rowspan="2">Risques corrélés</th>
                     <th class="operational-risk-head operational-risk-head-family" rowspan="2">Famille de risque</th>
                     <th class="operational-risk-head" colspan="3">Risque brut (Rb)</th>
                     <th class="operational-risk-head" colspan="4">Dispositif de prévention et de contrôle</th>
@@ -19,16 +19,16 @@
                     <th class="operational-risk-head operational-risk-head-actions" rowspan="2">Actions</th>
                 </tr>
                 <tr>
-                    <th class="operational-risk-subhead">G</th>
-                    <th class="operational-risk-subhead">P</th>
-                    <th class="operational-risk-subhead">Rb</th>
-                    <th class="operational-risk-subhead">Description</th>
-                    <th class="operational-risk-subhead">Existant</th>
-                    <th class="operational-risk-subhead">Owner</th>
-                    <th class="operational-risk-subhead">Efficacité</th>
-                    <th class="operational-risk-subhead">G</th>
-                    <th class="operational-risk-subhead">Pr</th>
-                    <th class="operational-risk-subhead">Rr</th>
+                    <th class="operational-risk-subhead operational-risk-col-narrow">G</th>
+                    <th class="operational-risk-subhead operational-risk-col-narrow">P</th>
+                    <th class="operational-risk-subhead operational-risk-col-narrow">Rb</th>
+                    <th class="operational-risk-subhead operational-risk-col-description">Description</th>
+                    <th class="operational-risk-subhead operational-risk-col-narrow">Existant</th>
+                    <th class="operational-risk-subhead operational-risk-col-owner">Owner</th>
+                    <th class="operational-risk-subhead operational-risk-col-narrow">Efficacité</th>
+                    <th class="operational-risk-subhead operational-risk-col-narrow">G</th>
+                    <th class="operational-risk-subhead operational-risk-col-narrow">Pr</th>
+                    <th class="operational-risk-subhead operational-risk-col-narrow">Rr</th>
                 </tr>
             </thead>
             <tbody>
@@ -38,33 +38,33 @@
                 <template v-for="group in groupedRows" :key="group.key">
                     <tr v-for="(row, index) in group.exceptions" :key="row.id">
                         <template v-if="index === 0">
-                            <td class="operational-risk-center" :rowspan="group.exceptions.length">
+                            <td class="operational-risk-center operational-risk-col-num" :rowspan="group.exceptions.length">
                                 {{ group.display_number ?? group.process_number ?? '—' }}
                             </td>
-                            <td class="operational-risk-center" :rowspan="group.exceptions.length">
+                            <td class="operational-risk-center operational-risk-col-process" :rowspan="group.exceptions.length">
                                 {{ group.process_name || '—' }}
                             </td>
-                            <td class="operational-risk-center" :rowspan="group.exceptions.length">
+                            <td class="operational-risk-center operational-risk-col-ratio" :rowspan="group.exceptions.length">
                                 {{ formatRatio(group.ratio) }}
                             </td>
-                            <td class="operational-risk-strong" :rowspan="group.exceptions.length">
+                            <td class="operational-risk-strong operational-risk-col-subprocess" :rowspan="group.exceptions.length">
                                 {{ group.sub_process_name }}
                             </td>
                         </template>
-                        <td>{{ row.major_exceptions || '—' }}</td>
-                        <td>{{ row.correlated_risks || '—' }}</td>
+                        <td class="operational-risk-col-exceptions">{{ row.major_exceptions || '—' }}</td>
+                        <td class="operational-risk-col-correlated">{{ row.correlated_risks || '—' }}</td>
                         <td>{{ row.risk_family || '—' }}</td>
-                        <td class="operational-risk-center">{{ row.gravity ?? '—' }}</td>
-                        <td class="operational-risk-center">{{ row.probability ?? '—' }}</td>
+                        <td class="operational-risk-center operational-risk-col-narrow">{{ row.gravity ?? '—' }}</td>
+                        <td class="operational-risk-center operational-risk-col-narrow">{{ row.probability ?? '—' }}</td>
                         <td class="operational-risk-score" :style="scoreStyle(row.gross_classification)">
                             {{ row.gross_risk ?? '—' }}
                         </td>
-                        <td>{{ row.control_description || '—' }}</td>
-                        <td class="operational-risk-center">{{ formatExists(row.control_exists) }}</td>
-                        <td>{{ row.control_owner || '—' }}</td>
-                        <td class="operational-risk-center">{{ row.control_effectiveness ?? '—' }}</td>
-                        <td class="operational-risk-center">{{ formatRiskScore(displayResidual(row).gravity) ?? '—' }}</td>
-                        <td class="operational-risk-center">{{ formatRiskScore(displayResidual(row).probability) ?? '—' }}</td>
+                        <td class="operational-risk-col-description">{{ row.control_description || '—' }}</td>
+                        <td class="operational-risk-center operational-risk-col-narrow">{{ formatExists(row.control_exists) }}</td>
+                        <td class="operational-risk-col-owner">{{ row.control_owner || '—' }}</td>
+                        <td class="operational-risk-center operational-risk-col-narrow">{{ row.control_effectiveness ?? '—' }}</td>
+                        <td class="operational-risk-center operational-risk-col-narrow">{{ formatRiskScore(displayResidual(row).gravity) ?? '—' }}</td>
+                        <td class="operational-risk-center operational-risk-col-narrow">{{ formatRiskScore(displayResidual(row).probability) ?? '—' }}</td>
                         <td class="operational-risk-score" :style="residualScoreStyle(row)">
                             {{ formatRiskScore(displayResidual(row).risk) ?? '—' }}
                         </td>
@@ -499,23 +499,30 @@ function residualScoreStyle(row) {
 
 <style scoped>
 .operational-risk-section {
-    overflow-x: auto;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    overflow: auto;
 }
 
 .operational-risk-table {
-    min-width: 82rem;
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
+    table-layout: auto;
     border-collapse: collapse;
     font-size: 0.75rem;
-    line-height: 1.35;
+    line-height: 1.4;
     color: #111111;
 }
 
 .operational-risk-table th,
 .operational-risk-table td {
     border: 1px solid #111111;
-    padding: 0.45rem 0.5rem;
-    vertical-align: middle;
+    padding: 0.45rem 0.55rem;
+    vertical-align: top;
+    word-break: normal;
+    overflow-wrap: break-word;
+    hyphens: none;
 }
 
 .operational-risk-title {
@@ -525,6 +532,7 @@ function residualScoreStyle(row) {
     font-weight: 700;
     text-align: center;
     text-transform: uppercase;
+    vertical-align: middle;
 }
 
 .operational-risk-head {
@@ -533,16 +541,18 @@ function residualScoreStyle(row) {
     text-align: center;
     text-transform: uppercase;
     font-size: 0.68rem;
+    vertical-align: middle;
 }
 
 .operational-risk-head-family {
     background: #c00000;
     color: #ffffff;
+    min-width: 8rem;
 }
 
 .operational-risk-head-actions {
-    width: 3.5rem;
-    min-width: 3.5rem;
+    width: 7rem;
+    min-width: 7rem;
     position: sticky;
     right: 0;
     z-index: 4;
@@ -554,21 +564,75 @@ function residualScoreStyle(row) {
     font-weight: 700;
     text-align: center;
     font-size: 0.68rem;
+    vertical-align: middle;
 }
 
 .operational-risk-center {
     text-align: center;
     white-space: nowrap;
+    vertical-align: middle;
 }
 
 .operational-risk-strong {
     font-weight: 600;
-    text-align: center;
+    text-align: left;
+}
+
+.operational-risk-col-subprocess {
+    min-width: 14rem;
+    max-width: 22rem;
+    white-space: normal;
+}
+
+.operational-risk-col-exceptions {
+    min-width: 16rem;
+    max-width: 28rem;
+    white-space: pre-wrap;
+}
+
+.operational-risk-col-correlated {
+    min-width: 10rem;
+    max-width: 16rem;
+}
+
+.operational-risk-col-description {
+    min-width: 16rem;
+    max-width: 28rem;
+    white-space: pre-wrap;
+}
+
+.operational-risk-col-owner {
+    min-width: 8rem;
+    max-width: 12rem;
+}
+
+.operational-risk-col-narrow {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    max-width: 3.25rem;
+}
+
+.operational-risk-col-num {
+    width: 2.5rem;
+    min-width: 2.5rem;
+}
+
+.operational-risk-col-ratio {
+    width: 3.5rem;
+    min-width: 3.5rem;
+}
+
+.operational-risk-col-process {
+    min-width: 7rem;
+    max-width: 10rem;
 }
 
 .operational-risk-score {
     text-align: center;
     font-weight: 700;
+    vertical-align: middle;
+    width: 3rem;
+    min-width: 3rem;
 }
 
 .operational-risk-summary {

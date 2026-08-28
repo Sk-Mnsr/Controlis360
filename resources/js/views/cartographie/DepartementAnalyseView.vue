@@ -25,7 +25,7 @@
 
         <div v-if="loading" class="departement-analyse-loading">Chargement...</div>
 
-        <template v-else>
+        <div v-else class="departement-analyse-body">
             <p v-if="error && !entity" class="departement-analyse-error">{{ error }}</p>
 
             <template v-else>
@@ -58,25 +58,27 @@
                     </button>
                 </nav>
 
-                <OperationalRiskTable
-                    :title="tableTitle"
-                    :rows="displayedRows"
-                    :department-code="route.params.code"
-                    :department-environment="route.query.environment"
-                    :permissions="permissions"
-                    :risk-classifications="riskClassifications"
-                    :empty-message="emptyMessage"
-                    @edit="openEditModal"
-                    @delete="deleteRow"
-                    @submit="submitRow"
-                    @submit-entity="submitEntityRow"
-                    @complete="completeEntityRow"
-                    @request-entity-revision="requestEntityRevisionRow"
-                    @validate="openValidateModal"
-                    @request-agent-revision="requestAgentRevisionRow"
-                />
+                <div class="departement-analyse-table-wrap">
+                    <OperationalRiskTable
+                        :title="tableTitle"
+                        :rows="displayedRows"
+                        :department-code="route.params.code"
+                        :department-environment="route.query.environment"
+                        :permissions="permissions"
+                        :risk-classifications="riskClassifications"
+                        :empty-message="emptyMessage"
+                        @edit="openEditModal"
+                        @delete="deleteRow"
+                        @submit="submitRow"
+                        @submit-entity="submitEntityRow"
+                        @complete="completeEntityRow"
+                        @request-entity-revision="requestEntityRevisionRow"
+                        @validate="openValidateModal"
+                        @request-agent-revision="requestAgentRevisionRow"
+                    />
+                </div>
             </template>
-        </template>
+        </div>
 
         <OperationalRiskValidateModal
             v-model:open="validateModalOpen"
@@ -320,11 +322,17 @@ onMounted(loadAnalyse);
 
 <style scoped>
 .departement-analyse-page {
-    max-width: 100%;
-    margin: 0 auto;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    flex: 1 1 auto;
+    height: 100%;
+    margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 0.85rem;
+    padding: 0.85rem 1rem 1rem;
+    box-sizing: border-box;
 }
 
 .departement-analyse-actions {
@@ -332,6 +340,7 @@ onMounted(loadAnalyse);
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
+    flex-shrink: 0;
 }
 
 .departement-analyse-back {
@@ -380,6 +389,25 @@ onMounted(loadAnalyse);
     gap: 0.5rem;
     border-bottom: 1px solid #e2e8f0;
     padding-bottom: 0.25rem;
+    flex-shrink: 0;
+}
+
+.departement-analyse-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.departement-analyse-table-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    width: 100%;
+    overflow: auto;
 }
 
 .departement-analyse-tab {

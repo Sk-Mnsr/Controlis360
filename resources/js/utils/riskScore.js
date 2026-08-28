@@ -155,6 +155,39 @@ function buildFamilyCategoryMap(categories = []) {
     return map;
 }
 
+function buildCategoryNameMap(categories = []) {
+    const map = new Map();
+
+    for (const category of categories) {
+        if (category?.name) {
+            map.set(category.name, category);
+        }
+    }
+
+    return map;
+}
+
+/**
+ * Résout la catégorie d'une ligne :
+ * - format actuel : correlated_risks = détail, risk_family = nom de catégorie
+ * - ancien format : risk_family = détail
+ */
+function resolveRowCategory(row, familyMap, categoryNameMap) {
+    if (row?.correlated_risks && familyMap.has(row.correlated_risks)) {
+        return familyMap.get(row.correlated_risks);
+    }
+
+    if (row?.risk_family && familyMap.has(row.risk_family)) {
+        return familyMap.get(row.risk_family);
+    }
+
+    if (row?.risk_family && categoryNameMap.has(row.risk_family)) {
+        return categoryNameMap.get(row.risk_family);
+    }
+
+    return null;
+}
+
 function trendForScore(score, maxScore) {
     if (!score || score <= 0) {
         return '—';
@@ -169,6 +202,7 @@ function trendForScore(score, maxScore) {
 
 export function computeRiskCategorySummary(rows, categories = [], classifications = [], mode = 'gross') {
     const familyMap = buildFamilyCategoryMap(categories);
+    const categoryNameMap = buildCategoryNameMap(categories);
     const grouped = new Map();
 
     for (const category of categories) {
@@ -176,7 +210,7 @@ export function computeRiskCategorySummary(rows, categories = [], classification
     }
 
     for (const row of rows ?? []) {
-        const category = familyMap.get(row.risk_family);
+        const category = resolveRowCategory(row, familyMap, categoryNameMap);
 
         if (!category) {
             continue;
