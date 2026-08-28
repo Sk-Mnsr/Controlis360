@@ -306,6 +306,13 @@ def build():
             S["body"],
         )
     )
+    captioned_image(
+        story,
+        S,
+        IMG / "govit-filiale-flag.png",
+        "Figure 7 — Filiale (sélecteur) + drapeau du pays",
+        max_h=7.5 * cm,
+    )
     story.append(Paragraph("4.2 Sections", S["h2"]))
     story.append(
         ListFlowable(
@@ -327,6 +334,23 @@ def build():
             "Agent IT : création limitée aux <b>Points d’Attention</b>.",
             S["body"],
         )
+    )
+    story.append(Spacer(1, 0.15 * cm))
+    story.append(Paragraph("4.2.1 Ajout de lignes (+ bleu) et restriction Agent IT", S["h2"]))
+    story.append(
+        Paragraph(
+            "Dans chaque section (Projets en cours, Chantiers en cours, etc.), cliquez sur le <b>+</b> bleu "
+            "pour ajouter une ligne. Selon votre profil, l’Agent IT peut être limité à <b>Points d’Attention</b> ; "
+            "les lignes peuvent ensuite être éditées si vous êtes <b>Owner</b>.",
+            S["body"],
+        )
+    )
+    captioned_image(
+        story,
+        S,
+        IMG / "govit-tableau.png",
+        "Figure 11 — Ajout de lignes (+ bleu) dans une section",
+        max_h=6.2 * cm,
     )
     story.append(Paragraph("4.3 Colonnes", S["h2"]))
     story.append(
@@ -428,6 +452,23 @@ def build():
         max_h=8.5 * cm,
     )
 
+    # 6.3 Commentaire de ligne
+    story.append(Paragraph("6.3 Commentaire de ligne", S["h2"]))
+    story.append(
+        Paragraph(
+            "Le champ <b>Commentaire</b> est un texte propre à la colonne (différent du chat). "
+            "Utilisez l’icône bulle puis <b>Voir plus</b> pour ouvrir/mettre à jour le commentaire dans une fenêtre dédiée.",
+            S["body"],
+        )
+    )
+    captioned_image(
+        story,
+        S,
+        IMG / "govit-commentaires.png",
+        "Figure 8 — Commentaire de ligne (aperçu + « Voir plus »)",
+        max_h=6.8 * cm,
+    )
+
     # 7 Task Activity
     story.append(Paragraph("7. Task ACTIVITY IT (Responsable Régional)", S["h1"]))
     story.append(
@@ -439,16 +480,42 @@ def build():
         )
     )
 
-    # 8 Parcours
-    story.append(Paragraph("8. Parcours types", S["h1"]))
-    story.append(Paragraph("8.1 Agent IT — Point d’Attention", S["h2"]))
+    captioned_image(
+        story,
+        S,
+        IMG / "govit-task-activity.png",
+        "Figure 9 — Task ACTIVITY IT (vue Responsable Régional)",
+        max_h=7.8 * cm,
+    )
+
+    # 8 Retroplanning
+    story.append(Paragraph("8. Retroplanning (Projets en cours)", S["h1"]))
+    story.append(
+        Paragraph(
+            "Pour un projet, cliquez sur le bouton <b>R</b> afin d’ouvrir le rétroplanning. "
+            "Le rétroplanning se structure en <b>ensembles</b> et en 3 parties : <b>Legal</b>, <b>Technique</b> et <b>Contrôle</b>. "
+            "Utilisez les boutons <b>+</b> pour ajouter des lignes au besoin, puis <b>Modifier / Save / Suppr.</b> selon votre rôle.",
+            S["body"],
+        )
+    )
+    captioned_image(
+        story,
+        S,
+        IMG / "govit-retroplanning.png",
+        "Figure 10 — Rétroplanning : parties Legal / Technique / Contrôle + ajout de lignes",
+        max_h=8.5 * cm,
+    )
+
+    # 9 Parcours
+    story.append(Paragraph("9. Parcours types", S["h1"]))
+    story.append(Paragraph("9.1 Agent IT — Point d’Attention", S["h2"]))
     story.append(
         Paragraph(
             "Créer un ensemble → section Points d’Attention → + → renseigner Impact / Owner / priorité → Save → Send.",
             S["body"],
         )
     )
-    story.append(Paragraph("8.2 Agent IT — Ligne hors Points d’Attention (Owner)", S["h2"]))
+    story.append(Paragraph("9.2 Agent IT — Ligne hors Points d’Attention (Owner)", S["h2"]))
     story.append(
         Paragraph(
             "Le Responsable IT crée la ligne et vous met Owner (case jaune) → vous modifiez → Save → "
@@ -456,14 +523,14 @@ def build():
             S["body"],
         )
     )
-    story.append(Paragraph("8.3 Responsable IT", S["h2"]))
+    story.append(Paragraph("9.3 Responsable IT", S["h2"]))
     story.append(
         Paragraph(
             "Repérer les lignes ambre « En attente » → contrôler chat / PJ → Valider → Send.",
             S["body"],
         )
     )
-    story.append(Paragraph("8.4 Responsable Régional", S["h2"]))
+    story.append(Paragraph("9.4 Responsable Régional", S["h2"]))
     story.append(
         Paragraph(
             "Task ACTIVITY IT → choisir filiale → suivre motifs → discuter / joindre des fichiers.",
@@ -471,8 +538,8 @@ def build():
         )
     )
 
-    # 9 Couleurs
-    story.append(Paragraph("9. Codes couleurs", S["h1"]))
+    # 10 Couleurs
+    story.append(Paragraph("10. Codes couleurs", S["h1"]))
     story.append(
         table(
             [
@@ -488,8 +555,8 @@ def build():
         )
     )
 
-    # 10 FAQ
-    story.append(Paragraph("10. FAQ / Dépannage", S["h1"]))
+    # 11 FAQ
+    story.append(Paragraph("11. FAQ / Dépannage", S["h1"]))
     faqs = [
         (
             "Je ne vois pas CENTRE SUPPORT / SYSTEMES / BASE DE DONNEES",

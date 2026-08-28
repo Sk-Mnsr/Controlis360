@@ -67,7 +67,6 @@
                 </legend>
                 <UserModulesFields
                     v-model="form.assignments"
-                    :disabled="form.platform_profile === 'super_admin'"
                     :hide-heading="true"
                 />
             </fieldset>
@@ -122,6 +121,7 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import {
     assignmentsToPayload,
+    assignmentsToSuperAdminPayload,
     defaultModuleAssignments,
     emptyModuleAssignment,
     primaryProfileFromAssignments,
@@ -251,6 +251,26 @@ async function loadUser() {
         form.environment_ids = extractScopeIds(user, 'environments', 'environment');
         form.entity_ids = extractScopeIds(user, 'entities', 'entity');
         form.assignments = defaultModuleAssignments(user);
+        if (form.platform_profile === 'super_admin') {
+            form.assignments = modules.map((module) => {
+                const existing = form.assignments.find((assignment) => assignment.slug === module.slug);
+                const fallback = ({
+                    cartographie: 'controle',
+                    audit: 'audit',
+                    conformite: 'conformite',
+                    'gouvernance-it': 'agent_it',
+                })[module.slug] ?? 'metier';
+
+                return {
+                    ...emptyModuleAssignment(module.slug),
+                    ...existing,
+                    enabled: true,
+                    profile: existing?.enabled && existing?.profile && !['super_admin', 'admin'].includes(existing.profile)
+                        ? existing.profile
+                        : fallback,
+                };
+            });
+        }
         form.activated = Boolean(user.activated);
         form.password = '';
     } catch (err) {
@@ -266,6 +286,9 @@ async function updateUser() {
     error.value = '';
 
     const { modules: moduleSlugs, module_profiles: moduleProfiles } = assignmentsToPayload(form.assignments);
+    const superAdminPayload = form.platform_profile === 'super_admin'
+        ? assignmentsToSuperAdminPayload(form.assignments)
+        : null;
     const bypassModuleRequirement = ['super_admin', 'admin'].includes(form.platform_profile);
 
     if (!moduleSlugs.length && !bypassModuleRequirement) {
@@ -281,17 +304,8 @@ async function updateUser() {
             name: form.name,
             email: form.email,
             profile: primary.profile,
-            modules: form.platform_profile === 'super_admin'
-                ? modules.map((module) => module.slug)
-                : moduleSlugs,
-            module_profiles: form.platform_profile === 'super_admin'
-                ? Object.fromEntries(modules.map((module) => [module.slug, {
-                    profile: 'super_admin',
-                    controle_role: null,
-                    audit_role: null,
-                    metier_role: null,
-                }]))
-                : moduleProfiles,
+            modules: superAdminPayload?.modules ?? moduleSlugs,
+            module_profiles: superAdminPayload?.module_profiles ?? moduleProfiles,
             environment_ids: needsEnvironment.value ? form.environment_ids : [],
             entity_ids: needsEnvironment.value ? form.entity_ids : [],
             metier_role: primary.metier_role,

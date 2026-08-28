@@ -487,6 +487,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    environmentId: {
+        type: [Number, String, null],
+        default: null,
+    },
 });
 
 const auth = useAuthStore();
@@ -808,7 +812,10 @@ async function loadEnsembles() {
     error.value = '';
     try {
         const { data } = await api.get('/gouvernance-it/ensembles', {
-            params: { module_slug: props.moduleSlug },
+            params: {
+                module_slug: props.moduleSlug,
+                ...(props.environmentId ? { environment_id: props.environmentId } : {}),
+            },
         });
         const list = data.data ?? data ?? [];
         ensembles.value = (Array.isArray(list) ? list : []).map(mapEnsemble);
@@ -825,6 +832,7 @@ async function addEnsemble() {
     try {
         const { data } = await api.post('/gouvernance-it/ensembles', {
             module_slug: props.moduleSlug,
+            ...(props.environmentId ? { environment_id: props.environmentId } : {}),
         });
         const created = mapEnsemble(data.data ?? data);
         ensembles.value.unshift(created);

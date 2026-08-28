@@ -24,20 +24,26 @@
 
             <GovItWorkspaceHeader
                 v-if="canAccess"
+                v-model="selectedEnvironmentId"
                 :filiale="filiale"
                 :filiale-code="filialeCode"
                 :responsable="responsable"
                 :team="team"
                 :loading="loading"
+                :selectable="canSelectFiliale"
+                :filiales="filiales"
                 @add="onAdd"
+                @change="onFilialeChange"
             />
 
             <div class="mt-6">
                 <GovItActivityBoard
-                    v-if="!loading && canAccess"
+                    v-if="!loading && canAccess && selectedEnvironmentId"
                     ref="boardRef"
+                    :key="`${moduleSlug}-${selectedEnvironmentId}`"
                     :module-slug="moduleSlug"
                     :owners="owners"
+                    :environment-id="selectedEnvironmentId"
                 />
             </div>
         </section>
@@ -74,6 +80,9 @@ const loading = ref(true);
 const error = ref('');
 const filiale = ref('—');
 const filialeCode = ref('');
+const filiales = ref([]);
+const selectedEnvironmentId = ref(null);
+const canSelectFiliale = ref(false);
 const responsable = ref('—');
 const team = ref('—');
 const owners = ref([]);
@@ -84,15 +93,23 @@ function canAccessOperations() {
     return ['super_admin', 'admin', 'agent_it', 'responsable_it'].includes(auth.user?.profile);
 }
 
-async function loadContext() {
+async function loadContext(environmentId = null) {
     loading.value = true;
     error.value = '';
 
     try {
-        const { data } = await api.get('/gouvernance-it/context');
+        const params = {};
+        if (environmentId) {
+            params.environment_id = environmentId;
+        }
+
+        const { data } = await api.get('/gouvernance-it/context', { params });
         const payload = data.data ?? data;
         filiale.value = payload.filiale ?? '—';
         filialeCode.value = payload.filiale_code ?? '';
+        filiales.value = payload.filiales ?? [];
+        selectedEnvironmentId.value = payload.environment_id ?? null;
+        canSelectFiliale.value = Boolean(payload.can_select_filiale);
         responsable.value = payload.responsable ?? '—';
         team.value = payload.team ?? '—';
         owners.value = payload.owners ?? [];
@@ -102,6 +119,13 @@ async function loadContext() {
     } finally {
         loading.value = false;
     }
+}
+
+async function onFilialeChange(environmentId) {
+    if (!environmentId) {
+        return;
+    }
+    await loadContext(environmentId);
 }
 
 function onAdd() {

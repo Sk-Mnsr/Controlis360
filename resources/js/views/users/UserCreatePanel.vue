@@ -67,7 +67,6 @@
                 </legend>
                 <UserModulesFields
                     v-model="form.assignments"
-                    :disabled="form.platform_profile === 'super_admin'"
                     :hide-heading="true"
                 />
             </fieldset>
@@ -117,6 +116,7 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import {
     assignmentsToPayload,
+    assignmentsToSuperAdminPayload,
     defaultModuleAssignments,
     emptyModuleAssignment,
     primaryProfileFromAssignments,
@@ -248,6 +248,9 @@ async function createUser() {
     error.value = '';
 
     const { modules: moduleSlugs, module_profiles: moduleProfiles } = assignmentsToPayload(form.assignments);
+    const superAdminPayload = form.platform_profile === 'super_admin'
+        ? assignmentsToSuperAdminPayload(form.assignments)
+        : null;
     const bypassModuleRequirement = ['super_admin', 'admin'].includes(form.platform_profile);
 
     if (!moduleSlugs.length && !bypassModuleRequirement) {
@@ -264,17 +267,8 @@ async function createUser() {
             email: form.email,
             profile: primary.profile,
             password: form.password,
-            modules: form.platform_profile === 'super_admin'
-                ? modules.map((module) => module.slug)
-                : moduleSlugs,
-            module_profiles: form.platform_profile === 'super_admin'
-                ? Object.fromEntries(modules.map((module) => [module.slug, {
-                    profile: 'super_admin',
-                    controle_role: null,
-                    audit_role: null,
-                    metier_role: null,
-                }]))
-                : moduleProfiles,
+            modules: superAdminPayload?.modules ?? moduleSlugs,
+            module_profiles: superAdminPayload?.module_profiles ?? moduleProfiles,
             environment_ids: needsEnvironment.value ? form.environment_ids : [],
             entity_ids: needsEnvironment.value ? form.entity_ids : [],
             metier_role: primary.metier_role,

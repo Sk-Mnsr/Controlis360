@@ -43,13 +43,29 @@ class GouvernanceItController extends APIController
             return $this->responseError(['auth' => ['Accès non autorisé']], 403);
         }
 
-        [$environment, $itEntity, $owners] = $this->resolveScope($user);
+        $availableEnvironments = $this->availableFilialesForUser($user);
+        $requestedEnvironmentId = $request->integer('environment_id') ?: null;
+
+        if ($requestedEnvironmentId && ! $availableEnvironments->contains('id', $requestedEnvironmentId)) {
+            return $this->responseError(['environment_id' => ['Filiale non autorisée']], 403);
+        }
+
+        [$environment, $itEntity, $owners] = $this->resolveScope($user, $requestedEnvironmentId);
         $staff = $this->itStaffForEnvironment($environment?->id);
+        $canSelectFiliale = $this->userCanSelectFiliale($user, $availableEnvironments);
 
         return $this->responseOk([
             'filiale' => $environment?->name ?? '—',
             'filiale_code' => $environment?->code,
             'environment_id' => $environment?->id,
+            'filiales' => $canSelectFiliale
+                ? $availableEnvironments->map(fn ($env) => [
+                    'id' => $env->id,
+                    'name' => $env->name,
+                    'code' => $env->code,
+                ])->values()->all()
+                : [],
+            'can_select_filiale' => $canSelectFiliale,
             'responsable' => $this->formatNameList($staff['responsables']),
             'team' => $this->formatNameList($staff['agents']),
             'equipe_it' => $owners ? $this->formatNameList($owners) : '—',
@@ -71,13 +87,21 @@ class GouvernanceItController extends APIController
 
         $validator = Validator::make($request->all(), [
             'module_slug' => 'required|in:'.implode(',', GouvernanceItActivity::MODULES),
+            'environment_id' => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
             return $this->responseError($validator->errors()->toArray(), 422);
         }
 
-        [$environment] = $this->resolveScope($user);
+        $availableEnvironments = $this->availableFilialesForUser($user);
+        $requestedEnvironmentId = $request->integer('environment_id') ?: null;
+
+        if ($requestedEnvironmentId && ! $availableEnvironments->contains('id', $requestedEnvironmentId)) {
+            return $this->responseError(['environment_id' => ['Filiale non autorisée']], 403);
+        }
+
+        [$environment] = $this->resolveScope($user, $requestedEnvironmentId);
         $moduleSlug = $request->string('module_slug')->toString();
 
         $query = GouvernanceItEnsemble::query()
@@ -106,16 +130,28 @@ class GouvernanceItController extends APIController
 
         $validator = Validator::make($request->all(), [
             'module_slug' => 'required|in:'.implode(',', GouvernanceItActivity::MODULES),
+            'environment_id' => 'nullable|integer',
         ]);
 
         if ($validator->fails()) {
             return $this->responseError($validator->errors()->toArray(), 422);
         }
 
-        [$environment, $itEntity] = $this->resolveScope($user);
+        $availableEnvironments = $this->availableFilialesForUser($user);
+        $requestedEnvironmentId = $request->integer('environment_id') ?: null;
+
+        if ($requestedEnvironmentId && ! $availableEnvironments->contains('id', $requestedEnvironmentId)) {
+            return $this->responseError(['environment_id' => ['Filiale non autorisée']], 403);
+        }
+
+        [$environment, $itEntity] = $this->resolveScope($user, $requestedEnvironmentId);
+
+        if (! $environment) {
+            return $this->responseError(['environment_id' => ['Aucune filiale disponible']], 422);
+        }
 
         $ensemble = GouvernanceItEnsemble::query()->create([
-            'environment_id' => $environment?->id,
+            'environment_id' => $environment->id,
             'entity_id' => $itEntity?->id,
             'module_slug' => $request->string('module_slug')->toString(),
             'label' => GouvernanceItEnsemble::makeAutoLabel(),
@@ -281,7 +317,6 @@ class GouvernanceItController extends APIController
             return $this->responseError($validator->errors()->toArray(), 422);
         }
 
-        [$environment, $itEntity] = $this->resolveScope($user);
         $data = $validator->validated();
 
         $ensemble = GouvernanceItEnsemble::query()->find($data['ensemble_id']);
@@ -307,8 +342,8 @@ class GouvernanceItController extends APIController
             ->max('sort_order');
 
         $activity = GouvernanceItActivity::query()->create([
-            'environment_id' => $environment?->id ?? $ensemble->environment_id,
-            'entity_id' => $itEntity?->id ?? $ensemble->entity_id,
+            'environment_id' => $ensemble->environment_id,
+            'entity_id' => $ensemble->entity_id,
             'ensemble_id' => $ensemble->id,
             'module_slug' => $data['module_slug'],
             'section' => $data['section'],
@@ -1090,9 +1125,9 @@ class GouvernanceItController extends APIController
             return true;
         }
 
-        [$environment] = $this->resolveScope($user);
-
-        return $environment && (int) $activity->environment_id === (int) $environment->id;
+        return $this->availableFilialesForUser($user)
+            ->pluck('id')
+            ->contains((int) $activity->environment_id);
     }
 
     private function userCanViewRetroplanning(User $user, GouvernanceItActivity $activity): bool
@@ -1173,9 +1208,9 @@ class GouvernanceItController extends APIController
             return true;
         }
 
-        [$environment] = $this->resolveScope($user);
-
-        return $environment && (int) $ensemble->environment_id === (int) $environment->id;
+        return $this->availableFilialesForUser($user)
+            ->pluck('id')
+            ->contains((int) $ensemble->environment_id);
     }
 
     private function availableFilialesForUser(User $user)
@@ -1185,6 +1220,15 @@ class GouvernanceItController extends APIController
         }
 
         return $user->environments()->orderBy('name')->get(['environments.id', 'environments.name', 'environments.code']);
+    }
+
+    private function userCanSelectFiliale(User $user, $availableEnvironments): bool
+    {
+        if ($user->isSuperAdmin() || $user->profile === 'admin') {
+            return $availableEnvironments->isNotEmpty();
+        }
+
+        return $availableEnvironments->count() > 1;
     }
 
     /**
@@ -1286,9 +1330,28 @@ class GouvernanceItController extends APIController
     /**
      * @return array{0: ?Environment, 1: ?Entity, 2: array<int, string>}
      */
-    private function resolveScope(User $user): array
+    private function resolveScope(User $user, ?int $environmentId = null): array
     {
-        $environment = $user->environments()->orderBy('name')->first();
+        $available = $this->availableFilialesForUser($user);
+        $environment = null;
+
+        if ($environmentId) {
+            $match = $available->firstWhere('id', $environmentId);
+            if ($match) {
+                $environment = $match instanceof Environment
+                    ? $match
+                    : Environment::query()->find($match->id);
+            }
+        }
+
+        if (! $environment) {
+            $first = $available->first();
+            if ($first) {
+                $environment = $first instanceof Environment
+                    ? $first
+                    : Environment::query()->find($first->id);
+            }
+        }
 
         if (! $environment && $user->isSuperAdmin()) {
             $environment = Entity::query()

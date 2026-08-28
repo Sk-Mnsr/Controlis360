@@ -71,10 +71,14 @@ export function defaultModuleAssignments(user = {}) {
         const saved = fromProfiles?.[slug];
 
         if (saved && typeof saved === 'object') {
+            const savedProfile = saved.profile === 'super_admin' || saved.profile === 'admin'
+                ? (MODULE_PROFILE_OPTIONS[slug]?.[0]?.value ?? base.profile)
+                : (saved.profile ?? base.profile);
+
             return {
                 ...base,
                 enabled: true,
-                profile: saved.profile ?? base.profile,
+                profile: savedProfile,
                 controle_role: saved.controle_role ?? base.controle_role,
                 audit_role: saved.audit_role ?? base.audit_role,
                 metier_role: saved.metier_role ?? base.metier_role,
@@ -128,6 +132,42 @@ export function assignmentsToPayload(assignments = []) {
     }
 
     return { modules: moduleSlugs, module_profiles: moduleProfiles };
+}
+
+/** Profils par module pour un super administrateur (tous les modules, profils éditables). */
+export function assignmentsToSuperAdminPayload(assignments = []) {
+    const { module_profiles: fromAssignments } = assignmentsToPayload(assignments);
+    const moduleProfiles = {};
+
+    for (const slug of ALL_MODULE_SLUGS) {
+        const fromForm = fromAssignments[slug];
+        const assignment = assignments.find((item) => item.slug === slug);
+
+        if (fromForm) {
+            moduleProfiles[slug] = fromForm;
+            continue;
+        }
+
+        const profile = assignment?.profile
+            && !['super_admin', 'admin'].includes(assignment.profile)
+            ? assignment.profile
+            : (MODULE_PROFILE_OPTIONS[slug]?.[0]?.value ?? 'metier');
+
+        moduleProfiles[slug] = {
+            profile,
+            controle_role: profile === 'controle'
+                ? (assignment?.controle_role ?? 'agent_controle_interne')
+                : null,
+            audit_role: profile === 'audit'
+                ? (assignment?.audit_role ?? 'agent_audit')
+                : null,
+            metier_role: profile === 'metier'
+                ? (assignment?.metier_role ?? 'visiteur')
+                : null,
+        };
+    }
+
+    return { modules: [...ALL_MODULE_SLUGS], module_profiles: moduleProfiles };
 }
 
 export const GOUVERNANCE_IT_PROFILES = ['agent_it', 'responsable_it', 'responsable_regional'];
