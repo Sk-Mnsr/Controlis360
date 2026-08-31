@@ -140,9 +140,10 @@ export function buildAuditDashboardStats(recommendations = [], resolveDeadlineSt
         .sort((a, b) => (a._remaining ?? 9999) - (b._remaining ?? 9999))
         .slice(0, 5);
 
-    const monthly = [...byMonth.values()]
-        .sort((a, b) => a.month.localeCompare(b.month))
-        .slice(-6);
+    const monthlyRaw = [...byMonth.values()]
+        .sort((a, b) => a.month.localeCompare(b.month));
+
+    const monthly = padMonthlySeries(monthlyRaw, 6);
 
     return {
         total,
@@ -162,4 +163,24 @@ export function buildAuditDashboardStats(recommendations = [], resolveDeadlineSt
         alerts,
         top_critical: topCritical,
     };
+}
+
+function padMonthlySeries(rows = [], monthsCount = 6) {
+    const byKey = new Map(rows.map((row) => [row.month, row]));
+    const result = [];
+    const now = new Date();
+
+    for (let offset = monthsCount - 1; offset >= 0; offset -= 1) {
+        const date = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        result.push(byKey.get(key) ?? {
+            month: key,
+            total: 0,
+            implemented: 0,
+            in_progress: 0,
+            late: 0,
+        });
+    }
+
+    return result;
 }

@@ -58,7 +58,7 @@
                             </option>
                         </select>
                         <p class="mt-1 text-xs text-slate-500">
-                            Remplit automatiquement le code avec l’ISO 3166-1 alpha-2 (ex. CI, SN, TG).
+                            Indique le pays. Plusieurs environnements peuvent partager le même pays (ex. Sénégal et CTI Sénégal).
                         </p>
                     </div>
 
@@ -74,7 +74,7 @@
                             @input="onCodeInput"
                         />
                         <p class="mt-1 text-xs text-slate-500">
-                            Identifiant unique de l’environnement. Préférez un code ISO pour un pays ; un code libre pour une entité non géographique (ex. Finelle).
+                            Identifiant unique de l’environnement. Si le code ISO est déjà pris, un suffixe est proposé (ex. SN_CTI).
                         </p>
                     </div>
                 </div>
@@ -108,8 +108,10 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import {
     ENVIRONMENT_ISO_COUNTRIES,
+    isoFromEnvironmentCode,
     normalizeEnvironmentCode,
     suggestIsoCodeFromName,
+    uniqueEnvironmentCode,
 } from '../../utils/environmentCodes';
 
 const route = useRoute();
@@ -132,13 +134,19 @@ function extractError(err) {
     const data = err.response?.data;
     if (!data) return 'Erreur lors de l\'enregistrement';
 
-    if (typeof data.message === 'string' && data.message.trim()) return data.message;
+    if (typeof data.message === 'string' && data.message.trim() && data.message !== 'validation.unique') {
+        return data.message;
+    }
     if (Array.isArray(data.message) && data.message[0]) return String(data.message[0]);
 
-    const errors = data.errors ?? data.data?.errors;
-    if (errors) {
-        const first = Object.values(errors).flat()[0];
-        if (first) return first;
+    const errors = data.errors ?? data.data?.errors ?? data.data;
+    if (errors && typeof errors === 'object' && !Array.isArray(errors)) {
+        const first = Object.values(errors).flatMap((value) => (Array.isArray(value) ? value : [value]))[0];
+        if (first && String(first) !== 'validation.unique') return String(first).replace(/<br\s*\/?>/gi, ' ');
+    }
+
+    if (String(data.message || '').includes('unique') || JSON.stringify(data).includes('validation.unique')) {
+        return 'Ce code est déjà utilisé par un autre environnement. Pour le même pays, utilisez un identifiant distinct (ex. SN_CTI).';
     }
 
     return 'Erreur lors de l\'enregistrement';
@@ -149,9 +157,14 @@ function extractEnvironment(responseData) {
     return payload.environment ?? payload.Environment ?? payload;
 }
 
+function usedCodes() {
+    return baseOptions.value
+        .filter((option) => !isEdit.value || String(option.id) !== String(route.params.id))
+        .map((option) => option.code);
+}
+
 function syncSelectedIsoFromCode() {
-    const code = normalizeEnvironmentCode(form.code);
-    selectedIso.value = isoCountries.some((country) => country.code === code) ? code : '';
+    selectedIso.value = isoFromEnvironmentCode(form.code);
 }
 
 function onCodeInput() {
@@ -162,18 +175,17 @@ function onCodeInput() {
 
 function applyIsoCode() {
     if (!selectedIso.value) return;
-    form.code = selectedIso.value;
+    form.code = uniqueEnvironmentCode(selectedIso.value, form.name, usedCodes(), isEdit.value ? form.code : '');
     codeTouched.value = true;
 }
 
 function suggestCodeFromName() {
-    if (codeTouched.value && form.code) return;
+    const iso = selectedIso.value || suggestIsoCodeFromName(form.name);
+    if (iso) selectedIso.value = iso;
 
-    const suggested = suggestIsoCodeFromName(form.name);
-    if (suggested) {
-        form.code = suggested;
-        selectedIso.value = suggested;
-    }
+    if (codeTouched.value && form.code && !isoFromEnvironmentCode(form.code)) return;
+
+    form.code = uniqueEnvironmentCode(iso || form.code, form.name, usedCodes(), isEdit.value ? form.code : '');
 }
 
 async function loadOptions() {
@@ -206,12 +218,15 @@ async function submit() {
     saving.value = true;
     error.value = '';
 
-    const code = normalizeEnvironmentCode(form.code);
+    const code = isEdit.value
+        ? normalizeEnvironmentCode(form.code)
+        : uniqueEnvironmentCode(form.code, form.name, usedCodes());
     if (!code) {
         error.value = 'Le code est obligatoire.';
         saving.value = false;
         return;
     }
+    form.code = code;
 
     try {
         if (isEdit.value) {

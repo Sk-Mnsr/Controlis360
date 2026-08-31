@@ -74,3 +74,71 @@ export function normalizeEnvironmentCode(code) {
         .replace(/\s+/g, '_')
         .replace(/[^A-Z0-9_]/g, '');
 }
+
+export function isoFromEnvironmentCode(code) {
+    const normalized = normalizeEnvironmentCode(code);
+    if (!normalized) return '';
+
+    if (ENVIRONMENT_ISO_COUNTRIES.some((country) => country.code === normalized)) {
+        return normalized;
+    }
+
+    const prefix = normalized.split('_')[0];
+    return ENVIRONMENT_ISO_COUNTRIES.some((country) => country.code === prefix) ? prefix : '';
+}
+
+/**
+ * Code unique : ISO libre (SN) ou ISO + nom (SN_CTI) si le pays a déjà un environnement.
+ */
+export function uniqueEnvironmentCode(requested, name, existingCodes = [], exceptCode = '') {
+    const taken = new Set(
+        existingCodes
+            .map((code) => normalizeEnvironmentCode(code))
+            .filter((code) => code && code !== normalizeEnvironmentCode(exceptCode)),
+    );
+
+    const requestedCode = normalizeEnvironmentCode(requested);
+    if (requestedCode && !taken.has(requestedCode)) {
+        return requestedCode;
+    }
+
+    const iso = isoFromEnvironmentCode(requestedCode) || suggestIsoCodeFromName(name);
+    const slug = slugWithoutCountry(name, iso);
+    const bases = [];
+
+    if (iso && slug) bases.push(`${iso}_${slug}`);
+    if (slug) bases.push(slug);
+    if (iso) bases.push(iso);
+
+    for (const base of bases) {
+        if (base && !taken.has(base)) return base;
+    }
+
+    const prefix = iso || slug || 'ENV';
+    let suffix = 2;
+    let candidate = `${prefix}_${suffix}`;
+    while (taken.has(candidate)) {
+        suffix += 1;
+        candidate = `${prefix}_${suffix}`;
+    }
+
+    return candidate;
+}
+
+function slugWithoutCountry(name, iso) {
+    let slug = normalizeEnvironmentCode(name);
+    if (!slug) return '';
+
+    if (iso) {
+        slug = slug.replace(new RegExp(`(^|_)${iso}(_|$)`, 'g'), '_');
+        const country = ENVIRONMENT_ISO_COUNTRIES.find((item) => item.code === iso);
+        if (country) {
+            const countrySlug = normalizeEnvironmentCode(country.name);
+            if (countrySlug) {
+                slug = slug.replace(new RegExp(`(^|_)${countrySlug}(_|$)`, 'g'), '_');
+            }
+        }
+    }
+
+    return slug.replace(/^_+|_+$/g, '').replace(/_+/g, '_');
+}

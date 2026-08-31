@@ -145,6 +145,11 @@ export function resolveCountryIso(codeOrName) {
         return raw.toLowerCase();
     }
 
+    const isoPrefix = raw.match(/^([a-z]{2})[_-]/i);
+    if (isoPrefix) {
+        return isoPrefix[1].toLowerCase();
+    }
+
     const normalized = raw
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')

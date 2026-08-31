@@ -95,53 +95,101 @@
             </article>
         </div>
 
-        <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h3 class="text-sm font-semibold text-slate-800">Évolution mensuelle des recommandations</h3>
+        <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-semibold text-slate-800">Évolution mensuelle des recommandations</h3>
+                    <p class="mt-0.5 text-xs text-slate-500">Répartition par échéance — 6 derniers mois</p>
+                </div>
+                <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-600">
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="h-2.5 w-2.5 rounded-sm bg-slate-400" /> Total
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="h-2.5 w-2.5 rounded-sm bg-emerald-600" /> Implémentées
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="h-2.5 w-2.5 rounded-sm bg-amber-500" /> En cours
+                    </span>
+                    <span class="inline-flex items-center gap-1.5">
+                        <span class="h-2.5 w-2.5 rounded-sm bg-red-500" /> En retard
+                    </span>
+                </div>
+            </div>
+
             <div v-if="!stats.monthly.length" class="py-10 text-center text-sm text-slate-500">
                 Pas assez de données d’échéances pour tracer l’évolution.
             </div>
-            <div v-else class="mt-4 overflow-x-auto">
-                <div class="flex min-w-[28rem] items-end gap-3" style="height: 11rem">
-                    <div
-                        v-for="month in stats.monthly"
-                        :key="month.month"
-                        class="flex flex-1 flex-col items-center gap-2"
-                    >
-                        <div class="flex h-36 w-full items-end justify-center gap-1">
+
+            <div v-else class="mt-5">
+                <div class="grid grid-cols-[2.25rem_1fr] gap-2">
+                    <div class="relative h-44 text-[10px] font-medium text-slate-400">
+                        <span
+                            v-for="tick in monthAxisTicks"
+                            :key="tick.value"
+                            class="absolute right-0 -translate-y-1/2"
+                            :style="{ top: `${tick.top}%` }"
+                        >
+                            {{ tick.value }}
+                        </span>
+                    </div>
+
+                    <div class="relative h-44 min-w-0">
+                        <div class="pointer-events-none absolute inset-0 flex flex-col justify-between">
                             <div
-                                class="w-2 rounded-t bg-slate-400"
-                                :style="{ height: `${monthBarHeight(month.total)}%` }"
-                                :title="`Total ${month.total}`"
-                            />
-                            <div
-                                class="w-2 rounded-t bg-emerald-600"
-                                :style="{ height: `${monthBarHeight(month.implemented)}%` }"
-                                :title="`Implémentées ${month.implemented}`"
-                            />
-                            <div
-                                class="w-2 rounded-t bg-amber-500"
-                                :style="{ height: `${monthBarHeight(month.in_progress)}%` }"
-                                :title="`En cours ${month.in_progress}`"
-                            />
-                            <div
-                                class="w-2 rounded-t bg-red-500"
-                                :style="{ height: `${monthBarHeight(month.late)}%` }"
-                                :title="`En retard ${month.late}`"
+                                v-for="tick in monthAxisTicks"
+                                :key="`grid-${tick.value}`"
+                                class="border-t border-dashed border-slate-200"
                             />
                         </div>
-                        <span class="text-[10px] font-medium text-slate-500">{{ formatMonth(month.month) }}</span>
+
+                        <div class="relative flex h-full items-end gap-2 px-1 sm:gap-3">
+                            <div
+                                v-for="month in stats.monthly"
+                                :key="month.month"
+                                class="group flex h-full min-w-0 flex-1 items-end justify-center"
+                            >
+                                <div class="flex h-full w-full max-w-[8rem] items-end justify-center gap-1 sm:gap-1.5">
+                                    <div
+                                        v-for="serie in monthSeries"
+                                        :key="serie.key"
+                                        class="relative flex h-full w-3.5 flex-col items-center justify-end sm:w-4"
+                                        :title="`${serie.label} : ${month[serie.key]}`"
+                                    >
+                                        <span
+                                            v-if="month[serie.key] > 0"
+                                            class="mb-1 text-[9px] font-semibold tabular-nums text-slate-600 opacity-0 transition group-hover:opacity-100 sm:opacity-100"
+                                        >
+                                            {{ month[serie.key] }}
+                                        </span>
+                                        <div
+                                            class="w-full rounded-t-md transition-all duration-300"
+                                            :class="serie.barClass"
+                                            :style="{ height: `${monthBarHeight(month[serie.key])}%` }"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
-                    <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm bg-slate-400" /> Total</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm bg-emerald-600" /> Implémentées</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm bg-amber-500" /> En cours</span>
-                    <span class="inline-flex items-center gap-1.5"><span class="h-2 w-2 rounded-sm bg-red-500" /> En retard</span>
+
+                <div class="mt-2 grid grid-cols-[2.25rem_1fr] gap-2">
+                    <div />
+                    <div class="flex gap-2 px-1 sm:gap-3">
+                        <div
+                            v-for="month in stats.monthly"
+                            :key="`label-${month.month}`"
+                            class="min-w-0 flex-1 text-center text-[11px] font-semibold text-slate-600"
+                        >
+                            {{ formatMonth(month.month) }}
+                        </div>
+                    </div>
                 </div>
             </div>
         </article>
 
-        <div class="grid grid-cols-1 gap-4 @[48rem]:grid-cols-2">
+        <div class="grid grid-cols-1 gap-4">
             <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div class="border-b border-slate-100 px-4 py-3">
                     <h3 class="text-sm font-semibold text-slate-800">Alertes & échéances prochaines</h3>
@@ -150,12 +198,12 @@
                     <table class="min-w-full text-sm">
                         <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                             <tr>
-                                <th class="px-4 py-2 font-semibold">Référence</th>
-                                <th class="px-4 py-2 font-semibold">Recommandation</th>
-                                <th class="px-4 py-2 font-semibold">Owner</th>
-                                <th class="px-4 py-2 font-semibold">Échéance</th>
-                                <th class="px-4 py-2 font-semibold">Jours</th>
-                                <th class="px-4 py-2 font-semibold">Statut</th>
+                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Référence</th>
+                                <th class="min-w-[18rem] px-4 py-2 font-semibold">Recommandation</th>
+                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Owner</th>
+                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Échéance</th>
+                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Jours</th>
+                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Statut</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -167,20 +215,22 @@
                                 :key="reco.id"
                                 class="border-t border-slate-100 hover:bg-slate-50"
                             >
-                                <td class="px-4 py-2.5 font-medium text-slate-900">
+                                <td class="whitespace-nowrap px-4 py-2.5 align-top font-medium text-slate-900">
                                     <button type="button" class="hover:text-emerald-700 hover:underline" @click="openReco(reco)">
                                         {{ reco.reference }}
                                     </button>
                                 </td>
-                                <td class="max-w-[12rem] truncate px-4 py-2.5 text-slate-700" :title="recoLabel(reco)">
+                                <td class="min-w-[18rem] px-4 py-2.5 align-top text-slate-700 whitespace-normal break-words">
                                     {{ recoLabel(reco) }}
                                 </td>
-                                <td class="px-4 py-2.5 text-slate-700">{{ reco.responsible_name || '—' }}</td>
-                                <td class="whitespace-nowrap px-4 py-2.5 text-slate-700">{{ formatDate(reco.due_date) }}</td>
-                                <td class="px-4 py-2.5 font-semibold" :style="remainingDaysTextStyle(reco._remaining)">
+                                <td class="min-w-[8rem] px-4 py-2.5 align-top text-slate-700 whitespace-normal break-words">
+                                    {{ reco.responsible_name || '—' }}
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-2.5 align-top text-slate-700">{{ formatDate(reco.due_date) }}</td>
+                                <td class="whitespace-nowrap px-4 py-2.5 align-top font-semibold" :style="remainingDaysTextStyle(reco._remaining)">
                                     {{ reco._remaining ?? '—' }}
                                 </td>
-                                <td class="px-4 py-2.5">
+                                <td class="whitespace-nowrap px-4 py-2.5 align-top">
                                     <span
                                         class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
                                         :style="deadlineToneStyle(reco._deadline.tone)"
@@ -202,11 +252,11 @@
                     <table class="min-w-full text-sm">
                         <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
                             <tr>
-                                <th class="px-4 py-2 font-semibold">Référence</th>
-                                <th class="px-4 py-2 font-semibold">Recommandation</th>
-                                <th class="px-4 py-2 font-semibold">Risque</th>
-                                <th class="px-4 py-2 font-semibold">Échéance</th>
-                                <th class="px-4 py-2 font-semibold">Statut</th>
+                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Référence</th>
+                                <th class="min-w-[18rem] px-4 py-2 font-semibold">Recommandation</th>
+                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Risque</th>
+                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Échéance</th>
+                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Statut</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -218,17 +268,17 @@
                                 :key="`crit-${reco.id}`"
                                 class="border-t border-slate-100 hover:bg-slate-50"
                             >
-                                <td class="px-4 py-2.5 font-medium text-slate-900">
+                                <td class="whitespace-nowrap px-4 py-2.5 align-top font-medium text-slate-900">
                                     <button type="button" class="hover:text-emerald-700 hover:underline" @click="openReco(reco)">
                                         {{ reco.reference }}
                                     </button>
                                 </td>
-                                <td class="max-w-[12rem] truncate px-4 py-2.5 text-slate-700" :title="recoLabel(reco)">
+                                <td class="min-w-[18rem] px-4 py-2.5 align-top text-slate-700 whitespace-normal break-words">
                                     {{ recoLabel(reco) }}
                                 </td>
-                                <td class="px-4 py-2.5 text-slate-700">{{ reco.risk_level_fr || reco.risk_level || '—' }}</td>
-                                <td class="whitespace-nowrap px-4 py-2.5 text-slate-700">{{ formatDate(reco.due_date) }}</td>
-                                <td class="px-4 py-2.5">
+                                <td class="whitespace-nowrap px-4 py-2.5 align-top text-slate-700">{{ reco.risk_level_fr || reco.risk_level || '—' }}</td>
+                                <td class="whitespace-nowrap px-4 py-2.5 align-top text-slate-700">{{ formatDate(reco.due_date) }}</td>
+                                <td class="whitespace-nowrap px-4 py-2.5 align-top">
                                     <span
                                         class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
                                         :style="deadlineToneStyle(reco._deadline.tone)"
@@ -345,7 +395,32 @@ const gaugeStyle = computed(() => {
 });
 
 const maxEntityCount = computed(() => Math.max(...stats.value.by_entity.map((row) => row.count), 1));
-const maxMonthTotal = computed(() => Math.max(...stats.value.monthly.map((row) => row.total), 1));
+const maxMonthTotal = computed(() => Math.max(
+    ...stats.value.monthly.flatMap((row) => [row.total, row.implemented, row.in_progress, row.late]),
+    1,
+));
+
+const monthAxisTicks = computed(() => {
+    const max = Math.max(maxMonthTotal.value, 1);
+    const steps = Math.min(4, max);
+    const values = new Set();
+    for (let i = steps; i >= 0; i -= 1) {
+        values.add(Math.round((max * i) / steps));
+    }
+    return [...values]
+        .sort((a, b) => b - a)
+        .map((value) => ({
+            value,
+            top: ((max - value) / max) * 100,
+        }));
+});
+
+const monthSeries = [
+    { key: 'total', label: 'Total', barClass: 'bg-slate-400' },
+    { key: 'implemented', label: 'Implémentées', barClass: 'bg-emerald-600' },
+    { key: 'in_progress', label: 'En cours', barClass: 'bg-amber-500' },
+    { key: 'late', label: 'En retard', barClass: 'bg-red-500' },
+];
 
 function percentOf(value) {
     if (!stats.value.total) return '0 %';
@@ -357,7 +432,8 @@ function entityBarWidth(count) {
 }
 
 function monthBarHeight(value) {
-    return Math.max(4, Math.round((value / maxMonthTotal.value) * 100));
+    if (!value) return 0;
+    return Math.max(8, Math.round((value / maxMonthTotal.value) * 100));
 }
 
 function formatMonth(value) {

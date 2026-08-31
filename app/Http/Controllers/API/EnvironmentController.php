@@ -44,6 +44,8 @@ class EnvironmentController extends APIController
                 'is_active' => 'sometimes|boolean',
             ];
         };
+
+        $this->updateValidationTextArray = $this->codeValidationMessages();
     }
 
     public function update(Request $request, int $id)
@@ -72,21 +74,18 @@ class EnvironmentController extends APIController
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'duplicate_from_environment_id' => 'nullable|exists:environments,id',
-            'code' => 'nullable|string|max:50|unique:environments,code',
+            'code' => 'nullable|string|max:50',
             'is_active' => 'sometimes|boolean',
-        ]);
+        ], $this->codeValidationMessages());
 
         if ($validator->fails()) {
             return $this->responseError($validator->errors()->toArray(), 422);
         }
 
-        $code = $this->normalizeCode($request->input('code'))
-            ?: $this->suggestIsoCodeFromName((string) $request->input('name'))
-            ?: $this->generateUniqueCode((string) $request->input('name'));
-
-        if (Environment::query()->where('code', $code)->exists()) {
-            return $this->responseError(['code' => ['Ce code est déjà utilisé.']], 422);
-        }
+        $code = $this->ensureUniqueCode(
+            $this->normalizeCode($request->input('code')),
+            (string) $request->input('name'),
+        );
 
         $environment = DB::transaction(function () use ($request, $code) {
             $environment = Environment::query()->create([
@@ -125,18 +124,103 @@ class EnvironmentController extends APIController
         );
     }
 
-    private function generateUniqueCode(string $name): string
+    private function codeValidationMessages(): array
     {
-        $base = Str::upper(Str::slug($name, '_'));
-        $code = $base;
-        $suffix = 1;
+        return [
+            'code.unique' => 'Ce code est déjà utilisé par un autre environnement. Pour le même pays, utilisez un identifiant distinct (ex. SN puis SN_CTI).',
+        ];
+    }
 
-        while (Environment::query()->where('code', $code)->exists()) {
-            $code = $base.'_'.$suffix;
-            $suffix++;
+    private function ensureUniqueCode(string $requested, string $name): string
+    {
+        $taken = Environment::query()->pluck('code')
+            ->map(fn ($code) => $this->normalizeCode((string) $code))
+            ->filter()
+            ->all();
+
+        $requested = $this->normalizeCode($requested);
+        if ($requested !== '' && ! in_array($requested, $taken, true)) {
+            return $requested;
         }
 
-        return $code;
+        $iso = $this->isoFromCode($requested) ?? $this->suggestIsoCodeFromName($name, ignoreTaken: true);
+        $slug = $this->slugWithoutCountry($name, $iso);
+        $candidates = array_values(array_filter([
+            $iso && $slug ? $iso.'_'.$slug : null,
+            $slug ?: null,
+            $iso,
+        ]));
+
+        foreach ($candidates as $candidate) {
+            if ($candidate && ! in_array($candidate, $taken, true)) {
+                return $candidate;
+            }
+        }
+
+        $prefix = $iso ?: ($slug ?: 'ENV');
+        $suffix = 2;
+        $candidate = $prefix.'_'.$suffix;
+        while (in_array($candidate, $taken, true)) {
+            $suffix++;
+            $candidate = $prefix.'_'.$suffix;
+        }
+
+        return $candidate;
+    }
+
+    private function isoFromCode(string $code): ?string
+    {
+        $isoCodes = ['BJ', 'BF', 'CI', 'CM', 'GA', 'GH', 'GN', 'GW', 'GQ', 'ML', 'MR', 'NE', 'NG', 'CG', 'CD', 'SN', 'TD', 'TG'];
+
+        if (in_array($code, $isoCodes, true)) {
+            return $code;
+        }
+
+        $prefix = explode('_', $code)[0] ?? '';
+
+        return in_array($prefix, $isoCodes, true) ? $prefix : null;
+    }
+
+    private function slugWithoutCountry(string $name, ?string $iso): string
+    {
+        $slug = $this->normalizeCode(Str::upper(Str::slug($name, '_')));
+        if ($slug === '') {
+            return '';
+        }
+
+        if ($iso) {
+            $slug = trim(preg_replace('/(^|_)'.$iso.'(_|$)/', '_', $slug) ?? $slug, '_');
+            $countryNames = [
+                'SN' => 'SENEGAL',
+                'TG' => 'TOGO',
+                'CI' => 'COTE_DIVOIRE',
+                'BJ' => 'BENIN',
+                'BF' => 'BURKINA_FASO',
+                'ML' => 'MALI',
+                'GN' => 'GUINEE',
+                'GH' => 'GHANA',
+                'NE' => 'NIGER',
+                'NG' => 'NIGERIA',
+                'CM' => 'CAMEROUN',
+                'GA' => 'GABON',
+                'TD' => 'TCHAD',
+                'MR' => 'MAURITANIE',
+                'CD' => 'RD_CONGO',
+                'CG' => 'CONGO',
+                'GW' => 'GUINEE_BISSAU',
+                'GQ' => 'GUINEE_EQUATORIALE',
+            ];
+            if (isset($countryNames[$iso])) {
+                $slug = trim(preg_replace('/(^|_)'.$countryNames[$iso].'(_|$)/', '_', $slug) ?? $slug, '_');
+            }
+        }
+
+        return trim(preg_replace('/_+/', '_', $slug) ?? $slug, '_');
+    }
+
+    private function generateUniqueCode(string $name): string
+    {
+        return $this->ensureUniqueCode('', $name);
     }
 
     private function normalizeCode(?string $code): string
@@ -148,7 +232,7 @@ class EnvironmentController extends APIController
         return $normalized;
     }
 
-    private function suggestIsoCodeFromName(string $name): ?string
+    private function suggestIsoCodeFromName(string $name, bool $ignoreTaken = false): ?string
     {
         $key = Str::lower(Str::ascii(trim($name)));
         $key = preg_replace("/['’]/u", '', $key) ?? $key;
@@ -175,7 +259,11 @@ class EnvironmentController extends APIController
 
         $iso = $map[$key] ?? null;
 
-        if ($iso && ! Environment::query()->where('code', $iso)->exists()) {
+        if (! $iso) {
+            return null;
+        }
+
+        if ($ignoreTaken || ! Environment::query()->where('code', $iso)->exists()) {
             return $iso;
         }
 
