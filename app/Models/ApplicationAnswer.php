@@ -10,6 +10,7 @@ class ApplicationAnswer extends BaseModel
         'question_id',
         'application_type_id',
         'value',
+        'details',
         'answered_by_id',
     ];
 
@@ -30,6 +31,6 @@ class ApplicationAnswer extends BaseModel
 
     public function isFilled(): bool
     {
-        return filled(trim((string) $this->value));
+        return filled(trim((string) $this->value)) || filled(trim((string) $this->details));
     }
 }

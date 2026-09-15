@@ -8,14 +8,6 @@ return [
         'active' => true,
         'entry_route' => 'cartographie.home',
     ],
-    'cartographie_applications' => [
-        'slug' => 'cartographie-applications',
-        'name' => 'Cartographie des applications',
-        'description' => 'Inventaire et cartographie du patrimoine applicatif.',
-        'active' => true,
-        'coming_soon' => false,
-        'entry_route' => 'cartographie-applications.home',
-    ],
     'audit' => [
         'slug' => 'audit',
         'name' => 'Suivi des reco',

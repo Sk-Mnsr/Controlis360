@@ -28,6 +28,11 @@ class ApplicationType extends BaseModel
         return $this->hasOne(ItService::class);
     }
 
+    public function applications(): HasMany
+    {
+        return $this->hasMany(Application::class);
+    }
+
     public function questions(): HasMany
     {
         return $this->hasMany(ApplicationQuestion::class)->where('scope', 'type');

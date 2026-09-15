@@ -63,7 +63,7 @@
                         :disabled="disabled"
                         @change="updateAssignment(assignment.slug, { controle_role: $event.target.value })"
                     >
-                        <option value="agent_controle_interne">Agent du contrôle interne</option>
+                        <option value="agent_controle_interne">Agent contrôle permanent</option>
                         <option value="responsable_controle_permanent">Responsable Contrôle permanent &amp; risques opérationnels</option>
                     </select>
                 </div>

@@ -63,6 +63,7 @@ class ItServiceController extends APIController
             'answers' => 'required|array',
             'answers.*.question_id' => 'required|integer|exists:application_questions,id',
             'answers.*.value' => 'nullable|string',
+            'answers.*.details' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -102,6 +103,7 @@ class ItServiceController extends APIController
             'customization_level' => 'nullable|string|max:255',
             'backups' => 'nullable|string|max:10',
             'etp_support' => 'nullable|string',
+            'etp_changes' => 'nullable|string',
             'archi_ho' => 'nullable|string|max:10',
             'environment_id' => 'nullable|exists:environments,id',
         ]);

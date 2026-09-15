@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\API\ApplicationController;
 use App\Http\Controllers\API\ItServiceController;
+use App\Http\Controllers\API\ItContractController;
+use App\Http\Controllers\API\ItProjectController;
 use App\Http\Controllers\API\AttachmentController;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\EntityController;
@@ -17,6 +19,7 @@ use App\Http\Controllers\API\MissionTypeController;
 use App\Http\Controllers\API\RecommendationController;
 use App\Http\Controllers\API\RegulatoryReportingFicheController;
 use App\Http\Controllers\API\GouvernanceItController;
+use App\Http\Controllers\API\GenericAccountController;
 use App\Http\Controllers\API\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -200,6 +203,22 @@ Route::controller(AuthController::class)->group(function () {
                 Route::put('/{applicationTypeId}', 'updateService')->name('update');
             });
 
+            Route::prefix('it-contracts')->name('it-contract.')->controller(ItContractController::class)->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::get('/{id}', 'show')->name('show');
+                Route::put('/{id}', 'update')->name('update');
+                Route::delete('/{id}', 'destroy')->name('destroy');
+            });
+
+            Route::prefix('it-projects')->name('it-project.')->controller(ItProjectController::class)->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::get('/{id}', 'show')->name('show');
+                Route::put('/{id}', 'update')->name('update');
+                Route::delete('/{id}', 'destroy')->name('destroy');
+            });
+
             Route::prefix('gouvernance-it')->name('gouvernance-it.')->controller(GouvernanceItController::class)->group(function () {
                 Route::get('/context', 'context')->name('context');
                 Route::get('/ensembles', 'ensemblesIndex')->name('ensembles.index');
@@ -221,6 +240,14 @@ Route::controller(AuthController::class)->group(function () {
                 Route::put('/activities/{id}/retroplanning/{itemId}', 'retroplanningUpdate')->name('activities.retroplanning.update');
                 Route::delete('/activities/{id}/retroplanning/{itemId}', 'retroplanningDestroy')->name('activities.retroplanning.destroy');
                 Route::delete('/activities/{id}', 'activitiesDestroy')->name('activities.destroy');
+            });
+
+            Route::prefix('generic-accounts')->name('generic-accounts.')->controller(GenericAccountController::class)->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::put('/{id}', 'update')->name('update');
+                Route::post('/{id}/validate', 'validateRow')->name('validate');
+                Route::delete('/{id}', 'destroy')->name('destroy');
             });
 
             // Routes supplémentaires sous autorisation

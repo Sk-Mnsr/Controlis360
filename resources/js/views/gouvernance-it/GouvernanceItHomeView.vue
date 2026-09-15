@@ -12,14 +12,13 @@
 
             <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <RouterLink
-                    :to="{ name: 'gouvernance-it.govstrat-itr' }"
+                    v-for="item in subModules"
+                    :key="item.route"
+                    :to="{ name: item.route }"
                     class="rounded-xl border border-slate-200 bg-slate-50 p-5 transition hover:border-slate-400 hover:shadow-sm"
                 >
-                    <p class="text-xs font-semibold uppercase tracking-wide text-slate-600">Sous-module</p>
-                    <p class="mt-2 text-lg font-semibold text-slate-950">GovStrat IT-R</p>
-                    <p class="mt-1 text-sm text-slate-700">
-                        Gouvernance stratégique IT et pilotage des risques informatiques.
-                    </p>
+                    <p class="text-lg font-semibold text-slate-950">{{ item.title }}</p>
+                    <p class="mt-1 text-sm text-slate-700">{{ item.description }}</p>
                 </RouterLink>
             </div>
         </section>
@@ -30,4 +29,22 @@
 import { useAuthStore } from '../../stores/auth';
 
 const auth = useAuthStore();
+
+const subModules = [
+    {
+        title: 'GovStrat IT-R',
+        description: 'Gouvernance stratégique IT et pilotage des risques informatiques.',
+        route: 'gouvernance-it.govstrat-itr',
+    },
+    {
+        title: 'Cartographie des applications',
+        description: 'Inventaire et cartographie du patrimoine applicatif.',
+        route: 'gouvernance-it.cartographie-applications',
+    },
+    {
+        title: 'Registre de comptes génériques',
+        description: 'Suivi et gestion des comptes génériques du système d’information.',
+        route: 'gouvernance-it.registre-comptes-generiques',
+    },
+];
 </script>

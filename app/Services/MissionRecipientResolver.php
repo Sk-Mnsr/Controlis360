@@ -13,8 +13,7 @@ class MissionRecipientResolver
 
         foreach ($entityIds as $entityId) {
             $responsables = User::query()
-                ->where('profile', 'metier')
-                ->where('metier_role', 'responsable_entite')
+                ->auditMetierResponsables()
                 ->where('activated', true)
                 ->whereHas('entities', fn ($query) => $query->where('entities.id', $entityId))
                 ->orderBy('id')

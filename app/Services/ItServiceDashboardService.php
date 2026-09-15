@@ -2,10 +2,10 @@
 
 namespace App\Services;
 
+use App\Models\Application;
 use App\Models\ApplicationAnswer;
 use App\Models\ApplicationQuestion;
 use App\Models\ApplicationType;
-use App\Models\ItService;
 use Illuminate\Support\Collection;
 
 class ItServiceDashboardService
@@ -14,7 +14,11 @@ class ItServiceDashboardService
     {
         $types = ApplicationType::query()
             ->where('is_active', true)
-            ->with('itService')
+            ->with(['applications' => function ($query) {
+                $query->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
+                    ->orderBy('code')
+                    ->orderBy('name');
+            }])
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
@@ -32,7 +36,6 @@ class ItServiceDashboardService
             ->groupBy('application_type_id');
 
         $services = $types->map(function (ApplicationType $type) use ($typeQuestions, $typeAnswers) {
-            // groupBy peut indexer en string selon le driver SQL
             $questions = $typeQuestions->get($type->id)
                 ?? $typeQuestions->get((string) $type->id)
                 ?? collect();
@@ -40,7 +43,10 @@ class ItServiceDashboardService
                 ?? $typeAnswers->get((string) $type->id)
                 ?? collect();
             $fill = $this->computeFillRate($questions, $answers);
-            $service = $this->formatService($type->itService);
+
+            $inventoryApps = $type->applications;
+            $primary = $inventoryApps->first();
+            $service = $this->formatFromInventory($primary);
 
             return array_filter([
                 'application_type_id' => $type->id,
@@ -50,9 +56,12 @@ class ItServiceDashboardService
                 'fill_rate' => $fill['rate'],
                 'answered_count' => $fill['answered'],
                 'questions_count' => $fill['total'],
+                'inventory_application_id' => $primary?->id,
+                'inventory_applications_count' => $inventoryApps->count(),
+                'inventory_application_code' => $primary?->code,
+                'source' => $primary ? 'inventory' : 'empty',
                 'service' => $service,
             ] + ($service ?? []), static fn ($value) => $value !== null);
-
         })->values()->all();
 
         return [
@@ -124,6 +133,7 @@ class ItServiceDashboardService
                 'options' => $question->options ?? [],
                 'is_required' => $question->is_required,
                 'value' => $answer?->value,
+                'details' => $answer?->details,
             ];
         });
     }
@@ -133,6 +143,7 @@ class ItServiceDashboardService
         foreach ($answers as $item) {
             $questionId = (int) ($item['question_id'] ?? 0);
             $value = array_key_exists('value', $item) ? trim((string) ($item['value'] ?? '')) : '';
+            $details = array_key_exists('details', $item) ? trim((string) ($item['details'] ?? '')) : '';
 
             $question = ApplicationQuestion::query()
                 ->where('id', $questionId)
@@ -156,6 +167,7 @@ class ItServiceDashboardService
                 ],
                 [
                     'value' => $value === '' ? null : $value,
+                    'details' => $details === '' ? null : $details,
                     'answered_by_id' => $userId,
                 ],
             );
@@ -178,8 +190,13 @@ class ItServiceDashboardService
         return $this->scopeFillRate($scope);
     }
 
-    public function upsertService(int $applicationTypeId, array $data, ?int $userId): ItService
+    /**
+     * Met à jour (ou crée) l'application d'inventaire rattachée au type Accueil.
+     */
+    public function upsertService(int $applicationTypeId, array $data, ?int $userId): Application
     {
+        $type = ApplicationType::query()->findOrFail($applicationTypeId);
+
         $payload = collect($data)->only([
             'exists_flag',
             'solution_name',
@@ -195,6 +212,7 @@ class ItServiceDashboardService
             'customization_level',
             'backups',
             'etp_support',
+            'etp_changes',
             'archi_ho',
             'environment_id',
         ])->map(function ($value) {
@@ -210,12 +228,68 @@ class ItServiceDashboardService
             return $value;
         })->all();
 
-        $payload['updated_by_id'] = $userId;
+        $application = Application::query()
+            ->where('application_type_id', $type->id)
+            ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
+            ->orderBy('id')
+            ->first();
 
-        return ItService::query()->updateOrCreate(
-            ['application_type_id' => $applicationTypeId],
-            $payload,
-        );
+        $mapped = [
+            'application_type_id' => $type->id,
+            'name' => $payload['solution_name'] ?? ($application?->name ?: $type->name),
+            'editor' => $payload['editor'] ?? null,
+            'importance' => $payload['importance'] ?? null,
+            'version' => $payload['version'] ?? null,
+            'last_version' => $payload['last_version'] ?? null,
+            'sla' => $payload['sla_exists'] ?? null,
+            'hosting_type' => $payload['hosting_mode'] ?? null,
+            'users' => $payload['users_count'] ?? null,
+            'licenses_count' => $payload['licenses_count'] ?? null,
+            'license_type' => $payload['license_type'] ?? null,
+            'customization_level' => $payload['customization_level'] ?? null,
+            'backup' => $payload['backups'] ?? null,
+            'etp_support' => $payload['etp_support'] ?? null,
+            'etp_changes' => $payload['etp_changes'] ?? null,
+            'archi_ho' => $payload['archi_ho'] ?? null,
+            'environment_id' => $payload['environment_id'] ?? null,
+            'business_domain' => $application?->business_domain ?: $type->name,
+            'status' => $this->statusFromExistsFlag($payload['exists_flag'] ?? null, $application?->status),
+        ];
+
+        if ($application) {
+            $application->fill($mapped);
+            $application->save();
+
+            return $application->fresh();
+        }
+
+        $mapped['code'] = $this->nextInventoryCode($type->code);
+        $mapped['created_by_id'] = $userId;
+
+        return Application::query()->create($mapped);
+    }
+
+    private function statusFromExistsFlag(?string $existsFlag, ?string $fallback = null): string
+    {
+        $flag = strtolower(trim((string) $existsFlag));
+
+        if ($flag === 'oui' || $flag === 'yes') {
+            return 'active';
+        }
+
+        if ($flag === 'non' || $flag === 'no') {
+            return 'planned';
+        }
+
+        return $fallback ?: 'active';
+    }
+
+    private function nextInventoryCode(string $typeCode): string
+    {
+        $prefix = 'APP-'.strtoupper(preg_replace('/[^A-Z0-9]/i', '', $typeCode) ?: 'X');
+        $count = Application::query()->where('code', 'like', $prefix.'%')->count() + 1;
+
+        return $prefix.'-'.str_pad((string) $count, 2, '0', STR_PAD_LEFT);
     }
 
     private function computeFillRate(Collection $questions, Collection $answers): array
@@ -229,7 +303,7 @@ class ItServiceDashboardService
         $answered = $questions->filter(function (ApplicationQuestion $question) use ($answerMap) {
             $answer = $answerMap->get($question->id);
 
-            return $answer && filled(trim((string) $answer->value));
+            return $answer && $answer->isFilled();
         })->count();
 
         return [
@@ -239,30 +313,55 @@ class ItServiceDashboardService
         ];
     }
 
-    private function formatService(?ItService $service): ?array
+    private function formatFromInventory(?Application $application): ?array
     {
-        if (! $service) {
-            return null;
+        if (! $application) {
+            return [
+                'exists_flag' => null,
+                'solution_name' => null,
+                'editor' => null,
+                'importance' => null,
+                'version' => null,
+                'last_version' => null,
+                'sla_exists' => null,
+                'hosting_mode' => null,
+                'users_count' => null,
+                'licenses_count' => null,
+                'license_type' => null,
+                'customization_level' => null,
+                'backups' => null,
+                'etp_support' => null,
+                'etp_changes' => null,
+                'archi_ho' => null,
+                'environment_id' => null,
+            ];
         }
 
+        $exists = match ($application->status) {
+            'active' => 'oui',
+            'planned', 'inactive', 'retired' => 'non',
+            default => null,
+        };
+
         return [
-            'id' => $service->id,
-            'exists_flag' => $service->exists_flag,
-            'solution_name' => $service->solution_name,
-            'editor' => $service->editor,
-            'importance' => $service->importance,
-            'version' => $service->version,
-            'last_version' => $service->last_version,
-            'sla_exists' => $service->sla_exists,
-            'hosting_mode' => $service->hosting_mode,
-            'users_count' => $service->users_count,
-            'licenses_count' => $service->licenses_count,
-            'license_type' => $service->license_type,
-            'customization_level' => $service->customization_level,
-            'backups' => $service->backups,
-            'etp_support' => $service->etp_support,
-            'archi_ho' => $service->archi_ho,
-            'environment_id' => $service->environment_id,
+            'id' => $application->id,
+            'exists_flag' => $exists,
+            'solution_name' => $application->name,
+            'editor' => $application->editor,
+            'importance' => $application->importance,
+            'version' => $application->version,
+            'last_version' => $application->last_version,
+            'sla_exists' => $application->sla,
+            'hosting_mode' => $application->hosting_type,
+            'users_count' => $application->users,
+            'licenses_count' => $application->licenses_count,
+            'license_type' => $application->license_type,
+            'customization_level' => $application->customization_level,
+            'backups' => $application->backup,
+            'etp_support' => $application->etp_support,
+            'etp_changes' => $application->etp_changes,
+            'archi_ho' => $application->archi_ho,
+            'environment_id' => $application->environment_id,
         ];
     }
 }

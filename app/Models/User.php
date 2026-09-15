@@ -116,7 +116,7 @@ class User extends AuthenticatableBase
             'colum_name' => 'controle_role',
             'additional_column_name' => 'controle_role_fr',
             'choices' => [
-                'agent_controle_interne' => 'Agent du contrôle interne',
+                'agent_controle_interne' => 'Agent contrôle permanent',
                 'responsable_controle_permanent' => 'Responsable Contrôle permanent & risques opérationnels',
             ],
         ],
@@ -202,6 +202,83 @@ class User extends AuthenticatableBase
             'audit_role' => $this->audit_role,
             'metier_role' => $this->metier_role,
         ];
+    }
+
+    public function moduleProfile(?string $slug): ?string
+    {
+        return $this->profileForModule($slug)['profile'] ?? null;
+    }
+
+    public function moduleMetierRole(?string $slug): ?string
+    {
+        return $this->profileForModule($slug)['metier_role'] ?? null;
+    }
+
+    public function moduleControleRole(?string $slug): ?string
+    {
+        return $this->profileForModule($slug)['controle_role'] ?? null;
+    }
+
+    /** Profil contrôle ou audit sur le module Suivi des recommandations. */
+    public function isAuditStaff(): bool
+    {
+        return in_array($this->moduleProfile('audit'), ['controle', 'audit'], true);
+    }
+
+    public function isAuditMetierResponsable(): bool
+    {
+        return $this->moduleProfile('audit') === UserProfile::Metier->value
+            && $this->moduleMetierRole('audit') === 'responsable_entite';
+    }
+
+    public function isAuditMetierAgent(): bool
+    {
+        return $this->moduleProfile('audit') === UserProfile::Metier->value
+            && $this->moduleMetierRole('audit') === 'agent';
+    }
+
+    public function isAuditRegulator(): bool
+    {
+        return $this->moduleProfile('audit') === UserProfile::Regulateur->value
+            || $this->isSuperAdmin();
+    }
+
+    public function isRegulateur(): bool
+    {
+        return $this->isAuditRegulator();
+    }
+
+    /**
+     * Scope: responsables métier pour le suivi reco (colonnes racine OU module_profiles.audit).
+     */
+    public function scopeAuditMetierResponsables($query)
+    {
+        return $query->where(function ($builder) {
+            $builder
+                ->where(function ($inner) {
+                    $inner->where('profile', UserProfile::Metier->value)
+                        ->where('metier_role', 'responsable_entite');
+                })
+                ->orWhere(function ($inner) {
+                    $inner->where('module_profiles->audit->profile', UserProfile::Metier->value)
+                        ->where('module_profiles->audit->metier_role', 'responsable_entite');
+                });
+        });
+    }
+
+    public function scopeAuditMetierAgents($query)
+    {
+        return $query->where(function ($builder) {
+            $builder
+                ->where(function ($inner) {
+                    $inner->where('profile', UserProfile::Metier->value)
+                        ->where('metier_role', 'agent');
+                })
+                ->orWhere(function ($inner) {
+                    $inner->where('module_profiles->audit->profile', UserProfile::Metier->value)
+                        ->where('module_profiles->audit->metier_role', 'agent');
+                });
+        });
     }
 
     public function getWorkspaceAttribute(): string
@@ -326,20 +403,19 @@ class User extends AuthenticatableBase
 
     public function isControleAgent(): bool
     {
-        return $this->profile === UserProfile::Controle->value
-            && $this->controle_role === 'agent_controle_interne';
+        return $this->moduleProfile('cartographie') === UserProfile::Controle->value
+            && $this->moduleControleRole('cartographie') === 'agent_controle_interne';
     }
 
     public function isControleResponsable(): bool
     {
-        return $this->profile === UserProfile::Controle->value
-            && $this->controle_role === 'responsable_controle_permanent';
+        return $this->moduleProfile('cartographie') === UserProfile::Controle->value
+            && $this->moduleControleRole('cartographie') === 'responsable_controle_permanent';
     }
 
     public function isEntityResponsable(): bool
     {
-        return $this->profile === UserProfile::Metier->value
-            && $this->metier_role === 'responsable_entite';
+        return $this->isAuditMetierResponsable();
     }
 
     public function canEditMethodology(): bool

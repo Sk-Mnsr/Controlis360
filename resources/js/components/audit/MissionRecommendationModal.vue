@@ -15,10 +15,11 @@
                     <div>
                         <label class="mb-1 block text-sm font-medium text-slate-700">Référence</label>
                         <input
+                            v-model="form.reference"
                             type="text"
-                            class="w-full rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm"
-                            :value="referencePreview"
-                            readonly
+                            required
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            placeholder="REC-COBA-06-25"
                         />
                     </div>
                     <div>
@@ -175,6 +176,7 @@ const attachmentSlots = ref([{ key: 1, file: null }]);
 let slotKey = 1;
 
 const form = reactive({
+    reference: '',
     theme: '',
     recommendation_label: '',
     risk_type: '',
@@ -186,7 +188,21 @@ const form = reactive({
     comments: '',
 });
 
-const referencePreview = computed(() => props.mission?.next_recommendation_reference ?? `${props.mission?.reference ?? ''}-R01`);
+function defaultRecommendationReference(missionData) {
+    if (missionData?.next_recommendation_reference) {
+        return String(missionData.next_recommendation_reference).trim();
+    }
+
+    const missionRef = String(missionData?.reference ?? '').trim();
+    if (!missionRef) return 'REC-';
+
+    const existingCount = missionData?.recommendations?.length ?? 0;
+    if (existingCount <= 0) {
+        return `REC-${missionRef}`;
+    }
+
+    return `REC-${missionRef}-${String(existingCount + 1).padStart(2, '0')}`;
+}
 
 const departmentNames = computed(() => {
     const names = (props.mission?.entities ?? []).map((e) => e.name).filter(Boolean);
@@ -197,6 +213,7 @@ const responsiblePreview = computed(() => props.mission?.responsible_preview ?? 
 
 watch(() => props.open, (isOpen) => {
     if (!isOpen) return;
+    form.reference = defaultRecommendationReference(props.mission);
     form.theme = '';
     form.recommendation_label = '';
     form.risk_type = '';
@@ -225,6 +242,7 @@ function onFileSelected(index, event) {
 
 function buildFormData() {
     const fd = new FormData();
+    fd.append('reference', form.reference.trim());
     fd.append('theme', form.theme.trim());
     fd.append('recommendation_label', form.recommendation_label);
     fd.append('risk_type', form.risk_type.trim());

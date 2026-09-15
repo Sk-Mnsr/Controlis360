@@ -2,10 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\Application;
 use App\Models\ApplicationQuestion;
 use App\Models\ApplicationType;
-use App\Models\ItService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\File;
 
 class ApplicationTypeSeeder extends Seeder
 {
@@ -33,6 +34,7 @@ class ApplicationTypeSeeder extends Seeder
             ['code' => 'Outils IT', 'name' => 'Outils IT', 'accent_color' => '#64748b', 'sort_order' => 19],
         ];
 
+        $catalog = $this->loadQuestionCatalog();
         $demoServices = $this->demoServices();
 
         foreach ($types as $type) {
@@ -46,31 +48,155 @@ class ApplicationTypeSeeder extends Seeder
                 ],
             );
 
-            $demo = $demoServices[$type['code']] ?? ['exists_flag' => null];
+            $demo = $demoServices[$type['code']] ?? ['exists_flag' => 'non', 'solution_name' => 'Non prévu'];
+            $this->seedInventoryApplication($model, is_array($demo) ? $demo : []);
 
-            ItService::query()->updateOrCreate(
-                ['application_type_id' => $model->id],
-                $demo,
-            );
-
-            $this->seedTypeQuestions($model);
+            $this->seedTypeQuestions($model, $catalog['types'][$type['code']] ?? []);
         }
 
-        $this->seedGlobalQuestions('generic', [
-            'Quelle est la gouvernance IT globale en place ?',
-            'Existe-t-il une cartographie des processus IT ?',
-            'Les incidents majeurs sont-ils tracés et suivis ?',
-            'Y a-t-il un plan de continuité d’activité IT ?',
-            'Les accès privilégiés sont-ils revus périodiquement ?',
-        ]);
+        $this->seedScopedQuestions('generic', $catalog['generic'] ?? []);
+        $this->seedScopedQuestions('security', $catalog['security'] ?? []);
+    }
 
-        $this->seedGlobalQuestions('security', [
-            'Une politique de sécurité SI est-elle formalisée ?',
-            'Les vulnérabilités critiques sont-elles corrigées sous SLA ?',
-            'L’authentification forte est-elle déployée sur les apps sensibles ?',
-            'Les journaux de sécurité sont-ils centralisés et analysés ?',
-            'Des tests d’intrusion sont-ils réalisés périodiquement ?',
-        ]);
+    private function loadQuestionCatalog(): array
+    {
+        $path = database_path('data/it_audit_questions.json');
+
+        if (! File::exists($path)) {
+            return ['types' => [], 'generic' => [], 'security' => []];
+        }
+
+        $decoded = json_decode(File::get($path), true);
+
+        return is_array($decoded) ? $decoded : ['types' => [], 'generic' => [], 'security' => []];
+    }
+
+    private function seedInventoryApplication(ApplicationType $type, array $demo): void
+    {
+        $exists = strtolower((string) ($demo['exists_flag'] ?? ''));
+        $status = in_array($exists, ['oui', 'yes'], true) ? 'active' : 'planned';
+        $name = trim((string) ($demo['solution_name'] ?? ''));
+        if ($name === '') {
+            $name = $type->name;
+        }
+
+        $code = 'APP-'.strtoupper(preg_replace('/[^A-Z0-9]/i', '', $type->code) ?: 'X').'-01';
+
+        $payload = [
+            'name' => $name,
+            'business_domain' => $type->name,
+            'status' => $status,
+            'editor' => $demo['editor'] ?? null,
+            'importance' => $demo['importance'] ?? null,
+            'version' => $demo['version'] ?? null,
+            'last_version' => $demo['last_version'] ?? null,
+            'sla' => $demo['sla_exists'] ?? null,
+            'hosting_type' => $demo['hosting_mode'] ?? null,
+            'users' => $demo['users_count'] ?? null,
+            'licenses_count' => $demo['licenses_count'] ?? null,
+            'license_type' => $demo['license_type'] ?? null,
+            'customization_level' => $demo['customization_level'] ?? null,
+            'backup' => $demo['backups'] ?? null,
+            'etp_support' => $demo['etp_support'] ?? null,
+            'etp_changes' => $demo['etp_changes'] ?? null,
+            'archi_ho' => $demo['archi_ho'] ?? null,
+            'application_type_id' => $type->id,
+        ];
+
+        $existing = Application::query()
+            ->where('application_type_id', $type->id)
+            ->orderBy('id')
+            ->first();
+
+        if ($existing) {
+            $existing->fill($payload)->save();
+
+            return;
+        }
+
+        if (Application::query()->where('code', $code)->exists()) {
+            $code = 'APP-'.strtoupper(preg_replace('/[^A-Z0-9]/i', '', $type->code) ?: 'X').'-'.str_pad((string) ($type->id), 2, '0', STR_PAD_LEFT);
+        }
+
+        Application::query()->create(array_merge($payload, ['code' => $code]));
+    }
+
+    private function seedTypeQuestions(ApplicationType $type, array $questions): void
+    {
+        if ($questions === []) {
+            return;
+        }
+
+        $keepLabels = [];
+
+        foreach ($questions as $index => $question) {
+            $label = trim((string) ($question['label'] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
+            $keepLabels[] = $label;
+
+            ApplicationQuestion::query()->updateOrCreate(
+                [
+                    'scope' => 'type',
+                    'application_type_id' => $type->id,
+                    'label' => $label,
+                ],
+                [
+                    'help' => $question['help'] ?? null,
+                    'input_type' => $question['input_type'] ?? 'text',
+                    'is_required' => false,
+                    'is_active' => true,
+                    'sort_order' => (int) ($question['sort_order'] ?? ($index + 1)),
+                ],
+            );
+        }
+
+        ApplicationQuestion::query()
+            ->where('scope', 'type')
+            ->where('application_type_id', $type->id)
+            ->whereNotIn('label', $keepLabels)
+            ->update(['is_active' => false]);
+    }
+
+    private function seedScopedQuestions(string $scope, array $questions): void
+    {
+        if ($questions === []) {
+            return;
+        }
+
+        $keepLabels = [];
+
+        foreach ($questions as $index => $question) {
+            $label = trim((string) ($question['label'] ?? ''));
+            if ($label === '') {
+                continue;
+            }
+
+            $keepLabels[] = $label;
+
+            ApplicationQuestion::query()->updateOrCreate(
+                [
+                    'scope' => $scope,
+                    'application_type_id' => null,
+                    'label' => $label,
+                ],
+                [
+                    'help' => $question['help'] ?? null,
+                    'input_type' => $question['input_type'] ?? 'text',
+                    'is_required' => false,
+                    'is_active' => true,
+                    'sort_order' => (int) ($question['sort_order'] ?? ($index + 1)),
+                ],
+            );
+        }
+
+        ApplicationQuestion::query()
+            ->where('scope', $scope)
+            ->whereNull('application_type_id')
+            ->whereNotIn('label', $keepLabels)
+            ->update(['is_active' => false]);
     }
 
     private function demoServices(): array
@@ -119,182 +245,104 @@ class ApplicationTypeSeeder extends Seeder
                 'last_version' => '4.1',
                 'sla_exists' => 'oui',
                 'hosting_mode' => 'Cloud',
-                'users_count' => 'environ 50',
+                'users_count' => 'Illimité',
                 'licenses_count' => 'Illimité',
-                'license_type' => 'Partagées',
+                'license_type' => 'Nominatives',
                 'customization_level' => 'Très haut',
                 'backups' => 'oui',
-                'etp_support' => 'Niveau 2 : Filiale : ETP dédiés : 2',
+                'etp_support' => 'Niveau 1 : Holding ETP 5 / Filiale ETP 1',
                 'archi_ho' => 'non',
             ],
             'MB' => [
                 'exists_flag' => 'oui',
                 'solution_name' => 'COFINA MOBILE +',
-                'editor' => 'COFINA',
+                'editor' => 'SMARTS SOLUTIONS',
                 'importance' => 'Primordial',
-                'version' => '2.1',
-                'last_version' => '2.3',
-                'sla_exists' => 'oui',
+                'version' => '1.7',
+                'last_version' => '1.7.5',
+                'sla_exists' => 'non',
                 'hosting_mode' => 'Cloud',
-                'users_count' => 'Illimité',
-                'licenses_count' => 'Illimité',
-                'license_type' => 'Partagées',
-                'customization_level' => 'Haut',
+                'users_count' => '8600',
+                'licenses_count' => 'VOIR IT GROUPE',
+                'license_type' => 'Nominatives',
+                'customization_level' => 'Très haut',
                 'backups' => 'oui',
-                'etp_support' => 'Support groupe + filiales',
                 'archi_ho' => 'oui',
             ],
             'IB' => [
-                'exists_flag' => 'oui',
-                'solution_name' => 'COFINA NET',
-                'editor' => 'COFINA',
+                'exists_flag' => 'non',
+                'solution_name' => 'Non prévu',
                 'importance' => 'Moyen',
-                'sla_exists' => 'oui',
-                'hosting_mode' => 'On-site',
-                'backups' => 'oui',
-                'archi_ho' => 'oui',
             ],
             'AML' => [
                 'exists_flag' => 'oui',
-                'solution_name' => 'Vneuron AML',
+                'solution_name' => 'REIS',
                 'editor' => 'Vneuron',
                 'importance' => 'Critique',
+                'version' => 'Vneuron © Reis™ RCS 4.1',
+                'last_version' => '4.1',
                 'sla_exists' => 'oui',
-                'hosting_mode' => 'On-site',
+                'hosting_mode' => 'Cloud',
+                'users_count' => 'une vingtaine',
+                'licenses_count' => 'une licence par filiale',
+                'license_type' => 'Partagées',
+                'customization_level' => 'Très haut',
                 'backups' => 'oui',
-                'archi_ho' => 'oui',
+                'archi_ho' => 'non',
             ],
             'Collect' => [
-                'exists_flag' => 'oui',
-                'solution_name' => 'Collecte terrain',
-                'editor' => 'COFINA',
-                'importance' => 'Moyen',
+                'exists_flag' => 'non',
+                'solution_name' => 'Module : Collection',
+                'importance' => 'Critique',
+                'version' => 'Version 14.7',
+                'last_version' => 'Version 14.9',
                 'hosting_mode' => 'On-site',
-                'backups' => 'oui',
             ],
-            'CRM' => [
-                'exists_flag' => 'oui',
-                'solution_name' => 'CRM COFINA',
-                'editor' => 'COFINA',
-                'importance' => 'Moyen',
-                'hosting_mode' => 'Cloud',
-                'backups' => 'oui',
-            ],
-            'Call Center' => [
-                'exists_flag' => 'non',
-                'solution_name' => 'Non prévu',
-            ],
-            'DocM' => [
-                'exists_flag' => 'non',
-                'solution_name' => 'Non prévu',
-            ],
-            'BI' => [
-                'exists_flag' => 'non',
-                'solution_name' => 'Non prévu',
-            ],
-            'SOA' => [
-                'exists_flag' => 'non',
-                'solution_name' => 'Non prévu',
-            ],
+            'CRM' => ['exists_flag' => 'non', 'solution_name' => 'Non prévu', 'importance' => 'Moyen'],
+            'Call Center' => ['exists_flag' => 'non', 'solution_name' => 'Non prévu', 'importance' => 'Moyen'],
+            'DocM' => ['exists_flag' => 'non', 'solution_name' => 'Non prévu', 'importance' => 'Faible'],
+            'BI' => ['exists_flag' => 'non', 'solution_name' => 'Non prévu', 'importance' => 'Moyen'],
+            'SOA' => ['exists_flag' => 'non', 'solution_name' => 'Non prévu', 'importance' => 'Moyen'],
             'ERP Finance' => [
                 'exists_flag' => 'oui',
-                'solution_name' => 'ERP Finance',
-                'importance' => 'Critique',
+                'solution_name' => 'Module CBS',
+                'importance' => 'Moyen',
                 'hosting_mode' => 'On-site',
-                'backups' => 'oui',
             ],
             'ERP HR' => [
                 'exists_flag' => 'oui',
-                'solution_name' => 'ERP RH',
+                'solution_name' => 'digitalisée d\'évaluation des performances de COFINA',
+                'editor' => 'COFINA',
                 'importance' => 'Moyen',
                 'hosting_mode' => 'On-site',
-                'backups' => 'oui',
             ],
             'Gestion des Achats' => [
                 'exists_flag' => 'oui',
-                'solution_name' => 'Gestion des Achats',
-                'importance' => 'Faible',
+                'solution_name' => 'COFIFED',
+                'editor' => 'COFINA',
+                'importance' => 'Moyen',
+                'version' => '1.1',
+                'last_version' => '1.2',
                 'hosting_mode' => 'On-site',
             ],
             'Contract' => [
                 'exists_flag' => 'oui',
-                'solution_name' => 'Contract Management',
+                'solution_name' => 'application de recrutement RH & gestion des contrats',
+                'editor' => 'COFINA',
                 'importance' => 'Moyen',
+                'hosting_mode' => 'On-site',
             ],
             'Messagerie' => [
                 'exists_flag' => 'oui',
                 'solution_name' => 'OFFICE 365',
                 'editor' => 'Microsoft',
                 'importance' => 'Primordial',
-                'sla_exists' => 'oui',
+                'sla_exists' => 'non',
                 'hosting_mode' => 'Cloud',
-                'users_count' => 'Illimité',
-                'licenses_count' => 'Nominatives',
-                'license_type' => 'Nominatives',
-                'backups' => 'oui',
                 'archi_ho' => 'oui',
             ],
-            'Autres' => [
-                'exists_flag' => 'oui',
-                'solution_name' => 'Divers outils métier',
-                'importance' => 'Faible',
-            ],
-            'Outils IT' => [
-                'exists_flag' => 'oui',
-                'solution_name' => 'Outils d’administration IT',
-                'importance' => 'Moyen',
-                'hosting_mode' => 'On-site',
-                'backups' => 'oui',
-            ],
+            'Autres' => ['exists_flag' => 'oui'],
+            'Outils IT' => ['exists_flag' => 'oui'],
         ];
-    }
-
-    private function seedTypeQuestions(ApplicationType $type): void
-    {
-        $labels = [
-            'La solution est-elle en production ?',
-            'Qui est le responsable métier de cette application ?',
-            'Qui est le responsable technique / support ?',
-            'Un contrat de maintenance est-il en vigueur ?',
-            'Les sauvegardes sont-elles testées régulièrement ?',
-            'Un plan de reprise est-il documenté pour ce service ?',
-            'Des dépendances critiques existent-elles (intégrations) ?',
-            'Le niveau de criticité métier est-il validé ?',
-        ];
-
-        foreach ($labels as $index => $label) {
-            ApplicationQuestion::query()->updateOrCreate(
-                [
-                    'scope' => 'type',
-                    'application_type_id' => $type->id,
-                    'label' => $label,
-                ],
-                [
-                    'input_type' => $index === 1 || $index === 2 ? 'text' : 'yes_no',
-                    'is_required' => true,
-                    'is_active' => true,
-                    'sort_order' => $index + 1,
-                ],
-            );
-        }
-    }
-
-    private function seedGlobalQuestions(string $scope, array $labels): void
-    {
-        foreach ($labels as $index => $label) {
-            ApplicationQuestion::query()->updateOrCreate(
-                [
-                    'scope' => $scope,
-                    'application_type_id' => null,
-                    'label' => $label,
-                ],
-                [
-                    'input_type' => 'yes_no',
-                    'is_required' => true,
-                    'is_active' => true,
-                    'sort_order' => $index + 1,
-                ],
-            );
-        }
     }
 }

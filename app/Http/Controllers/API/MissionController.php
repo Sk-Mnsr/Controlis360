@@ -195,7 +195,7 @@ class MissionController extends APIController
     {
         $user = $request->user();
 
-        if ($user->profile !== 'metier' || $user->metier_role !== 'responsable_entite') {
+        if (! $user->isAuditMetierResponsable()) {
             return $this->responseError(['message' => ['Seul un responsable d\'entité peut prendre en charge.']], 403);
         }
 
@@ -510,7 +510,7 @@ class MissionController extends APIController
             return $user->canAccessMissionEnvironments($mission->entities);
         }
 
-        return in_array($user->profile, ['controle', 'audit'], true)
+        return $user->isAuditStaff()
             && (int) $mission->created_by === (int) $user->id;
     }
 
@@ -528,7 +528,7 @@ class MissionController extends APIController
             return $user->canAccessMissionEnvironments($mission->entities);
         }
 
-        if (! in_array($user->profile, ['controle', 'audit'], true)) {
+        if (! $user->isAuditStaff()) {
             return false;
         }
 
@@ -545,13 +545,13 @@ class MissionController extends APIController
             return true;
         }
 
-        return in_array($user->profile, ['controle', 'audit'], true);
+        return $user->isAuditStaff();
     }
 
     private function canCreateMission(User $user): bool
     {
         return $user->isPlatformAdministrator()
-            || in_array($user->profile, ['controle', 'audit'], true);
+            || $user->isAuditStaff();
     }
 
     private function canViewMissions(User $user): bool
@@ -560,15 +560,15 @@ class MissionController extends APIController
             return true;
         }
 
-        if (in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isAuditStaff()) {
             return true;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             return true;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'agent') {
+        if ($user->isAuditMetierAgent()) {
             return MissionResponse::query()
                 ->where('assigned_agent_id', $user->id)
                 ->exists();
@@ -587,7 +587,7 @@ class MissionController extends APIController
             return $user->canAccessMissionEnvironments($mission->entities);
         }
 
-        if (in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isAuditStaff()) {
             $environmentIds = $user->environment_ids;
 
             if (empty($environmentIds)) {
@@ -599,11 +599,11 @@ class MissionController extends APIController
             );
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             return $mission->recipients->contains('id', $user->id);
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'agent') {
+        if ($user->isAuditMetierAgent()) {
             return $mission->responses->contains('assigned_agent_id', $user->id);
         }
 
@@ -616,7 +616,7 @@ class MissionController extends APIController
             return;
         }
 
-        if ($user->isEnvironmentAdmin() || in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isEnvironmentAdmin() || $user->isAuditStaff()) {
             $environmentIds = $user->environment_ids;
 
             if ($user->isEnvironmentAdmin() && empty($environmentIds)) {
@@ -634,7 +634,7 @@ class MissionController extends APIController
             return;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             $query->whereHas('recipients', function ($recipientQuery) use ($user) {
                 $recipientQuery->where('users.id', $user->id);
             });
@@ -642,7 +642,7 @@ class MissionController extends APIController
             return;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'agent') {
+        if ($user->isAuditMetierAgent()) {
             $query->whereHas('responses', function ($responseQuery) use ($user) {
                 $responseQuery->where('assigned_agent_id', $user->id);
             });
@@ -659,9 +659,14 @@ class MissionController extends APIController
         $count = $mission->relationLoaded('recommendations')
             ? $mission->recommendations->count()
             : $mission->recommendations()->count();
-        $number = str_pad((string) ($count + 1), 2, '0', STR_PAD_LEFT);
 
-        return $mission->reference.'-R'.$number;
+        $base = 'REC-'.trim((string) $mission->reference);
+
+        if ($count <= 0) {
+            return $base;
+        }
+
+        return $base.'-'.str_pad((string) ($count + 1), 2, '0', STR_PAD_LEFT);
     }
 
     private function storeRecommendationAttachments(Request $request, int $missionId): array
@@ -727,7 +732,7 @@ class MissionController extends APIController
             'created_by' => $mission->created_by,
         ];
 
-        if ($viewer && $viewer->profile === 'metier' && $viewer->metier_role === 'responsable_entite') {
+        if ($viewer && $viewer->isAuditMetierResponsable()) {
             $recipient = $mission->recipients->firstWhere('id', $viewer->id);
             $responsableResponse = $mission->responses->firstWhere('responsable_id', $viewer->id);
 
@@ -746,7 +751,7 @@ class MissionController extends APIController
             }
         }
 
-        if ($viewer && $viewer->profile === 'metier' && $viewer->metier_role === 'agent') {
+        if ($viewer && $viewer->isAuditMetierAgent()) {
             $agentResponse = $mission->responses->firstWhere('assigned_agent_id', $viewer->id);
             if ($agentResponse) {
                 $item['mission_response'] = $this->responseController->formatResponse($agentResponse, $viewer);
@@ -755,7 +760,7 @@ class MissionController extends APIController
             }
         }
 
-        if ($viewer && ($viewer->isPlatformAdministrator() || in_array($viewer->profile, ['controle', 'audit'], true))) {
+        if ($viewer && ($viewer->isPlatformAdministrator() || $viewer->isAuditStaff())) {
             $item['can_edit'] = $this->canManageMission($viewer, $mission);
             $item['can_delete'] = $this->canManageMission($viewer, $mission);
             $item['can_add_recommendation'] = $this->canAddRecommendationToMission($viewer, $mission);
@@ -770,7 +775,7 @@ class MissionController extends APIController
             ])->values();
         }
 
-        if ($viewer && ($viewer->isPlatformAdministrator() || in_array($viewer->profile, ['controle', 'audit'], true))) {
+        if ($viewer && ($viewer->isPlatformAdministrator() || $viewer->isAuditStaff())) {
             $item['responses'] = $mission->responses
                 ->where('workflow_status', 'transmis')
                 ->map(fn (MissionResponse $r) => $this->responseController->formatResponse($r, $viewer))
@@ -950,7 +955,7 @@ class MissionController extends APIController
 
     private function resolveRecommendationActionPlanOwnerId(User $user, Recommendation $recommendation): ?int
     {
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             $entityIds = $user->entity_ids ?? [];
             $primaryEntityId = $recommendation->primary_entity_id
                 ? (int) $recommendation->primary_entity_id
@@ -971,7 +976,7 @@ class MissionController extends APIController
             return (int) $user->id;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'agent') {
+        if ($user->isAuditMetierAgent()) {
             $response = $recommendation->mission->responses
                 ->first(fn ($item) => $item->assigned_agent_id === $user->id
                     && $item->response_type === 'action'
@@ -989,7 +994,7 @@ class MissionController extends APIController
             return false;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             return ! $recommendation->mission->responses->contains(fn ($response) => $response->responsable_id === $user->id
                 && $response->response_type === 'action'
                 && $response->handling_mode === 'agent'
@@ -1065,11 +1070,11 @@ class MissionController extends APIController
             return null;
         }
 
-        if ($viewer->profile === 'metier' && $viewer->metier_role === 'responsable_entite') {
+        if ($viewer->isAuditMetierResponsable()) {
             return $mission->responses->firstWhere('responsable_id', $viewer->id);
         }
 
-        if ($viewer->profile === 'metier' && $viewer->metier_role === 'agent') {
+        if ($viewer->isAuditMetierAgent()) {
             return $mission->responses->firstWhere('assigned_agent_id', $viewer->id);
         }
 

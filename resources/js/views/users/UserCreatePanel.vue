@@ -170,7 +170,6 @@ const MODULE_PROFILE_FALLBACK = {
     cartographie: 'controle',
     audit: 'audit',
     conformite: 'conformite',
-    'cartographie-applications': 'metier',
     'gouvernance-it': 'agent_it',
 };
 

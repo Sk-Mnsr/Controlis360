@@ -48,20 +48,30 @@ class ApplicationController extends APIController
         'backup' => 'nullable|string|max:255',
         'sla' => 'nullable|string|max:255',
         'comment' => 'nullable|string',
+        'editor' => 'nullable|string|max:255',
+        'importance' => 'nullable|string|max:255',
+        'version' => 'nullable|string|max:255',
         'cost' => 'nullable|string|max:255',
         'impact' => 'nullable|string|max:255',
         'risk' => 'nullable|string|max:255',
         'last_version' => 'nullable|string|max:255',
+        'licenses_count' => 'nullable|string|max:255',
+        'license_type' => 'nullable|string|max:255',
+        'customization_level' => 'nullable|string|max:255',
+        'etp_support' => 'nullable|string',
+        'etp_changes' => 'nullable|string',
+        'archi_ho' => 'nullable|string|max:10',
         'environment_id' => 'nullable|exists:environments,id',
         'entity_id' => 'nullable|exists:entities,id',
+        'application_type_id' => 'nullable|exists:application_types,id',
     ];
 
     public function __construct()
     {
         parent::__construct();
 
-        $this->indexWithArray = ['environment', 'entity'];
-        $this->showWithArray = ['environment', 'entity', 'createdBy'];
+        $this->indexWithArray = ['environment', 'entity', 'applicationType'];
+        $this->showWithArray = ['environment', 'entity', 'createdBy', 'applicationType'];
 
         $this->indexManualFilter = function ($query, User $user) {
             if (! $user->isSuperAdmin() && $user->isEnvironmentAdmin()) {

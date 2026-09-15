@@ -22,6 +22,7 @@ class ItService extends BaseModel
         'customization_level',
         'backups',
         'etp_support',
+        'etp_changes',
         'archi_ho',
         'environment_id',
         'updated_by_id',

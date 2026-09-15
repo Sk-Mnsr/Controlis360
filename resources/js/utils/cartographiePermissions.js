@@ -1,9 +1,23 @@
+import { profileForModule } from '../config/module-access';
+
 export function canEditMethodology(user) {
-    return ['super_admin', 'admin'].includes(user?.profile)
-        || (user?.profile === 'controle' && user?.controle_role === 'responsable_controle_permanent');
+    if (['super_admin', 'admin'].includes(user?.profile)) {
+        return true;
+    }
+
+    const assignment = profileForModule(user, 'cartographie');
+
+    return assignment?.profile === 'controle'
+        && assignment?.controle_role === 'responsable_controle_permanent';
 }
 
 export function canCreateOperationalRiskRow(user) {
-    return ['super_admin', 'admin'].includes(user?.profile)
-        || (user?.profile === 'controle' && ['agent_controle_interne', 'responsable_controle_permanent'].includes(user?.controle_role));
+    if (['super_admin', 'admin'].includes(user?.profile)) {
+        return true;
+    }
+
+    const assignment = profileForModule(user, 'cartographie');
+
+    return assignment?.profile === 'controle'
+        && ['agent_controle_interne', 'responsable_controle_permanent'].includes(assignment?.controle_role);
 }

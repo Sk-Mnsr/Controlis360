@@ -2,49 +2,77 @@
     <div class="flex h-screen overflow-hidden bg-slate-50 text-slate-900">
         <aside
             v-if="!hideSidebar"
-            class="flex h-screen shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white"
+            class="sidebar flex h-screen shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white transition-[width] duration-200 ease-out"
             :class="[
-                activeModule ? 'w-64 sm:w-72' : 'w-56 sm:w-64',
+                sidebarCollapsed
+                    ? 'w-64 sm:w-72 lg:w-[4.75rem]'
+                    : (activeModule ? 'w-64 sm:w-72' : 'w-56 sm:w-64'),
+                sidebarCollapsed ? 'sidebar--collapsed' : '',
                 'max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:transition-transform',
                 mobileNavOpen ? 'max-lg:translate-x-0' : 'max-lg:-translate-x-full',
             ]"
         >
-            <div class="shrink-0 border-b border-slate-200 px-5 py-5">
-                <img
-                    :src="logoUrl"
-                    alt="COFINA — Compagnie Financière Africaine"
-                    class="h-14 w-auto max-w-full object-contain object-left"
-                />
-                <p v-if="isPortal" class="mt-2.5 text-sm font-medium text-slate-600">Controlis360</p>
-                <p v-else-if="activeModule" class="mt-2.5 text-sm font-medium text-slate-600">{{ activeModule.name }}</p>
+            <div class="sidebar-brand shrink-0 border-b border-slate-200 px-3 py-3">
+                <div class="flex items-center gap-2">
+                    <img
+                        :src="logoUrl"
+                        alt="COFINA — Compagnie Financière Africaine"
+                        class="sidebar-logo object-contain object-left"
+                    />
+                    <button
+                        type="button"
+                        class="sidebar-rail-btn ml-auto"
+                        :aria-label="sidebarCollapsed ? 'Développer le menu' : 'Réduire le menu'"
+                        :title="sidebarCollapsed ? 'Développer le menu' : 'Réduire le menu'"
+                        @click="toggleSidebarRail"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            class="h-4 w-4 transition-transform duration-200"
+                            :class="{ 'rotate-180': sidebarCollapsed }"
+                            aria-hidden="true"
+                        >
+                            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+                <p v-if="!sidebarCollapsed && isPortal" class="mt-2.5 px-1 text-sm font-medium text-slate-600">Controlis360</p>
+                <p v-else-if="!sidebarCollapsed && activeModule" class="mt-2.5 px-1 text-sm font-medium text-slate-600">{{ activeModule.name }}</p>
             </div>
 
-            <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
+            <nav class="sidebar-nav min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-2 py-3">
                 <RouterLink
                     v-if="isPortal"
                     class="nav-link nav-link-active"
                     :to="{ name: 'portal' }"
+                    title="Modules"
                 >
-                    Modules
+                    <span class="nav-ico" aria-hidden="true">▦</span>
+                    <span class="nav-label">Modules</span>
                 </RouterLink>
 
                 <template v-else-if="activeModule?.slug === 'cartographie'">
-                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
-                        ← Tous les modules
+                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }" title="Tous les modules">
+                        <span class="nav-ico" aria-hidden="true">←</span>
+                        <span class="nav-label">Tous les modules</span>
                     </RouterLink>
 
                     <button
                         type="button"
                         class="nav-link nav-cartographie"
                         :class="{ 'nav-cartographie-active': isCartographieSection }"
+                        title="Cartographie"
                         @click="openCartographie"
                     >
-                        Cartographie
+                        <span class="nav-ico" aria-hidden="true">◉</span>
+                        <span class="nav-label">Cartographie</span>
                     </button>
 
                     <div class="nav-group">
                         <p class="nav-group-label" :class="{ 'nav-group-label-active': isMethodologySection }">
-                            Méthodologie
+                            <span class="nav-label">Méthodologie</span>
                         </p>
                         <div class="nav-group-children">
                             <template v-for="item in methodologyItems" :key="item.id">
@@ -53,24 +81,30 @@
                                     class="nav-sublink"
                                     :class="{ 'nav-sublink-active': isMethodologyItemActive(item) }"
                                     :to="{ name: 'cartographie.methodology.show', params: { slug: item.slug } }"
+                                    :title="item.label"
                                 >
-                                    {{ item.label }}
+                                    <span class="nav-ico nav-ico-letter" aria-hidden="true">{{ itemInitial(item.label) }}</span>
+                                    <span class="nav-label">{{ item.label }}</span>
                                 </RouterLink>
                                 <RouterLink
                                     v-else-if="item.route"
                                     class="nav-sublink"
                                     :class="{ 'nav-sublink-active': route.name === item.route }"
                                     :to="{ name: item.route }"
+                                    :title="item.label"
                                 >
-                                    {{ item.label }}
+                                    <span class="nav-ico nav-ico-letter" aria-hidden="true">{{ itemInitial(item.label) }}</span>
+                                    <span class="nav-label">{{ item.label }}</span>
                                 </RouterLink>
                                 <button
                                     v-else
                                     type="button"
                                     class="nav-sublink nav-sublink-btn"
+                                    :title="item.label"
                                     @click="navigateMethodology(item)"
                                 >
-                                    {{ item.label }}
+                                    <span class="nav-ico nav-ico-letter" aria-hidden="true">{{ itemInitial(item.label) }}</span>
+                                    <span class="nav-label">{{ item.label }}</span>
                                 </button>
                             </template>
                         </div>
@@ -78,7 +112,7 @@
 
                     <div class="nav-group">
                         <p class="nav-group-label" :class="{ 'nav-group-label-active': isSaisieSection }">
-                            Saisie
+                            <span class="nav-label">Saisie</span>
                         </p>
                         <div class="nav-group-children">
                             <RouterLink
@@ -86,8 +120,10 @@
                                 class="nav-sublink"
                                 :class="{ 'nav-sublink-active': route.name === 'cartographie.saisie-risques' }"
                                 :to="{ name: 'cartographie.saisie-risques' }"
+                                title="Nouvelle ligne"
                             >
-                                Nouvelle ligne
+                                <span class="nav-ico" aria-hidden="true">＋</span>
+                                <span class="nav-label">Nouvelle ligne</span>
                             </RouterLink>
                         </div>
                     </div>
@@ -98,11 +134,13 @@
                             class="nav-group-toggle"
                             :class="{ 'nav-group-toggle-active': isDepartmentsSection }"
                             :aria-expanded="departmentsOpen"
-                            @click="departmentsOpen = !departmentsOpen"
+                            title="Départements"
+                            @click="toggleDepartmentsSection"
                         >
-                            <span>Départements</span>
+                            <span class="nav-ico" aria-hidden="true">▣</span>
+                            <span class="nav-label">Départements</span>
                             <svg
-                                class="nav-group-chevron"
+                                class="nav-group-chevron nav-label"
                                 :class="{ 'nav-group-chevron-open': departmentsOpen }"
                                 xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 20 20"
@@ -112,7 +150,7 @@
                                 <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
                             </svg>
                         </button>
-                        <div v-show="departmentsOpen" class="nav-group-children">
+                        <div v-show="departmentsOpen" class="nav-group-children nav-group-children--entities">
                             <p v-if="entitiesLoading" class="nav-sublink nav-dept-loading">Chargement...</p>
                             <p v-else-if="!cartographie.departmentEntities.length" class="nav-sublink nav-dept-loading">Aucun département</p>
                             <button
@@ -121,9 +159,10 @@
                                 type="button"
                                 class="nav-sublink nav-sublink-btn nav-dept"
                                 :class="{ 'nav-sublink-active': isEntityActive(entity) }"
+                                :title="entityNavLabel(entity)"
                                 @click="selectDepartmentEntity(entity)"
                             >
-                                {{ entityNavLabel(entity) }}
+                                <span class="nav-label">{{ entityNavLabel(entity) }}</span>
                             </button>
                         </div>
                     </div>
@@ -134,11 +173,13 @@
                             class="nav-group-toggle"
                             :class="{ 'nav-group-toggle-active': isAgenciesSection }"
                             :aria-expanded="agenciesOpen"
-                            @click="agenciesOpen = !agenciesOpen"
+                            title="Agences"
+                            @click="toggleAgenciesSection"
                         >
-                            <span>Agences</span>
+                            <span class="nav-ico" aria-hidden="true">⌖</span>
+                            <span class="nav-label">Agences</span>
                             <svg
-                                class="nav-group-chevron"
+                                class="nav-group-chevron nav-label"
                                 :class="{ 'nav-group-chevron-open': agenciesOpen }"
                                 xmlns="http://www.w3.org/2000/svg"
                                 viewBox="0 0 20 20"
@@ -148,7 +189,7 @@
                                 <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
                             </svg>
                         </button>
-                        <div v-show="agenciesOpen" class="nav-group-children">
+                        <div v-show="agenciesOpen" class="nav-group-children nav-group-children--entities">
                             <p v-if="entitiesLoading" class="nav-sublink nav-dept-loading">Chargement...</p>
                             <p v-else-if="!cartographie.agencyEntities.length" class="nav-sublink nav-dept-loading">Aucune agence</p>
                             <button
@@ -157,17 +198,19 @@
                                 type="button"
                                 class="nav-sublink nav-sublink-btn nav-dept"
                                 :class="{ 'nav-sublink-active': isEntityActive(entity) }"
+                                :title="entityNavLabel(entity)"
                                 @click="selectDepartmentEntity(entity)"
                             >
-                                {{ entityNavLabel(entity) }}
+                                <span class="nav-label">{{ entityNavLabel(entity) }}</span>
                             </button>
                         </div>
                     </div>
                 </template>
 
                 <template v-else-if="activeModule?.slug === 'audit'">
-                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
-                        ← Tous les modules
+                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }" title="Tous les modules">
+                        <span class="nav-ico" aria-hidden="true">←</span>
+                        <span class="nav-label">Tous les modules</span>
                     </RouterLink>
 
                     <RouterLink
@@ -175,8 +218,10 @@
                         class="nav-link"
                         :class="{ 'nav-link-active': isAuditRegulatorSection }"
                         :to="{ name: 'audit.regulator' }"
+                        title="Régulateur"
                     >
-                        Régulateur
+                        <span class="nav-ico" aria-hidden="true">◎</span>
+                        <span class="nav-label">Régulateur</span>
                     </RouterLink>
 
                     <template v-if="!isRegulatorOnly">
@@ -184,16 +229,20 @@
                             class="nav-link"
                             :class="{ 'nav-link-active': isAuditDashboardSection }"
                             :to="{ name: 'audit.dashboard' }"
+                            title="Dashboard"
                         >
-                            Dashboard
+                            <span class="nav-ico" aria-hidden="true">▦</span>
+                            <span class="nav-label">Dashboard</span>
                         </RouterLink>
 
                         <RouterLink
                             class="nav-link"
                             :class="{ 'nav-link-active': isAuditHistorySection }"
                             :to="{ name: 'audit.missions.history' }"
+                            title="Missions"
                         >
-                            Missions
+                            <span class="nav-ico" aria-hidden="true">☰</span>
+                            <span class="nav-label">Missions</span>
                         </RouterLink>
 
                         <RouterLink
@@ -201,23 +250,28 @@
                             class="nav-link"
                             :class="{ 'nav-link-active': route.name === 'audit.parametrage' }"
                             :to="{ name: 'audit.parametrage' }"
+                            title="Paramétrage"
                         >
-                            Paramétrage
+                            <span class="nav-ico" aria-hidden="true">⚙</span>
+                            <span class="nav-label">Paramétrage</span>
                         </RouterLink>
                     </template>
                 </template>
 
                 <template v-else-if="activeModule?.slug === 'conformite'">
-                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
-                        ← Tous les modules
+                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }" title="Tous les modules">
+                        <span class="nav-ico" aria-hidden="true">←</span>
+                        <span class="nav-label">Tous les modules</span>
                     </RouterLink>
 
                     <RouterLink
                         class="nav-link"
                         :class="{ 'nav-link-active': route.name === 'conformite.home' }"
                         :to="{ name: 'conformite.home' }"
+                        title="Accueil"
                     >
-                        Accueil
+                        <span class="nav-ico" aria-hidden="true">⌂</span>
+                        <span class="nav-label">Accueil</span>
                     </RouterLink>
 
                     <RouterLink
@@ -225,8 +279,10 @@
                         class="nav-link"
                         :class="{ 'nav-link-active': isConformiteSaisieSection }"
                         :to="{ name: 'conformite.reporting.create' }"
+                        title="Saisie"
                     >
-                        Saisie
+                        <span class="nav-ico" aria-hidden="true">✎</span>
+                        <span class="nav-label">Saisie</span>
                     </RouterLink>
 
                     <RouterLink
@@ -234,66 +290,148 @@
                         class="nav-link"
                         :class="{ 'nav-link-active': isConformiteHistorySection }"
                         :to="{ name: 'conformite.reporting.history' }"
+                        title="Historique"
                     >
-                        Historique
+                        <span class="nav-ico" aria-hidden="true">◷</span>
+                        <span class="nav-label">Historique</span>
                     </RouterLink>
 
                     <RouterLink
                         class="nav-link"
                         :class="{ 'nav-link-active': isConformiteReceptionSection }"
                         :to="{ name: 'conformite.reporting.reception' }"
+                        title="Réception"
                     >
-                        Réception
-                    </RouterLink>
-                </template>
-
-                <template v-else-if="activeModule?.slug === 'cartographie-applications'">
-                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
-                        ← Tous les modules
-                    </RouterLink>
-
-                    <RouterLink
-                        class="nav-link"
-                        :class="{ 'nav-link-active': route.name === 'cartographie-applications.home' }"
-                        :to="{ name: 'cartographie-applications.home' }"
-                    >
-                        Accueil
-                    </RouterLink>
-
-                    <RouterLink
-                        class="nav-link"
-                        :class="{ 'nav-link-active': route.name === 'cartographie-applications.applications' }"
-                        :to="{ name: 'cartographie-applications.applications' }"
-                    >
-                        Applications
+                        <span class="nav-ico" aria-hidden="true">⬇</span>
+                        <span class="nav-label">Réception</span>
                     </RouterLink>
                 </template>
 
                 <template v-else-if="activeModule?.slug === 'gouvernance-it'">
-                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
-                        ← Tous les modules
-                    </RouterLink>
+                    <template v-if="isCartographieApplicationsSection">
+                        <RouterLink
+                            class="nav-link nav-back"
+                            :to="{ name: 'gouvernance-it.home' }"
+                            title="Retour Gouvernance IT"
+                        >
+                            <span class="nav-ico" aria-hidden="true">←</span>
+                            <span class="nav-label">Gouvernance IT</span>
+                        </RouterLink>
 
-                    <RouterLink
-                        class="nav-link"
-                        :class="{ 'nav-link-active': route.name === 'gouvernance-it.home' }"
-                        :to="{ name: 'gouvernance-it.home' }"
-                    >
-                        Accueil
-                    </RouterLink>
+                        <p class="nav-group-label nav-group-label-active">
+                            <span class="nav-label">Cartographie applications</span>
+                        </p>
 
-                    <RouterLink
-                        class="nav-link"
-                        :class="{ 'nav-link-active': isGovStratSection }"
-                        :to="{ name: 'gouvernance-it.govstrat-itr' }"
-                    >
-                        GovStrat IT-R
-                    </RouterLink>
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': route.name === 'gouvernance-it.cartographie-applications' }"
+                            :to="{ name: 'gouvernance-it.cartographie-applications' }"
+                            title="Services IT"
+                        >
+                            <span class="nav-ico" aria-hidden="true">▤</span>
+                            <span class="nav-label">Services IT</span>
+                        </RouterLink>
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': route.name === 'gouvernance-it.cartographie-applications.applications' }"
+                            :to="{ name: 'gouvernance-it.cartographie-applications.applications' }"
+                            title="Inventaire applications"
+                        >
+                            <span class="nav-ico" aria-hidden="true">☰</span>
+                            <span class="nav-label">Applications</span>
+                        </RouterLink>
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': route.name === 'gouvernance-it.cartographie-applications.contrats' }"
+                            :to="{ name: 'gouvernance-it.cartographie-applications.contrats' }"
+                            title="Contrats IT"
+                        >
+                            <span class="nav-ico" aria-hidden="true">◎</span>
+                            <span class="nav-label">Contrats IT</span>
+                        </RouterLink>
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': route.name === 'gouvernance-it.cartographie-applications.projets' }"
+                            :to="{ name: 'gouvernance-it.cartographie-applications.projets' }"
+                            title="Projets IT"
+                        >
+                            <span class="nav-ico" aria-hidden="true">▦</span>
+                            <span class="nav-label">Projets IT</span>
+                        </RouterLink>
+                    </template>
+
+                    <template v-else-if="isRegistreComptesSection">
+                        <RouterLink
+                            class="nav-link nav-back"
+                            :to="{ name: 'gouvernance-it.home' }"
+                            title="Retour Gouvernance IT"
+                        >
+                            <span class="nav-ico" aria-hidden="true">←</span>
+                            <span class="nav-label">Gouvernance IT</span>
+                        </RouterLink>
+
+                        <RouterLink
+                            class="nav-link nav-link-active"
+                            :to="{ name: 'gouvernance-it.registre-comptes-generiques' }"
+                            title="Registre de comptes génériques"
+                        >
+                            <span class="nav-ico" aria-hidden="true">☰</span>
+                            <span class="nav-label">Comptes génériques</span>
+                        </RouterLink>
+                    </template>
+
+                    <template v-else>
+                        <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }" title="Tous les modules">
+                            <span class="nav-ico" aria-hidden="true">←</span>
+                            <span class="nav-label">Tous les modules</span>
+                        </RouterLink>
+
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': route.name === 'gouvernance-it.home' }"
+                            :to="{ name: 'gouvernance-it.home' }"
+                            title="Accueil"
+                        >
+                            <span class="nav-ico" aria-hidden="true">⌂</span>
+                            <span class="nav-label">Accueil</span>
+                        </RouterLink>
+
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': isGovStratSection }"
+                            :to="{ name: 'gouvernance-it.govstrat-itr' }"
+                            title="GovStrat IT-R"
+                        >
+                            <span class="nav-ico" aria-hidden="true">⚙</span>
+                            <span class="nav-label">GovStrat IT-R</span>
+                        </RouterLink>
+
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': isCartographieApplicationsSection }"
+                            :to="{ name: 'gouvernance-it.cartographie-applications' }"
+                            title="Cartographie des applications"
+                        >
+                            <span class="nav-ico" aria-hidden="true">▤</span>
+                            <span class="nav-label">Cartographie applications</span>
+                        </RouterLink>
+
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': isRegistreComptesSection }"
+                            :to="{ name: 'gouvernance-it.registre-comptes-generiques' }"
+                            title="Registre de comptes génériques"
+                        >
+                            <span class="nav-ico" aria-hidden="true">☰</span>
+                            <span class="nav-label">Comptes génériques</span>
+                        </RouterLink>
+                    </template>
                 </template>
 
                 <template v-else>
-                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
-                        ← Tous les modules
+                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }" title="Tous les modules">
+                        <span class="nav-ico" aria-hidden="true">←</span>
+                        <span class="nav-label">Tous les modules</span>
                     </RouterLink>
 
                     <RouterLink
@@ -301,50 +439,62 @@
                         class="nav-link"
                         :class="{ 'nav-link-active': isEnvironmentsSection }"
                         :to="platformProfile === 'admin' ? adminEnvironmentRoute : { name: 'environments' }"
+                        :title="platformProfile === 'admin' && adminEnvironmentIds.length <= 1
+                            ? 'Mon environnement'
+                            : (platformProfile === 'admin' ? 'Mes environnements' : 'Environnements')"
                     >
-                        {{
-                            platformProfile === 'admin' && adminEnvironmentIds.length <= 1
-                                ? 'Mon environnement'
-                                : (platformProfile === 'admin' ? 'Mes environnements' : 'Environnements')
-                        }}
+                        <span class="nav-ico" aria-hidden="true">🌐</span>
+                        <span class="nav-label">
+                            {{
+                                platformProfile === 'admin' && adminEnvironmentIds.length <= 1
+                                    ? 'Mon environnement'
+                                    : (platformProfile === 'admin' ? 'Mes environnements' : 'Environnements')
+                            }}
+                        </span>
                     </RouterLink>
 
                     <div v-if="canManageUsers" class="nav-group">
                         <p class="nav-group-label" :class="{ 'nav-group-label-active': isUsersSection }">
-                            Utilisateurs
+                            <span class="nav-label">Utilisateurs</span>
                         </p>
                         <div class="nav-group-children">
                             <RouterLink
                                 class="nav-sublink"
                                 :class="{ 'nav-sublink-active': isUsersCreateSection }"
                                 :to="{ name: 'users.create' }"
+                                title="Nouveau"
                             >
-                                Nouveau
+                                <span class="nav-ico" aria-hidden="true">＋</span>
+                                <span class="nav-label">Nouveau</span>
                             </RouterLink>
                             <RouterLink
                                 class="nav-sublink"
                                 :class="{ 'nav-sublink-active': isUsersHistorySection }"
                                 :to="{ name: 'users.history' }"
+                                title="Historiques"
                             >
-                                Historiques
+                                <span class="nav-ico" aria-hidden="true">☰</span>
+                                <span class="nav-label">Historiques</span>
                             </RouterLink>
                         </div>
                     </div>
                 </template>
             </nav>
 
-            <div class="shrink-0 border-t border-slate-200 px-4 py-4">
-                <div class="mb-3">
+            <div class="sidebar-footer shrink-0 border-t border-slate-200 px-3 py-3">
+                <div v-if="!sidebarCollapsed" class="mb-3 px-1">
                     <p class="truncate text-sm font-medium">{{ auth.user?.name }}</p>
                     <p class="truncate text-xs text-slate-500">{{ userRoleLabel }}</p>
                 </div>
 
                 <button
                     type="button"
-                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-100"
+                    class="sidebar-logout"
+                    :title="sidebarCollapsed ? 'Déconnexion' : undefined"
                     @click="handleLogout"
                 >
-                    Déconnexion
+                    <span class="nav-ico" aria-hidden="true">⎋</span>
+                    <span class="nav-label">Déconnexion</span>
                 </button>
             </div>
         </aside>
@@ -352,16 +502,19 @@
         <div class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <header
                 v-if="!hideSidebar"
-                class="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 lg:hidden"
+                class="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2.5 lg:hidden"
             >
                 <button
                     type="button"
-                    class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    class="sidebar-open-btn"
                     :aria-expanded="mobileNavOpen"
-                    aria-label="Ouvrir le menu"
+                    aria-label="Menu"
                     @click="mobileNavOpen = !mobileNavOpen"
                 >
-                    Menu
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 5.25a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10zm0 5.25a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clip-rule="evenodd" />
+                    </svg>
+                    <span>Menu</span>
                 </button>
                 <p class="truncate text-sm font-medium text-slate-700">
                     {{ activeModule?.name || 'Controlis360' }}
@@ -425,8 +578,9 @@ const isFullBleedPage = computed(() =>
     || route.name === 'cartographie.lexique'
     || route.name === 'conformite.reporting.create'
     || route.name === 'conformite.reporting.edit'
-    || route.name === 'cartographie-applications.home'
-    || route.name === 'cartographie-applications.applications',
+    || route.name === 'gouvernance-it.cartographie-applications'
+    || route.name === 'gouvernance-it.cartographie-applications.applications'
+    || route.name === 'gouvernance-it.registre-comptes-generiques',
 );
 const isAnalyseFullBleed = computed(() => route.name === 'cartographie.departement-analyse');
 const hideSidebar = computed(() =>
@@ -509,6 +663,15 @@ const isGovStratSection = computed(() =>
     || route.name === 'gouvernance-it.systemes-reseaux'
     || route.name === 'gouvernance-it.base-donnees',
 );
+const isCartographieApplicationsSection = computed(() =>
+    route.name === 'gouvernance-it.cartographie-applications'
+    || route.name === 'gouvernance-it.cartographie-applications.applications'
+    || route.name === 'gouvernance-it.cartographie-applications.contrats'
+    || route.name === 'gouvernance-it.cartographie-applications.projets',
+);
+const isRegistreComptesSection = computed(() =>
+    route.name === 'gouvernance-it.registre-comptes-generiques',
+);
 const isRegulatorOnly = computed(() => platformProfile.value === 'regulateur');
 const showRegulatorNav = computed(() => isRegulatorProfile(platformProfile.value));
 const canManageUsers = computed(() => ['super_admin', 'admin'].includes(platformProfile.value));
@@ -532,10 +695,56 @@ const adminEnvironmentRoute = computed(() => {
     return { name: 'environments' };
 });
 
+const SIDEBAR_COLLAPSED_KEY = 'controlis360.sidebarCollapsed';
+
 const departmentsOpen = ref(false);
 const agenciesOpen = ref(false);
 const entitiesLoading = ref(false);
 const mobileNavOpen = ref(false);
+const sidebarCollapsed = ref(
+    typeof localStorage !== 'undefined' && localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1',
+);
+
+function persistSidebarCollapsed(value) {
+    sidebarCollapsed.value = value;
+    try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, value ? '1' : '0');
+    } catch {
+        // ignore quota / private mode
+    }
+}
+
+function toggleSidebarRail() {
+    persistSidebarCollapsed(!sidebarCollapsed.value);
+    if (sidebarCollapsed.value) {
+        mobileNavOpen.value = false;
+    }
+}
+
+function toggleDepartmentsSection() {
+    if (sidebarCollapsed.value) {
+        persistSidebarCollapsed(false);
+        departmentsOpen.value = true;
+        return;
+    }
+
+    departmentsOpen.value = !departmentsOpen.value;
+}
+
+function toggleAgenciesSection() {
+    if (sidebarCollapsed.value) {
+        persistSidebarCollapsed(false);
+        agenciesOpen.value = true;
+        return;
+    }
+
+    agenciesOpen.value = !agenciesOpen.value;
+}
+
+function itemInitial(label) {
+    const text = String(label ?? '').trim();
+    return text ? text.charAt(0).toUpperCase() : '?';
+}
 
 const activeEntityType = computed(() => {
     if (route.name !== 'cartographie.departement-analyse'
@@ -693,8 +902,76 @@ async function handleLogout() {
 </script>
 
 <style scoped>
+.sidebar-logo {
+    height: 2.75rem;
+    width: auto;
+    max-width: calc(100% - 2.5rem);
+}
+
+.sidebar-rail-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.85rem;
+    height: 1.85rem;
+    flex-shrink: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #64748b;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.sidebar-rail-btn:hover {
+    border-color: #c00000;
+    background: #fef2f2;
+    color: #c00000;
+}
+
+.sidebar-open-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid #c00000;
+    border-radius: 0.55rem;
+    background: #c00000;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #ffffff;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.sidebar-open-btn:hover {
+    background: #9f0000;
+}
+
+.nav-ico {
+    display: none;
+    flex-shrink: 0;
+    width: 1.25rem;
+    text-align: center;
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.nav-ico-letter {
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.nav-link,
+.nav-sublink,
+.nav-group-toggle,
+.sidebar-logout {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
 .nav-link {
-    display: block;
     border-radius: 0.5rem;
     padding: 0.625rem 0.75rem;
     font-size: 0.875rem;
@@ -720,7 +997,6 @@ async function handleLogout() {
 }
 
 .nav-cartographie {
-    display: block;
     width: 100%;
     margin-bottom: 0.35rem;
     border: none;
@@ -733,7 +1009,7 @@ async function handleLogout() {
     text-transform: uppercase;
     color: #ffffff;
     cursor: pointer;
-    text-align: center;
+    justify-content: center;
     transition: opacity 0.15s;
 }
 
@@ -781,11 +1057,8 @@ async function handleLogout() {
 }
 
 .nav-group-toggle {
-    display: flex;
     width: 100%;
-    align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
     border: none;
     background: transparent;
     padding: 0.5rem 0.75rem 0.35rem;
@@ -810,6 +1083,7 @@ async function handleLogout() {
     width: 1rem;
     height: 1rem;
     flex-shrink: 0;
+    margin-left: auto;
     transition: transform 0.2s;
 }
 
@@ -825,7 +1099,6 @@ async function handleLogout() {
 }
 
 .nav-sublink {
-    display: block;
     border-radius: 0.5rem;
     padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
@@ -842,5 +1115,92 @@ async function handleLogout() {
     background-color: #fef2f2;
     color: #c00000;
     font-weight: 600;
+}
+
+.sidebar-logout {
+    width: 100%;
+    justify-content: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.5rem;
+    background: #ffffff;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: #334155;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.sidebar-logout:hover {
+    background: #f1f5f9;
+}
+
+@media (min-width: 1024px) {
+    .sidebar--collapsed .sidebar-logo {
+        height: 1.85rem;
+        max-width: 100%;
+    }
+
+    .sidebar--collapsed .sidebar-brand {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.55rem;
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    .sidebar--collapsed .sidebar-brand > div {
+        flex-direction: column;
+        width: 100%;
+        align-items: center;
+    }
+
+    .sidebar--collapsed .sidebar-rail-btn {
+        margin-left: 0;
+    }
+
+    .sidebar--collapsed .nav-label {
+        display: none;
+    }
+
+    .sidebar--collapsed .nav-ico {
+        display: inline-block;
+    }
+
+    .sidebar--collapsed .nav-group-label {
+        display: none;
+    }
+
+    .sidebar--collapsed .nav-group-children {
+        padding-left: 0;
+    }
+
+    .sidebar--collapsed .nav-group-children--entities {
+        display: none !important;
+    }
+
+    .sidebar--collapsed .nav-link,
+    .sidebar--collapsed .nav-sublink,
+    .sidebar--collapsed .nav-group-toggle,
+    .sidebar--collapsed .sidebar-logout {
+        justify-content: center;
+        padding-left: 0.4rem;
+        padding-right: 0.4rem;
+    }
+
+    .sidebar--collapsed .nav-cartographie {
+        letter-spacing: 0;
+        font-size: 0.7rem;
+        padding: 0.55rem 0.35rem;
+    }
+
+    .sidebar--collapsed .nav-cartographie .nav-ico {
+        color: #ffffff;
+    }
+
+    .sidebar--collapsed .sidebar-footer {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
 }
 </style>

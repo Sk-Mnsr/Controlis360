@@ -32,11 +32,6 @@ export const MODULE_PROFILE_OPTIONS = {
         { value: 'conformite', label: PROFILE_LABELS.conformite },
         { value: 'metier', label: PROFILE_LABELS.metier },
     ],
-    'cartographie-applications': [
-        { value: 'admin', label: PROFILE_LABELS.admin },
-        { value: 'controle', label: PROFILE_LABELS.controle },
-        { value: 'metier', label: PROFILE_LABELS.metier },
-    ],
     'gouvernance-it': [
         { value: 'agent_it', label: PROFILE_LABELS.agent_it },
         { value: 'responsable_it', label: PROFILE_LABELS.responsable_it },
@@ -48,7 +43,6 @@ const MODULE_PROFILES = {
     cartographie: ['super_admin', 'admin', 'superviseur', 'controle', 'metier'],
     audit: ['super_admin', 'admin', 'regulateur', 'controle', 'audit', 'metier'],
     conformite: ['super_admin', 'admin', 'conformite', 'metier'],
-    'cartographie-applications': ['super_admin', 'admin', 'controle', 'metier'],
     'gouvernance-it': ['super_admin', 'admin', 'agent_it', 'responsable_it', 'responsable_regional'],
 };
 
@@ -69,8 +63,21 @@ export function emptyModuleAssignment(slug) {
 
 export function defaultModuleAssignments(user = {}) {
     const fromProfiles = user?.module_profiles && typeof user.module_profiles === 'object'
-        ? user.module_profiles
+        ? { ...user.module_profiles }
         : null;
+
+    // Ancien module fusionné dans Gouvernance IT
+    if (fromProfiles?.['cartographie-applications']) {
+        if (!fromProfiles['gouvernance-it']) {
+            fromProfiles['gouvernance-it'] = {
+                profile: 'agent_it',
+                controle_role: null,
+                audit_role: null,
+                metier_role: null,
+            };
+        }
+        delete fromProfiles['cartographie-applications'];
+    }
 
     return ALL_MODULE_SLUGS.map((slug) => {
         const base = emptyModuleAssignment(slug);
@@ -91,7 +98,11 @@ export function defaultModuleAssignments(user = {}) {
             };
         }
 
-        if (Array.isArray(user?.modules) && user.modules.includes(slug)) {
+        const assignedModules = Array.isArray(user?.modules)
+            ? user.modules.map((item) => (item === 'cartographie-applications' ? 'gouvernance-it' : item))
+            : [];
+
+        if (assignedModules.includes(slug)) {
             return {
                 ...base,
                 enabled: true,
@@ -327,12 +338,15 @@ export function canAccessModule(profile, slug, user = null) {
 }
 
 export function canCreateMission(user) {
-    const profile = user?.profile;
+    const assignment = profileForModule(user, 'audit');
+    const profile = assignment?.profile ?? user?.profile;
 
     return profile === 'super_admin'
         || profile === 'admin'
         || profile === 'controle'
-        || profile === 'audit';
+        || profile === 'audit'
+        || user?.profile === 'super_admin'
+        || user?.profile === 'admin';
 }
 
 export function isPlatformAdministrator(user) {
@@ -342,11 +356,17 @@ export function isPlatformAdministrator(user) {
 }
 
 export function isMissionResponsible(user) {
-    return user?.profile === 'metier' && user?.metier_role === 'responsable_entite';
+    const assignment = profileForModule(user, 'audit');
+
+    return (assignment?.profile ?? user?.profile) === 'metier'
+        && (assignment?.metier_role ?? user?.metier_role) === 'responsable_entite';
 }
 
 export function isMissionAgent(user) {
-    return user?.profile === 'metier' && user?.metier_role === 'agent';
+    const assignment = profileForModule(user, 'audit');
+
+    return (assignment?.profile ?? user?.profile) === 'metier'
+        && (assignment?.metier_role ?? user?.metier_role) === 'agent';
 }
 
 export function getAccessibleModules(user) {

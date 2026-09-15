@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Mail\GouvernanceItActivityPendingValidationMail;
+use App\Mail\GouvernanceItActivitySentMail;
+use App\Mail\GouvernanceItActivityValidatedMail;
 use App\Models\Entity;
 use App\Models\Environment;
 use App\Models\GouvernanceItActivity;
@@ -11,6 +14,9 @@ use App\Models\GouvernanceItRetroplanningEnsemble;
 use App\Models\GouvernanceItRetroplanningItem;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Maravel\Http\Controllers\APIController;
@@ -488,6 +494,8 @@ class GouvernanceItController extends APIController
         $activity->workflow_status = 'saved';
         $activity->save();
 
+        $this->notifyResponsablesItPendingValidation($activity->fresh(), $user);
+
         return $this->responseOk($this->serializeActivity($activity->fresh()));
     }
 
@@ -520,6 +528,8 @@ class GouvernanceItController extends APIController
         $activity->validated_by = $user->id;
         $activity->validated_at = now();
         $activity->save();
+
+        $this->notifyCreatorActivityValidated($activity->fresh(['creator']), $user);
 
         return $this->responseOk($this->serializeActivity($activity->fresh()));
     }
@@ -585,6 +595,8 @@ class GouvernanceItController extends APIController
             $activity->statut = 'OPEN';
         }
         $activity->save();
+
+        $this->notifyRegionauxActivitySent($activity->fresh(), $user);
 
         return $this->responseOk($this->serializeActivity($activity->fresh()));
     }
@@ -1404,6 +1416,102 @@ class GouvernanceItController extends APIController
         }
 
         return [$environment, $itEntity, $owners];
+    }
+
+    private function notifyResponsablesItPendingValidation(GouvernanceItActivity $activity, User $sender): void
+    {
+        $recipients = $this->responsablesItForEnvironment($activity->environment_id)
+            ->reject(fn (User $user) => $user->id === $sender->id || blank($user->email));
+
+        foreach ($recipients as $recipient) {
+            try {
+                Mail::to($recipient->email)->send(
+                    new GouvernanceItActivityPendingValidationMail($activity, $recipient, $sender)
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Envoi mail validation activité GovStrat échoué', [
+                    'activity_id' => $activity->id,
+                    'recipient_id' => $recipient->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function notifyCreatorActivityValidated(GouvernanceItActivity $activity, User $validator): void
+    {
+        $creator = $activity->creator;
+        if (! $creator || blank($creator->email) || $creator->id === $validator->id) {
+            return;
+        }
+
+        try {
+            Mail::to($creator->email)->send(
+                new GouvernanceItActivityValidatedMail($activity, $creator, $validator)
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Envoi mail activité GovStrat validée échoué', [
+                'activity_id' => $activity->id,
+                'recipient_id' => $creator->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function notifyRegionauxActivitySent(GouvernanceItActivity $activity, User $sender): void
+    {
+        $recipients = $this->responsablesRegionauxForEnvironment($activity->environment_id)
+            ->reject(fn (User $user) => $user->id === $sender->id || blank($user->email));
+
+        foreach ($recipients as $recipient) {
+            try {
+                Mail::to($recipient->email)->send(
+                    new GouvernanceItActivitySentMail($activity, $recipient, $sender)
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Envoi mail activité GovStrat envoyée échoué', [
+                    'activity_id' => $activity->id,
+                    'recipient_id' => $recipient->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function responsablesItForEnvironment(?int $environmentId): Collection
+    {
+        return User::query()
+            ->where('activated', true)
+            ->whereNotNull('email')
+            ->where(function ($query) {
+                $query->where('profile', 'responsable_it')
+                    ->orWhere('module_profiles->gouvernance-it->profile', 'responsable_it');
+            })
+            ->when($environmentId, function ($query) use ($environmentId) {
+                $query->where(function ($inner) use ($environmentId) {
+                    $inner->whereHas('environments', fn ($env) => $env->where('environments.id', $environmentId))
+                        ->orWhereDoesntHave('environments');
+                });
+            })
+            ->get();
+    }
+
+    private function responsablesRegionauxForEnvironment(?int $environmentId): Collection
+    {
+        return User::query()
+            ->where('activated', true)
+            ->whereNotNull('email')
+            ->where(function ($query) {
+                $query->where('profile', 'responsable_regional')
+                    ->orWhere('module_profiles->gouvernance-it->profile', 'responsable_regional');
+            })
+            ->when($environmentId, function ($query) use ($environmentId) {
+                $query->where(function ($inner) use ($environmentId) {
+                    $inner->whereHas('environments', fn ($env) => $env->where('environments.id', $environmentId))
+                        ->orWhereDoesntHave('environments');
+                });
+            })
+            ->get();
     }
 
     private function firstName(string $name): string

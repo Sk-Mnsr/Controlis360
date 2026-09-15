@@ -26,7 +26,7 @@ class UserController extends APIController
 
     private const PROFILE_RULE = 'super_admin,admin,superviseur,regulateur,controle,audit,conformite,agent_it,responsable_it,responsable_regional,metier';
 
-    private const MODULE_RULE = 'cartographie,audit,conformite,gouvernance-it,cartographie-applications';
+    private const MODULE_RULE = 'cartographie,audit,conformite,gouvernance-it';
 
     private const GOUVERNANCE_IT_PROFILES = ['agent_it', 'responsable_it', 'responsable_regional'];
 
@@ -378,7 +378,7 @@ class UserController extends APIController
         if (array_key_exists('modules', $requestData)) {
             $requestData['modules'] = array_values(array_unique(array_filter(
                 array_map('strval', $requestData['modules'] ?? []),
-                fn ($slug) => in_array($slug, ['cartographie', 'audit', 'conformite', 'gouvernance-it', 'cartographie-applications'], true),
+                fn ($slug) => in_array($slug, ['cartographie', 'audit', 'conformite', 'gouvernance-it'], true),
             )));
         }
 
@@ -406,7 +406,13 @@ class UserController extends APIController
 
         foreach ($moduleProfiles as $slug => $assignment) {
             $slug = (string) $slug;
-            if (! in_array($slug, ['cartographie', 'audit', 'conformite', 'gouvernance-it', 'cartographie-applications'], true) || ! is_array($assignment)) {
+
+            // Ancien module fusionné dans Gouvernance IT
+            if ($slug === 'cartographie-applications') {
+                $slug = 'gouvernance-it';
+            }
+
+            if (! in_array($slug, ['cartographie', 'audit', 'conformite', 'gouvernance-it'], true) || ! is_array($assignment)) {
                 continue;
             }
 

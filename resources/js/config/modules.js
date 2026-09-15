@@ -9,15 +9,6 @@ export const modules = [
         accent: '#c00000',
     },
     {
-        slug: 'cartographie-applications',
-        name: 'Cartographie des applications',
-        description: 'Inventaire et cartographie du patrimoine applicatif.',
-        entryRoute: 'cartographie-applications.home',
-        active: true,
-        comingSoon: false,
-        accent: '#0f4c81',
-    },
-    {
         slug: 'audit',
         name: 'Suivi des reco',
         description: 'Planification et suivi des recommandations et missions.',

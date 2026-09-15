@@ -5,7 +5,7 @@
                 <p class="apps-page-kicker">Inventaire</p>
                 <h2 class="apps-page-title">Applications</h2>
                 <p class="apps-page-subtitle">
-                    Cartographie applicative — référentiel type inventaire Excel
+                    Référentiel inventaire — structure CARTOGRAPHIE_APP COFSN
                 </p>
             </div>
             <button type="button" class="apps-btn-primary" @click="openCreate">
@@ -36,7 +36,8 @@
                         <th colspan="11" class="apps-group-main">Informations générales</th>
                         <th colspan="3" class="apps-group-license">Licences</th>
                         <th colspan="2" class="apps-group-renewal">Renouvellement licence</th>
-                        <th colspan="9" class="apps-group-main">Infrastructure &amp; risque</th>
+                        <th colspan="5" class="apps-group-main">Infrastructure</th>
+                        <th colspan="4" class="apps-group-sol">Solution</th>
                         <th rowspan="2" class="apps-th-actions">Actions</th>
                     </tr>
                     <tr class="apps-col-row">
@@ -49,7 +50,7 @@
                         <th>Type</th>
                         <th>Criticité</th>
                         <th>Statut</th>
-                        <th>Responsable / Contact</th>
+                        <th>Responsable / Équipe</th>
                         <th>Date mise en service</th>
                         <th class="apps-th-license">Version</th>
                         <th class="apps-th-license">Date d'expiration</th>
@@ -58,19 +59,24 @@
                         <th class="apps-th-renewal">Prochaine date</th>
                         <th>Serveur / Infrastructure</th>
                         <th>Type d'hébergement</th>
-                        <th>Sauvegarde</th>
+                        <th>Sauvegardes</th>
                         <th>SLA existant</th>
                         <th>Commentaire</th>
-                        <th>Coût</th>
-                        <th>Impact</th>
-                        <th>Risque</th>
+                        <th>Editeur</th>
+                        <th>Importance</th>
+                        <th>Version</th>
                         <th>Dernière version</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="app in applications" :key="app.id">
                         <td class="apps-code">{{ app.code || '—' }}</td>
-                        <td class="apps-name">{{ app.name || '—' }}</td>
+                        <td class="apps-name">
+                            {{ app.name || '—' }}
+                            <span v-if="app.application_type" class="apps-type-link">
+                                {{ app.application_type.code }}
+                            </span>
+                        </td>
                         <td>{{ app.business_domain || '—' }}</td>
                         <td class="apps-cell-wide">{{ app.main_function || '—' }}</td>
                         <td>{{ app.users || '—' }}</td>
@@ -99,9 +105,9 @@
                         <td>{{ app.backup || '—' }}</td>
                         <td>{{ app.sla || '—' }}</td>
                         <td class="apps-cell-wide">{{ app.comment || '—' }}</td>
-                        <td>{{ app.cost || '—' }}</td>
-                        <td>{{ app.impact || '—' }}</td>
-                        <td>{{ app.risk || '—' }}</td>
+                        <td>{{ app.editor || '—' }}</td>
+                        <td>{{ app.importance || '—' }}</td>
+                        <td>{{ app.version || '—' }}</td>
                         <td>{{ app.last_version || '—' }}</td>
                         <td class="apps-actions">
                             <button type="button" class="apps-link" @click="openEdit(app)">Modifier</button>
@@ -180,6 +186,19 @@
                             <input v-model="form.go_live_date" type="date" class="apps-input" />
                         </label>
                         <label>
+                            <span>Type applicatif (Services IT)</span>
+                            <select v-model="form.application_type_id" class="apps-input">
+                                <option :value="null">— Non lié —</option>
+                                <option
+                                    v-for="type in applicationTypes"
+                                    :key="type.id"
+                                    :value="type.id"
+                                >
+                                    {{ type.code }} — {{ type.name }}
+                                </option>
+                            </select>
+                        </label>
+                        <label>
                             <span>Environnement</span>
                             <select v-model="form.environment_id" class="apps-input">
                                 <option :value="null">—</option>
@@ -224,7 +243,7 @@
                 </section>
 
                 <section class="apps-form-section">
-                    <h4>Infrastructure &amp; risque</h4>
+                    <h4>Infrastructure</h4>
                     <div class="apps-form-grid">
                         <label>
                             <span>Serveur / Infrastructure</span>
@@ -235,32 +254,38 @@
                             <input v-model="form.hosting_type" class="apps-input" />
                         </label>
                         <label>
-                            <span>Sauvegarde</span>
+                            <span>Sauvegardes</span>
                             <input v-model="form.backup" class="apps-input" />
                         </label>
                         <label>
                             <span>SLA existant</span>
                             <input v-model="form.sla" class="apps-input" />
                         </label>
+                        <label class="apps-span-2">
+                            <span>Commentaire</span>
+                            <textarea v-model="form.comment" rows="2" class="apps-input" />
+                        </label>
+                    </div>
+                </section>
+
+                <section class="apps-form-section">
+                    <h4>Solution</h4>
+                    <div class="apps-form-grid">
                         <label>
-                            <span>Coût</span>
-                            <input v-model="form.cost" class="apps-input" />
+                            <span>Editeur</span>
+                            <input v-model="form.editor" class="apps-input" />
                         </label>
                         <label>
-                            <span>Impact</span>
-                            <input v-model="form.impact" class="apps-input" />
+                            <span>Importance</span>
+                            <input v-model="form.importance" class="apps-input" placeholder="ex. Primordial" />
                         </label>
                         <label>
-                            <span>Risque</span>
-                            <input v-model="form.risk" class="apps-input" />
+                            <span>Version</span>
+                            <input v-model="form.version" class="apps-input" />
                         </label>
                         <label>
                             <span>Dernière version</span>
                             <input v-model="form.last_version" class="apps-input" />
-                        </label>
-                        <label class="apps-span-2">
-                            <span>Commentaire</span>
-                            <textarea v-model="form.comment" rows="2" class="apps-input" />
                         </label>
                     </div>
                 </section>
@@ -288,6 +313,7 @@ const error = ref('');
 const formError = ref('');
 const applications = ref([]);
 const environments = ref([]);
+const applicationTypes = ref([]);
 const search = ref('');
 const showForm = ref(false);
 const editing = ref(null);
@@ -319,11 +345,12 @@ function emptyForm() {
         backup: '',
         sla: '',
         comment: '',
-        cost: '',
-        impact: '',
-        risk: '',
+        editor: '',
+        importance: '',
+        version: '',
         last_version: '',
         environment_id: null,
+        application_type_id: null,
     };
 }
 
@@ -357,6 +384,21 @@ async function loadEnvironments() {
     }
 }
 
+async function loadApplicationTypes() {
+    try {
+        const { data } = await api.get('/it-services/dashboard');
+        const root = data?.data ?? data;
+        const services = root?.services ?? [];
+        applicationTypes.value = (Array.isArray(services) ? services : []).map((row) => ({
+            id: row.application_type_id,
+            code: row.code,
+            name: row.name,
+        }));
+    } catch {
+        applicationTypes.value = [];
+    }
+}
+
 async function loadApplications() {
     loading.value = true;
     error.value = '';
@@ -370,8 +412,26 @@ async function loadApplications() {
             },
         });
         applications.value = extractList(data);
-    } catch {
-        error.value = 'Impossible de charger les applications.';
+    } catch (err) {
+        const status = err.response?.status;
+        const errors = err.response?.data?.errors;
+        const serverMessage = err.response?.data?.message
+            || errors?.message?.[0]
+            || errors?.auth?.[0]
+            || (typeof errors === 'string' ? errors : null);
+
+        if (status === 403) {
+            error.value = serverMessage || 'Accès non autorisé à l’inventaire des applications.';
+        } else if (status === 500 || status === 404) {
+            error.value = serverMessage
+                ? `Impossible de charger les applications : ${serverMessage}`
+                : 'Impossible de charger les applications (erreur serveur).';
+        } else {
+            error.value = serverMessage
+                ? `Impossible de charger les applications : ${serverMessage}`
+                : 'Impossible de charger les applications.';
+        }
+
         applications.value = [];
     } finally {
         loading.value = false;
@@ -414,11 +474,12 @@ function openEdit(app) {
         backup: app.backup ?? '',
         sla: app.sla ?? '',
         comment: app.comment ?? '',
-        cost: app.cost ?? '',
-        impact: app.impact ?? '',
-        risk: app.risk ?? '',
+        editor: app.editor ?? '',
+        importance: app.importance ?? '',
+        version: app.version ?? '',
         last_version: app.last_version ?? '',
         environment_id: app.environment_id ?? app.environment?.id ?? null,
+        application_type_id: app.application_type_id ?? app.application_type?.id ?? null,
     });
     formError.value = '';
     showForm.value = true;
@@ -474,11 +535,12 @@ async function saveApplication() {
         backup: trimOrNull(form.backup),
         sla: trimOrNull(form.sla),
         comment: trimOrNull(form.comment),
-        cost: trimOrNull(form.cost),
-        impact: trimOrNull(form.impact),
-        risk: trimOrNull(form.risk),
+        editor: trimOrNull(form.editor),
+        importance: trimOrNull(form.importance),
+        version: trimOrNull(form.version),
         last_version: trimOrNull(form.last_version),
         environment_id: form.environment_id || null,
+        application_type_id: form.application_type_id || null,
     };
 
     try {
@@ -508,7 +570,7 @@ async function removeApplication(app) {
 }
 
 onMounted(async () => {
-    await loadEnvironments();
+    await Promise.all([loadEnvironments(), loadApplicationTypes()]);
     await loadApplications();
 });
 
@@ -645,6 +707,10 @@ onUnmounted(() => clearTimeout(searchTimer));
     background: #c41e3a;
 }
 
+.apps-group-sol {
+    background: #0f6666;
+}
+
 .apps-group-license {
     background: #e6b800;
     color: #1e293b !important;
@@ -697,6 +763,17 @@ onUnmounted(() => clearTimeout(searchTimer));
 .apps-name {
     font-weight: 600;
     color: #0f172a;
+}
+
+.apps-type-link {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 0.3rem;
+    background: #e0f2fe;
+    color: #0f4c81;
+    font-size: 0.68rem;
+    font-weight: 700;
 }
 
 .apps-cell-wide {

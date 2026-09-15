@@ -37,7 +37,7 @@ class AttachmentAccessService
                 return $user->belongsToEnvironment((int) $fiche->environment_id);
             }
 
-            if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+            if ($user->isAuditMetierResponsable()) {
                 return $fiche->etabli_par_entity_id
                     && $user->belongsToEntity((int) $fiche->etabli_par_entity_id);
             }
@@ -125,15 +125,15 @@ class AttachmentAccessService
             return true;
         }
 
-        if (in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isAuditStaff()) {
             return true;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             return true;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'agent') {
+        if ($user->isAuditMetierAgent()) {
             return MissionResponse::query()
                 ->where('assigned_agent_id', $user->id)
                 ->exists();
@@ -148,7 +148,7 @@ class AttachmentAccessService
             return;
         }
 
-        if ($user->isEnvironmentAdmin() || in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isEnvironmentAdmin() || $user->isAuditStaff()) {
             $environmentIds = $user->environment_ids;
 
             if ($user->isEnvironmentAdmin() && empty($environmentIds)) {
@@ -166,7 +166,7 @@ class AttachmentAccessService
             return;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             $query->whereHas('recipients', function ($recipientQuery) use ($user) {
                 $recipientQuery->where('users.id', $user->id);
             });
@@ -174,7 +174,7 @@ class AttachmentAccessService
             return;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'agent') {
+        if ($user->isAuditMetierAgent()) {
             $query->whereHas('responses', function ($responseQuery) use ($user) {
                 $responseQuery->where('assigned_agent_id', $user->id);
             });

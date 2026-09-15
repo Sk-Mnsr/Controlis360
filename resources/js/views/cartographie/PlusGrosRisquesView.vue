@@ -1,11 +1,23 @@
 <template>
-    <div class="plus-gros-risques-page">
-        <div class="plus-gros-risques-actions">
-            <RouterLink :to="{ name: 'cartographie.cartographie', query: environmentQueryParams(route) }" class="plus-gros-risques-back">
-                ← Cartographie
-            </RouterLink>
+    <div class="pgr-page">
+        <header class="pgr-header">
+            <div class="pgr-header-main">
+                <RouterLink
+                    :to="{ name: 'cartographie.cartographie', query: environmentQueryParams(route) }"
+                    class="pgr-back"
+                >
+                    ← Cartographie
+                </RouterLink>
+                <div class="pgr-title-row">
+                    <h1 class="pgr-title">Plus gros risques</h1>
+                    <span v-if="!loading && !error" class="pgr-count">{{ rows.length }}</span>
+                </div>
+                <p class="pgr-hint">
+                    Risques opérationnels à fort impact (Rb ≥ 20), triés par score décroissant.
+                </p>
+            </div>
 
-            <label v-if="environmentOptions.length > 1" class="plus-gros-risques-environment">
+            <label v-if="environmentOptions.length > 1" class="pgr-environment">
                 <span>Environnement</span>
                 <select
                     :value="selectedEnvironment"
@@ -20,19 +32,13 @@
                     </option>
                 </select>
             </label>
-        </div>
+        </header>
 
-        <div v-if="loading" class="plus-gros-risques-loading">Chargement...</div>
+        <div v-if="loading" class="pgr-loading">Chargement...</div>
 
         <template v-else>
-            <p v-if="error && !rows.length" class="plus-gros-risques-error">{{ error }}</p>
-
-            <div v-else class="plus-gros-risques-content">
-                <p class="plus-gros-risques-hint">
-                    Risques opérationnels à fort impact (Rb ≥ 20), triés par score décroissant.
-                </p>
-                <TopRisksTable :title="title" :rows="rows" />
-            </div>
+            <p v-if="error && !rows.length" class="pgr-error">{{ error }}</p>
+            <TopRisksTable v-else :title="title" :rows="rows" />
         </template>
     </div>
 </template>
@@ -107,78 +113,119 @@ onMounted(loadTopRisques);
 </script>
 
 <style scoped>
-.plus-gros-risques-page {
+.pgr-page {
     width: 100%;
     max-width: none;
     margin: 0;
-    padding: 1rem 1.25rem 1.5rem;
+    padding: 1.25rem 1.5rem 2rem;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    min-height: 100%;
+    background:
+        radial-gradient(ellipse 80% 50% at 100% 0%, rgba(192, 0, 0, 0.06), transparent 55%),
+        linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
-.plus-gros-risques-actions {
+.pgr-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+    gap: 1.25rem;
     flex-wrap: wrap;
 }
 
-.plus-gros-risques-back {
-    font-size: 0.875rem;
+.pgr-header-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.pgr-back {
+    width: fit-content;
+    font-size: 0.8125rem;
     color: #64748b;
     transition: color 0.15s;
 }
 
-.plus-gros-risques-back:hover {
+.pgr-back:hover {
     color: #0f172a;
 }
 
-.plus-gros-risques-environment {
+.pgr-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+}
+
+.pgr-title {
+    margin: 0;
+    font-size: clamp(1.35rem, 2vw, 1.75rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #0f172a;
+}
+
+.pgr-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0 0.5rem;
+    border-radius: 999px;
+    background: #c00000;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.pgr-hint {
+    margin: 0;
+    max-width: 42rem;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: #64748b;
+}
+
+.pgr-environment {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.3rem;
     font-size: 0.68rem;
     font-weight: 600;
     text-transform: uppercase;
     color: #64748b;
+    min-width: 11rem;
 }
 
-.plus-gros-risques-environment select {
+.pgr-environment select {
     border: 1px solid #cbd5e1;
-    border-radius: 0.5rem;
-    padding: 0.45rem 0.65rem;
+    border-radius: 0.55rem;
+    padding: 0.5rem 0.7rem;
     font-size: 0.8125rem;
     color: #0f172a;
     background: #ffffff;
     text-transform: none;
     font-weight: 500;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
-.plus-gros-risques-loading {
-    padding: 2rem 0;
+.pgr-loading {
+    padding: 3rem 0;
     text-align: center;
     font-size: 0.9rem;
     color: #64748b;
 }
 
-.plus-gros-risques-content {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-}
-
-.plus-gros-risques-hint {
-    margin: 0;
-    font-size: 0.8125rem;
-    color: #64748b;
-}
-
-.plus-gros-risques-error {
-    border-radius: 0.5rem;
+.pgr-error {
+    border-radius: 0.65rem;
     background: #fef2f2;
-    padding: 0.75rem 1rem;
+    border: 1px solid #fecaca;
+    padding: 0.85rem 1rem;
     font-size: 0.875rem;
     color: #b91c1c;
 }

@@ -3,12 +3,21 @@
 namespace App\Http\Controllers\API;
 
 use App\Enums\OperationalRiskRowStatus;
+use App\Mail\OperationalRiskAssignedMail;
+use App\Mail\OperationalRiskCompletedMail;
+use App\Mail\OperationalRiskEntityRevisionMail;
+use App\Mail\OperationalRiskEntitySubmittedMail;
+use App\Mail\OperationalRiskRevisionRequestedMail;
+use App\Mail\OperationalRiskSubmittedMail;
 use App\Models\Entity;
 use App\Models\OperationalRiskRow;
 use App\Models\RiskClassification;
 use App\Models\User;
 use App\Support\OperationalRiskLogger;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Maravel\Http\Controllers\APIController;
 
@@ -116,6 +125,8 @@ class OperationalRiskRowController extends APIController
 
         OperationalRiskLogger::log($row, $user, 'submitted');
 
+        $this->notifyControleResponsablesSubmitted($row->fresh(['entity', 'createdBy']), $user);
+
         return $this->responseOk(['row' => $this->formatRow($row->fresh(['assignedEntity']))]);
     }
 
@@ -151,6 +162,8 @@ class OperationalRiskRowController extends APIController
         ]);
 
         OperationalRiskLogger::log($row, $request->user(), 'revision_requested', $comment);
+
+        $this->notifyCreatorRevisionRequested($row->fresh(['entity', 'createdBy']), $request->user(), $comment);
 
         return $this->responseOk(['row' => $this->formatRow($row->fresh(['assignedEntity']))]);
     }
@@ -210,6 +223,11 @@ class OperationalRiskRowController extends APIController
             'validated',
             "Affecté à {$assignedEntity->name}",
             ['assigned_entity_id' => $assignedEntity->id, 'deadline' => $request->input('deadline')]
+        );
+
+        $this->notifyEntityResponsablesAssigned(
+            $row->fresh(['entity', 'assignedEntity']),
+            $request->user()
         );
 
         return $this->responseOk(['row' => $this->formatRow($row->fresh(['assignedEntity']))]);
@@ -282,6 +300,11 @@ class OperationalRiskRowController extends APIController
 
         OperationalRiskLogger::log($row, $request->user(), 'entity_submitted');
 
+        $this->notifyControleResponsablesEntitySubmitted(
+            $row->fresh(['entity', 'assignedEntity']),
+            $request->user()
+        );
+
         return $this->responseOk(['row' => $this->formatRow($row->fresh(['assignedEntity']))]);
     }
 
@@ -307,6 +330,11 @@ class OperationalRiskRowController extends APIController
         ]);
 
         OperationalRiskLogger::log($row, $request->user(), 'completed');
+
+        $this->notifyEntityResponsablesCompleted(
+            $row->fresh(['entity', 'assignedEntity', 'createdBy']),
+            $request->user()
+        );
 
         return $this->responseOk(['row' => $this->formatRow($row->fresh(['assignedEntity']))]);
     }
@@ -344,6 +372,12 @@ class OperationalRiskRowController extends APIController
 
         OperationalRiskLogger::log($row, $request->user(), 'entity_revision_requested', $comment);
 
+        $this->notifyEntityResponsablesRevision(
+            $row->fresh(['entity', 'assignedEntity']),
+            $request->user(),
+            $comment
+        );
+
         return $this->responseOk(['row' => $this->formatRow($row->fresh(['assignedEntity']))]);
     }
 
@@ -374,6 +408,170 @@ class OperationalRiskRowController extends APIController
     private function canValidate(User $user): bool
     {
         return $user->isPlatformAdministrator() || $user->isControleResponsable();
+    }
+
+    private function notifyControleResponsablesSubmitted(OperationalRiskRow $row, User $sender): void
+    {
+        $recipients = $this->controleResponsables()
+            ->reject(fn (User $user) => $user->id === $sender->id || blank($user->email));
+
+        foreach ($recipients as $recipient) {
+            try {
+                Mail::to($recipient->email)->send(
+                    new OperationalRiskSubmittedMail($row, $recipient, $sender)
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Envoi mail risque soumis échoué', [
+                    'row_id' => $row->id,
+                    'recipient_id' => $recipient->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function notifyCreatorRevisionRequested(OperationalRiskRow $row, User $requester, string $comment): void
+    {
+        $creator = $row->createdBy;
+        if (! $creator || blank($creator->email) || $creator->id === $requester->id) {
+            return;
+        }
+
+        try {
+            Mail::to($creator->email)->send(
+                new OperationalRiskRevisionRequestedMail($row, $creator, $requester, $comment)
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Envoi mail révision risque échoué', [
+                'row_id' => $row->id,
+                'recipient_id' => $creator->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function notifyEntityResponsablesAssigned(OperationalRiskRow $row, User $validator): void
+    {
+        $entity = $row->assignedEntity;
+        if (! $entity) {
+            return;
+        }
+
+        $recipients = $entity->responsables()
+            ->whereNotNull('email')
+            ->get()
+            ->reject(fn (User $user) => $user->id === $validator->id || blank($user->email));
+
+        foreach ($recipients as $recipient) {
+            try {
+                Mail::to($recipient->email)->send(
+                    new OperationalRiskAssignedMail($row, $recipient, $validator)
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Envoi mail risque affecté échoué', [
+                    'row_id' => $row->id,
+                    'recipient_id' => $recipient->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function notifyControleResponsablesEntitySubmitted(OperationalRiskRow $row, User $sender): void
+    {
+        $recipients = $this->controleResponsables()
+            ->reject(fn (User $user) => $user->id === $sender->id || blank($user->email));
+
+        foreach ($recipients as $recipient) {
+            try {
+                Mail::to($recipient->email)->send(
+                    new OperationalRiskEntitySubmittedMail($row, $recipient, $sender)
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Envoi mail complétion entité risque échoué', [
+                    'row_id' => $row->id,
+                    'recipient_id' => $recipient->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function notifyEntityResponsablesRevision(OperationalRiskRow $row, User $requester, string $comment): void
+    {
+        $entity = $row->assignedEntity;
+        if (! $entity) {
+            return;
+        }
+
+        $recipients = $entity->responsables()
+            ->whereNotNull('email')
+            ->get()
+            ->reject(fn (User $user) => $user->id === $requester->id || blank($user->email));
+
+        foreach ($recipients as $recipient) {
+            try {
+                Mail::to($recipient->email)->send(
+                    new OperationalRiskEntityRevisionMail($row, $recipient, $requester, $comment)
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Envoi mail révision entité risque échoué', [
+                    'row_id' => $row->id,
+                    'recipient_id' => $recipient->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function notifyEntityResponsablesCompleted(OperationalRiskRow $row, User $validator): void
+    {
+        $recipients = collect();
+
+        if ($row->assignedEntity) {
+            $recipients = $recipients->merge(
+                $row->assignedEntity->responsables()->whereNotNull('email')->get()
+            );
+        }
+
+        if ($row->createdBy && filled($row->createdBy->email)) {
+            $recipients->push($row->createdBy);
+        }
+
+        $recipients = $recipients
+            ->unique('id')
+            ->reject(fn (User $user) => $user->id === $validator->id || blank($user->email));
+
+        foreach ($recipients as $recipient) {
+            try {
+                Mail::to($recipient->email)->send(
+                    new OperationalRiskCompletedMail($row, $recipient, $validator)
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Envoi mail risque clôturé échoué', [
+                    'row_id' => $row->id,
+                    'recipient_id' => $recipient->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    private function controleResponsables(): Collection
+    {
+        return User::query()
+            ->where('activated', true)
+            ->whereNotNull('email')
+            ->where(function ($query) {
+                $query->where(function ($inner) {
+                    $inner->where('profile', 'controle')
+                        ->where('controle_role', 'responsable_controle_permanent');
+                })->orWhere(function ($inner) {
+                    $inner->where('module_profiles->cartographie->profile', 'controle')
+                        ->where('module_profiles->cartographie->controle_role', 'responsable_controle_permanent');
+                });
+            })
+            ->get();
     }
 
     private function findRow(int $id): ?OperationalRiskRow

@@ -29,12 +29,22 @@ class Application extends ModelBase
         'backup',
         'sla',
         'comment',
+        'editor',
+        'importance',
+        'version',
         'cost',
         'impact',
         'risk',
         'last_version',
+        'licenses_count',
+        'license_type',
+        'customization_level',
+        'etp_support',
+        'etp_changes',
+        'archi_ho',
         'environment_id',
         'entity_id',
+        'application_type_id',
         'created_by_id',
     ];
 
@@ -79,6 +89,11 @@ class Application extends ModelBase
     public function entity(): BelongsTo
     {
         return $this->belongsTo(Entity::class);
+    }
+
+    public function applicationType(): BelongsTo
+    {
+        return $this->belongsTo(ApplicationType::class);
     }
 
     public function createdBy(): BelongsTo

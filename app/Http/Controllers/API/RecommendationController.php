@@ -13,9 +13,12 @@ use App\Services\RecommendationStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Maravel\Http\Controllers\APIController;
+use Throwable;
 
 /**
  * @group Recommandations
@@ -43,7 +46,7 @@ class RecommendationController extends APIController
             return $this->responseOk([]);
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             if (! in_array($entityId, $user->entity_ids, true)) {
                 return $this->responseOk([]);
             }
@@ -66,14 +69,28 @@ class RecommendationController extends APIController
 
     public function show(Request $request, int $id)
     {
-        $user = $request->user();
-        $recommendation = $this->findRecommendation($id);
+        try {
+            $user = $request->user();
+            $recommendation = $this->findRecommendation($id);
 
-        if (! $this->canViewRecommendation($user, $recommendation)) {
-            return $this->responseError(['message' => ['Accès non autorisé.']], 403);
+            if (! $this->canViewRecommendation($user, $recommendation)) {
+                return $this->responseError(['message' => ['Accès non autorisé.']], 403);
+            }
+
+            return $this->responseOk($this->formatDetail($recommendation, $user));
+        } catch (Throwable $e) {
+            Log::error('Recommendation show failed', [
+                'recommendation_id' => $id,
+                'user_id' => $request->user()?->id,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile().':'.$e->getLine(),
+            ]);
+
+            return $this->responseError([
+                'message' => ['Impossible de charger le détail de la recommandation.'],
+                'debug' => config('app.debug') ? [$e->getMessage()] : [],
+            ], 500);
         }
-
-        return $this->responseOk($this->formatDetail($recommendation, $user));
     }
 
     public function close(Request $request, int $id)
@@ -637,18 +654,33 @@ class RecommendationController extends APIController
 
     private function findRecommendation(int $id): Recommendation
     {
+        $with = [
+            'mission.entities.environment',
+            'mission.responses',
+            'mission.recipients',
+            'entities',
+            'primaryEntity',
+            'regulatorTransmitter',
+        ];
+
+        if (Schema::hasTable('recommendation_follow_ups')) {
+            $with[] = 'followUps.user';
+        }
+
+        if (Schema::hasTable('recommendation_action_plans')) {
+            $with[] = 'actionPlans.user';
+
+            if (Schema::hasTable('recommendation_action_plan_comments')) {
+                $with[] = 'actionPlans.comments.user';
+            }
+        }
+
+        if (Schema::hasTable('recommendation_regulator_comments')) {
+            $with[] = 'regulatorComments.user';
+        }
+
         return Recommendation::query()
-            ->with([
-                'mission.entities.environment',
-                'mission.responses',
-                'mission.recipients',
-                'entities',
-                'primaryEntity',
-                'followUps.user',
-                'actionPlans.user',
-                'regulatorComments.user',
-                'regulatorTransmitter',
-            ])
+            ->with($with)
             ->findOrFail($id);
     }
 
@@ -745,7 +777,7 @@ class RecommendationController extends APIController
 
     private function canManageActionPlans(User $user, Recommendation $recommendation): bool
     {
-        if ($user->isPlatformAdministrator() || in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isPlatformAdministrator() || $user->isAuditStaff()) {
             return $this->canViewRecommendation($user, $recommendation);
         }
 
@@ -758,7 +790,7 @@ class RecommendationController extends APIController
 
     private function resolveActionPlanOwnerId(User $user, Recommendation $recommendation): ?int
     {
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             $entityIds = $user->entity_ids;
             $primaryEntityId = $recommendation->primary_entity_id
                 ? (int) $recommendation->primary_entity_id
@@ -773,16 +805,17 @@ class RecommendationController extends APIController
             }
 
             if (! $recommendation->mission
-                ->recipients()
-                ->where('users.id', $user->id)
-                ->exists()) {
+                || ! $recommendation->mission
+                    ->recipients()
+                    ->where('users.id', $user->id)
+                    ->exists()) {
                 return null;
             }
 
             return (int) $user->id;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'agent') {
+        if ($user->isAuditMetierAgent()) {
             $response = MissionResponse::query()
                 ->where('mission_id', $recommendation->mission_id)
                 ->where('assigned_agent_id', $user->id)
@@ -812,7 +845,7 @@ class RecommendationController extends APIController
             return false;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             return ! MissionResponse::query()
                 ->where('mission_id', $recommendation->mission_id)
                 ->where('responsable_id', $user->id)
@@ -856,7 +889,7 @@ class RecommendationController extends APIController
             return $user->canAccessMissionEnvironments($mission->entities);
         }
 
-        return in_array($user->profile, ['controle', 'audit'], true)
+        return $user->isAuditStaff()
             && (int) $mission->created_by === (int) $user->id;
     }
 
@@ -870,7 +903,7 @@ class RecommendationController extends APIController
             return $this->canViewRecommendation($user, $recommendation);
         }
 
-        if (! in_array($user->profile, ['controle', 'audit'], true)) {
+        if (! $user->isAuditStaff()) {
             return false;
         }
 
@@ -894,7 +927,7 @@ class RecommendationController extends APIController
             return $this->canViewRecommendation($user, $recommendation);
         }
 
-        if (! in_array($user->profile, ['controle', 'audit'], true)) {
+        if (! $user->isAuditStaff()) {
             return false;
         }
 
@@ -942,7 +975,7 @@ class RecommendationController extends APIController
             return $this->canViewAsRegulator($user, $recommendation);
         }
 
-        if (in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isAuditStaff()) {
             $missionQuery = Mission::query()->where('id', $recommendation->mission_id);
             $this->applyMissionVisibilityFilter($missionQuery, $user);
 
@@ -1013,9 +1046,22 @@ class RecommendationController extends APIController
 
     private function formatRegulatorComments(Recommendation $recommendation): array
     {
-        $comments = $recommendation->relationLoaded('regulatorComments')
-            ? $recommendation->regulatorComments
-            : $recommendation->regulatorComments()->with('user')->get();
+        if (! Schema::hasTable('recommendation_regulator_comments')) {
+            return [];
+        }
+
+        try {
+            $comments = $recommendation->relationLoaded('regulatorComments')
+                ? $recommendation->regulatorComments
+                : $recommendation->regulatorComments()->with('user')->get();
+        } catch (Throwable $e) {
+            Log::warning('Unable to load regulator comments', [
+                'recommendation_id' => $recommendation->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
 
         return $comments
             ->sortByDesc(fn ($item) => sprintf(
@@ -1065,15 +1111,15 @@ class RecommendationController extends APIController
             return true;
         }
 
-        if (in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isAuditStaff()) {
             return true;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             return true;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'agent') {
+        if ($user->isAuditMetierAgent()) {
             return MissionResponse::query()
                 ->where('assigned_agent_id', $user->id)
                 ->exists();
@@ -1088,7 +1134,7 @@ class RecommendationController extends APIController
             return;
         }
 
-        if ($user->isEnvironmentAdmin() || in_array($user->profile, ['controle', 'audit'], true)) {
+        if ($user->isEnvironmentAdmin() || $user->isAuditStaff()) {
             $environmentIds = $user->environment_ids;
 
             if ($user->isEnvironmentAdmin() && empty($environmentIds)) {
@@ -1106,7 +1152,7 @@ class RecommendationController extends APIController
             return;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'responsable_entite') {
+        if ($user->isAuditMetierResponsable()) {
             $query->whereHas('recipients', function ($recipientQuery) use ($user) {
                 $recipientQuery->where('users.id', $user->id);
             });
@@ -1114,7 +1160,7 @@ class RecommendationController extends APIController
             return;
         }
 
-        if ($user->profile === 'metier' && $user->metier_role === 'agent') {
+        if ($user->isAuditMetierAgent()) {
             $query->whereHas('responses', function ($responseQuery) use ($user) {
                 $responseQuery->where('assigned_agent_id', $user->id);
             });
@@ -1189,9 +1235,22 @@ class RecommendationController extends APIController
 
     private function formatActionPlans(Recommendation $recommendation, ?User $viewer = null): array
     {
-        $plans = $recommendation->relationLoaded('actionPlans')
-            ? $recommendation->actionPlans
-            : $recommendation->actionPlans()->with(['user', 'comments.user'])->get();
+        if (! Schema::hasTable('recommendation_action_plans')) {
+            return [];
+        }
+
+        try {
+            $plans = $recommendation->relationLoaded('actionPlans')
+                ? $recommendation->actionPlans
+                : $recommendation->actionPlans()->with(['user', 'comments.user'])->get();
+        } catch (Throwable $e) {
+            Log::warning('Unable to load action plans', [
+                'recommendation_id' => $recommendation->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
 
         return $plans->map(fn ($plan) => $this->formatActionPlan($plan, $viewer))->values()->all();
     }
@@ -1234,9 +1293,22 @@ class RecommendationController extends APIController
 
     private function formatActionPlanComments($plan): array
     {
-        $comments = $plan->relationLoaded('comments')
-            ? $plan->comments
-            : $plan->comments()->with('user')->get();
+        if (! Schema::hasTable('recommendation_action_plan_comments')) {
+            return [];
+        }
+
+        try {
+            $comments = $plan->relationLoaded('comments')
+                ? $plan->comments
+                : $plan->comments()->with('user')->get();
+        } catch (Throwable $e) {
+            Log::warning('Unable to load action plan comments', [
+                'action_plan_id' => $plan->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
 
         return $comments
             ->sortByDesc(fn ($item) => sprintf(
@@ -1254,9 +1326,22 @@ class RecommendationController extends APIController
 
     private function formatFollowUps(Recommendation $recommendation, ?User $viewer = null): array
     {
-        $followUps = $recommendation->relationLoaded('followUps')
-            ? $recommendation->followUps
-            : $recommendation->followUps()->with('user')->get();
+        if (! Schema::hasTable('recommendation_follow_ups')) {
+            return [];
+        }
+
+        try {
+            $followUps = $recommendation->relationLoaded('followUps')
+                ? $recommendation->followUps
+                : $recommendation->followUps()->with('user')->get();
+        } catch (Throwable $e) {
+            Log::warning('Unable to load follow ups', [
+                'recommendation_id' => $recommendation->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
 
         return $followUps
             ->sortByDesc(fn ($item) => sprintf(

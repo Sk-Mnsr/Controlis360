@@ -316,33 +316,23 @@ const routes = [
             },
             {
                 path: 'cartographie-applications',
-                meta: { module: 'cartographie-applications' },
-                children: [
-                    {
-                        path: '',
-                        redirect: { name: 'cartographie-applications.home' },
-                    },
-                    {
-                        path: 'home',
-                        name: 'cartographie-applications.home',
-                        component: () => import('../views/cartographie-applications/CartographieApplicationsHomeView.vue'),
-                    },
-                    {
-                        path: 'applications',
-                        name: 'cartographie-applications.applications',
-                        component: () => import('../views/cartographie-applications/ApplicationsView.vue'),
-                    },
-                    {
-                        path: 'contrats-it',
-                        name: 'cartographie-applications.contrats',
-                        component: () => import('../views/cartographie-applications/ContratsItView.vue'),
-                    },
-                    {
-                        path: 'projets-it',
-                        name: 'cartographie-applications.projets',
-                        component: () => import('../views/cartographie-applications/ProjetsItView.vue'),
-                    },
-                ],
+                redirect: { name: 'gouvernance-it.cartographie-applications' },
+            },
+            {
+                path: 'cartographie-applications/home',
+                redirect: { name: 'gouvernance-it.cartographie-applications' },
+            },
+            {
+                path: 'cartographie-applications/applications',
+                redirect: { name: 'gouvernance-it.cartographie-applications.applications' },
+            },
+            {
+                path: 'cartographie-applications/contrats-it',
+                redirect: { name: 'gouvernance-it.cartographie-applications.contrats' },
+            },
+            {
+                path: 'cartographie-applications/projets-it',
+                redirect: { name: 'gouvernance-it.cartographie-applications.projets' },
             },
             {
                 path: 'gouvernance-it',
@@ -390,6 +380,31 @@ const routes = [
                         name: 'gouvernance-it.retroplanning',
                         component: () => import('../views/gouvernance-it/GovItRetroplanningView.vue'),
                         props: true,
+                    },
+                    {
+                        path: 'cartographie-applications',
+                        name: 'gouvernance-it.cartographie-applications',
+                        component: () => import('../views/cartographie-applications/CartographieApplicationsHomeView.vue'),
+                    },
+                    {
+                        path: 'cartographie-applications/applications',
+                        name: 'gouvernance-it.cartographie-applications.applications',
+                        component: () => import('../views/cartographie-applications/ApplicationsView.vue'),
+                    },
+                    {
+                        path: 'cartographie-applications/contrats-it',
+                        name: 'gouvernance-it.cartographie-applications.contrats',
+                        component: () => import('../views/cartographie-applications/ContratsItView.vue'),
+                    },
+                    {
+                        path: 'cartographie-applications/projets-it',
+                        name: 'gouvernance-it.cartographie-applications.projets',
+                        component: () => import('../views/cartographie-applications/ProjetsItView.vue'),
+                    },
+                    {
+                        path: 'registre-comptes-generiques',
+                        name: 'gouvernance-it.registre-comptes-generiques',
+                        component: () => import('../views/gouvernance-it/RegistreComptesGeneriquesView.vue'),
                     },
                 ],
             },

@@ -50,8 +50,17 @@ class Entity extends ModelBase
     public function responsables(): BelongsToMany
     {
         return $this->users()
-            ->where('profile', 'metier')
-            ->where('metier_role', 'responsable_entite')
+            ->where(function ($query) {
+                $query
+                    ->where(function ($inner) {
+                        $inner->where('profile', 'metier')
+                            ->where('metier_role', 'responsable_entite');
+                    })
+                    ->orWhere(function ($inner) {
+                        $inner->where('module_profiles->audit->profile', 'metier')
+                            ->where('module_profiles->audit->metier_role', 'responsable_entite');
+                    });
+            })
             ->where('activated', true);
     }
 

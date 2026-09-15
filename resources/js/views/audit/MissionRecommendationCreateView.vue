@@ -68,9 +68,11 @@
                                 type="text"
                                 required
                                 class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                                placeholder="REC - "
-                                @input="ensureReferencePrefix"
+                                placeholder="REC-COBA-06-25"
                             />
+                            <p class="mt-1 text-xs text-slate-500">
+                                Prérempli avec REC- + référence mission — modifiable.
+                            </p>
                         </div>
                         <div>
                             <label class="mb-1 block text-sm font-medium text-slate-700">Priorité</label>
@@ -238,7 +240,7 @@ const error = ref('');
 const attachmentSlots = ref([{ key: 1, file: null }]);
 let slotKey = 1;
 
-const REFERENCE_PREFIX = 'REC - ';
+const REFERENCE_PREFIX = 'REC-';
 
 const form = reactive({
     reference: REFERENCE_PREFIX,
@@ -254,11 +256,20 @@ const form = reactive({
     comments: '',
 });
 
-function ensureReferencePrefix() {
-    if (!form.reference.startsWith(REFERENCE_PREFIX)) {
-        const suffix = form.reference.replace(/^REC\s*-\s*/i, '');
-        form.reference = `${REFERENCE_PREFIX}${suffix}`;
+function defaultRecommendationReference(missionData) {
+    if (missionData?.next_recommendation_reference) {
+        return String(missionData.next_recommendation_reference).trim();
     }
+
+    const missionRef = String(missionData?.reference ?? '').trim();
+    if (!missionRef) return REFERENCE_PREFIX;
+
+    const existingCount = missionData?.recommendations?.length ?? 0;
+    if (existingCount <= 0) {
+        return `${REFERENCE_PREFIX}${missionRef}`;
+    }
+
+    return `${REFERENCE_PREFIX}${missionRef}-${String(existingCount + 1).padStart(2, '0')}`;
 }
 
 const backToMissionRoute = computed(() => ({
@@ -419,7 +430,7 @@ async function loadMission() {
     try {
         const { data } = await api.get(`/missions/${route.params.id}`);
         mission.value = data?.data ?? data;
-        form.reference = REFERENCE_PREFIX;
+        form.reference = defaultRecommendationReference(mission.value);
         form.entity_ids = [];
         form.primary_entity_id = '';
         await loadDepartments(mission.value?.environment_id);

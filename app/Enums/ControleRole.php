@@ -10,7 +10,7 @@ enum ControleRole: string
     public function label(): string
     {
         return match ($this) {
-            self::AgentControleInterne => 'Agent du contrôle interne',
+            self::AgentControleInterne => 'Agent contrôle permanent',
             self::ResponsableControlePermanent => 'Responsable Contrôle permanent & risques opérationnels',
         };
     }

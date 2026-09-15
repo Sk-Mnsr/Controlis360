@@ -40,8 +40,7 @@ class MissionResponseController extends APIController
         $sharedEntityIds = array_values(array_intersect($entityIds, $userEntityIds));
 
         $agents = User::query()
-            ->where('profile', 'metier')
-            ->where('metier_role', 'agent')
+            ->auditMetierAgents()
             ->where('activated', true)
             ->whereHas('entities', function ($query) use ($sharedEntityIds) {
                 $query->whereIn('entities.id', $sharedEntityIds);
@@ -257,7 +256,7 @@ class MissionResponseController extends APIController
             return $this->responseError(['message' => ['Réponse introuvable.']], 404);
         }
 
-        if ($user->profile !== 'metier' || $user->metier_role !== 'agent' || $response->assigned_agent_id !== $user->id) {
+        if (! $user->isAuditMetierAgent() || $response->assigned_agent_id !== $user->id) {
             return $this->responseError(['message' => ['Seul l\'agent affecté peut soumettre cette réponse.']], 403);
         }
 
@@ -457,12 +456,12 @@ class MissionResponseController extends APIController
             return false;
         }
 
-        return $user->isSuperAdmin() || in_array($user->profile, ['controle', 'audit'], true);
+        return $user->isSuperAdmin() || $user->isAuditStaff();
     }
 
     private function loadMissionForResponsable(int $missionId, User $user): ?Mission
     {
-        if ($user->profile !== 'metier' || $user->metier_role !== 'responsable_entite') {
+        if (! $user->isAuditMetierResponsable()) {
             return null;
         }
 
@@ -495,8 +494,7 @@ class MissionResponseController extends APIController
 
         return User::query()
             ->where('id', $agentId)
-            ->where('profile', 'metier')
-            ->where('metier_role', 'agent')
+            ->auditMetierAgents()
             ->where('activated', true)
             ->whereHas('entities', function ($query) use ($sharedEntityIds) {
                 $query->whereIn('entities.id', $sharedEntityIds);
