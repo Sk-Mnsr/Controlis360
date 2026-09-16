@@ -191,7 +191,11 @@
                         </label>
                         <label>
                             <span>Statut</span>
-                            <input v-model="form.statut" placeholder="Ex : E – Enabled" />
+                            <select v-model="form.statut">
+                                <option value="">—</option>
+                                <option value="active">active</option>
+                                <option value="desactive">desactive</option>
+                            </select>
                         </label>
                         <label>
                             <span>Forgotten</span>
@@ -203,7 +207,15 @@
                         </label>
                         <label>
                             <span>Type de compte</span>
-                            <input v-model="form.account_type" />
+                            <select v-model="form.account_type">
+                                <option value="">—</option>
+                                <option value="Compte de service">Compte de service</option>
+                                <option value="Compte applicatif">Compte applicatif</option>
+                                <option value="Compte technique">Compte technique</option>
+                                <option value="Compte système">Compte système</option>
+                                <option value="Compte partagé">Compte partagé</option>
+                                <option value="Compte administrateur">Compte administrateur</option>
+                            </select>
                         </label>
                         <label>
                             <span>Système / Application</span>
@@ -255,7 +267,13 @@
                         </label>
                         <label>
                             <span>MFA</span>
-                            <input v-model="form.mfa" placeholder="Oui / Non / N/A / À confirmer" />
+                            <select v-model="form.mfa">
+                                <option value="">—</option>
+                                <option value="Oui">Oui</option>
+                                <option value="Non">Non</option>
+                                <option value="N/A">N/A</option>
+                                <option value="À confirmer">À confirmer</option>
+                            </select>
                         </label>
                         <label>
                             <span>Journalisation</span>
