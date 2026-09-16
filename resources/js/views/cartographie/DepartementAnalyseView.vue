@@ -105,6 +105,18 @@
             @saved="loadAnalyse"
             @submitted="loadAnalyse"
         />
+
+        <OperationalRiskConfirmModal
+            v-model:open="confirmOpen"
+            :title="confirmTitle"
+            :message="confirmMessage"
+            :detail="confirmDetail"
+            :confirm-label="confirmLabel"
+            :danger="confirmDanger"
+            :busy="confirmBusy"
+            :error="confirmError"
+            @confirm="runConfirmAction"
+        />
     </div>
 </template>
 
@@ -120,6 +132,7 @@ import OperationalRiskTable from '../../components/cartographie/OperationalRiskT
 import OperationalRiskRowEditModal from '../../components/cartographie/OperationalRiskRowEditModal.vue';
 import OperationalRiskValidateModal from '../../components/cartographie/OperationalRiskValidateModal.vue';
 import OperationalRiskRevisionModal from '../../components/cartographie/OperationalRiskRevisionModal.vue';
+import OperationalRiskConfirmModal from '../../components/cartographie/OperationalRiskConfirmModal.vue';
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -145,6 +158,17 @@ const revisionModalOpen = ref(false);
 const revisionRow = ref(null);
 const revisionTarget = ref('agent');
 const activeTab = ref('all');
+
+const confirmOpen = ref(false);
+const confirmBusy = ref(false);
+const confirmError = ref('');
+const confirmTitle = ref('Confirmation');
+const confirmMessage = ref('');
+const confirmDetail = ref('');
+const confirmLabel = ref('Confirmer');
+const confirmDanger = ref(false);
+const confirmAction = ref(null);
+const confirmRow = ref(null);
 
 const showValidationTabs = computed(() => Boolean(permissions.value.can_validate));
 
@@ -239,17 +263,63 @@ function openEditModal({ row, group }) {
     editModalOpen.value = true;
 }
 
-async function deleteRow(row) {
-    if (!confirm('Supprimer ce risque ?')) {
+function rowDetail(row) {
+    if (!row) return '';
+    const process = row.sub_process_name || 'Sans sous-processus';
+    const risk = row.major_exceptions || 'Sans libellé';
+    return `${process} — ${risk}`;
+}
+
+function askConfirm({ title, message, detail = '', confirmLabel: label = 'Confirmer', danger = false, action, row = null }) {
+    confirmTitle.value = title;
+    confirmMessage.value = message;
+    confirmDetail.value = detail;
+    confirmLabel.value = label;
+    confirmDanger.value = danger;
+    confirmAction.value = action;
+    confirmRow.value = row;
+    confirmError.value = '';
+    confirmBusy.value = false;
+    confirmOpen.value = true;
+}
+
+async function runConfirmAction() {
+    if (!confirmAction.value || !confirmRow.value) {
+        confirmOpen.value = false;
         return;
     }
 
+    confirmBusy.value = true;
+    confirmError.value = '';
+
     try {
-        await api.delete(`/operational-risk-rows/${row.id}`);
+        await confirmAction.value(confirmRow.value);
+        confirmOpen.value = false;
         await loadAnalyse();
-    } catch {
-        alert('Impossible de supprimer cette ligne.');
+    } catch (err) {
+        const messages = err.response?.data?.data ?? err.response?.data?.errors;
+        if (typeof messages === 'object' && messages !== null) {
+            confirmError.value = Object.values(messages).flat().join(' ');
+        } else {
+            confirmError.value = err.message || 'Action impossible.';
+        }
+    } finally {
+        confirmBusy.value = false;
     }
+}
+
+function deleteRow(row) {
+    askConfirm({
+        title: 'Supprimer la ligne',
+        message: 'Voulez-vous vraiment supprimer ce risque ? Cette action est définitive.',
+        detail: rowDetail(row),
+        confirmLabel: 'Supprimer',
+        danger: true,
+        row,
+        action: async (target) => {
+            await api.delete(`/operational-risk-rows/${target.id}`);
+        },
+    });
 }
 
 function openValidateModal(row) {
@@ -271,48 +341,100 @@ function requestEntityRevisionRow(row) {
     openRevisionModal(row, 'entity');
 }
 
-async function submitRow(row) {
-    if (!confirm('Envoyer cette ligne pour validation par le contrôle ?')) {
-        return;
-    }
-
-    try {
-        await api.post(`/operational-risk-rows/${row.id}/submit`);
-        await loadAnalyse();
-    } catch {
-        alert('Impossible d\'envoyer cette ligne.');
-    }
+function isBlank(value) {
+    return value === null || value === undefined || String(value).trim() === '';
 }
 
-async function submitEntityRow(row) {
-    if (!confirm('Envoyer cette ligne au contrôle pour validation ?')) {
-        return;
-    }
+function phase1MissingFields(row) {
+    const missing = [];
+    if (isBlank(row.process_number)) missing.push('N°');
+    if (isBlank(row.process_name)) missing.push('Processus');
+    if (row.ratio === null || row.ratio === undefined || row.ratio === '') missing.push('Ratio');
+    if (isBlank(row.sub_process_name)) missing.push('Sous-processus');
+    if (isBlank(row.line_date)) missing.push('Date ligne');
+    if (isBlank(row.major_exceptions)) missing.push('Risques identifiés');
+    if (isBlank(row.correlated_risks)) missing.push('Risques corrélés');
+    if (isBlank(row.risk_family)) missing.push('Famille de risque');
+    if (isBlank(row.gravity)) missing.push('G');
+    if (isBlank(row.probability)) missing.push('P');
+    return missing;
+}
 
-    try {
-        await api.post(`/operational-risk-rows/${row.id}/submit-entity`, {
-            control_description: row.control_description,
-            control_exists: row.control_exists,
-            control_owner: row.control_owner,
-            control_effectiveness: row.control_effectiveness,
+function submitRow(row) {
+    const missing = phase1MissingFields(row);
+    if (missing.length) {
+        askConfirm({
+            title: 'Champs incomplets',
+            message: `Avant d'envoyer, renseignez : ${missing.join(', ')}. Ouvrez Modifier pour compléter la ligne.`,
+            detail: rowDetail(row),
+            confirmLabel: 'OK',
+            row,
+            action: async () => {},
         });
-        await loadAnalyse();
-    } catch {
-        alert('Impossible d\'envoyer la ligne au contrôle.');
-    }
-}
-
-async function completeEntityRow(row) {
-    if (!confirm('Valider définitivement cette ligne ?')) {
         return;
     }
 
-    try {
-        await api.post(`/operational-risk-rows/${row.id}/complete`);
-        await loadAnalyse();
-    } catch {
-        alert('Impossible de valider cette ligne.');
+    askConfirm({
+        title: 'Envoyer au contrôle',
+        message: 'Envoyer cette ligne pour validation par le contrôle ?',
+        detail: rowDetail(row),
+        confirmLabel: 'Envoyer',
+        row,
+        action: async (target) => {
+            await api.post(`/operational-risk-rows/${target.id}/submit`);
+        },
+    });
+}
+
+function submitEntityRow(row) {
+    const missing = [];
+    if (!String(row.control_description || '').trim()) missing.push('Description du dispositif');
+    if (row.control_exists === null || row.control_exists === undefined) missing.push('Dispositif existant');
+    if (!String(row.control_owner || '').trim()) missing.push('Owner du contrôle');
+    if (row.control_effectiveness === null || row.control_effectiveness === undefined || row.control_effectiveness === '') {
+        missing.push('Efficacité');
     }
+
+    if (missing.length) {
+        askConfirm({
+            title: 'Champs incomplets',
+            message: `Avant d'envoyer, renseignez : ${missing.join(', ')}. Ouvrez Modifier pour compléter la ligne.`,
+            detail: rowDetail(row),
+            confirmLabel: 'OK',
+            row,
+            action: async () => {},
+        });
+        return;
+    }
+
+    askConfirm({
+        title: 'Envoyer au contrôle',
+        message: 'Envoyer cette ligne au contrôle pour validation ?',
+        detail: rowDetail(row),
+        confirmLabel: 'Envoyer',
+        row,
+        action: async (target) => {
+            await api.post(`/operational-risk-rows/${target.id}/submit-entity`, {
+                control_description: target.control_description,
+                control_exists: target.control_exists,
+                control_owner: target.control_owner,
+                control_effectiveness: target.control_effectiveness,
+            });
+        },
+    });
+}
+
+function completeEntityRow(row) {
+    askConfirm({
+        title: 'Valider définitivement',
+        message: 'Valider définitivement cette ligne ?',
+        detail: rowDetail(row),
+        confirmLabel: 'Valider',
+        row,
+        action: async (target) => {
+            await api.post(`/operational-risk-rows/${target.id}/complete`);
+        },
+    });
 }
 
 watch(() => [route.params.code, route.query.environment], loadAnalyse);

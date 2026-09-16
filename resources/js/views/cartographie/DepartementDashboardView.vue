@@ -129,7 +129,7 @@ import api from '../../api/client';
 import { useCartographieStore } from '../../stores/cartographie';
 import { environmentQueryParams } from '../../utils/entityEnvironment';
 import {
-    classificationForScore,
+    classificationForCell,
     computeRiskAverages,
     formatRiskScore,
     scoreStyle,
@@ -194,12 +194,23 @@ const detailCount = computed(() => {
     return details.size;
 });
 
+function levelFromFactors(gravity, probability) {
+    const g = Math.round(Number(gravity));
+    const p = Math.round(Number(probability));
+
+    if (!g || !p) {
+        return null;
+    }
+
+    return classificationForCell(g, p, riskClassifications.value);
+}
+
 const grossClassification = computed(() =>
-    classificationForScore(summaryAverages.value?.gross.risk, riskClassifications.value),
+    levelFromFactors(summaryAverages.value?.gross.gravity, summaryAverages.value?.gross.probability),
 );
 
 const residualClassification = computed(() =>
-    classificationForScore(summaryAverages.value?.residual.risk, riskClassifications.value),
+    levelFromFactors(summaryAverages.value?.residual.gravity, summaryAverages.value?.residual.probability),
 );
 
 const grossLevel = computed(() => grossClassification.value?.name ?? null);

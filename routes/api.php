@@ -81,6 +81,7 @@ Route::controller(AuthController::class)->group(function () {
             Route::prefix('operational-risk-rows')->name('operational-risk-row.')->controller(OperationalRiskRowController::class)->group(function () {
                 Route::post('departments/{code}', 'createForDepartment')->name('store');
                 Route::put('{id}/phase1', 'updatePhase1')->name('phase1.update');
+                Route::put('{id}/sub-process', 'updateSubProcess')->name('sub-process.update');
                 Route::post('{id}/submit', 'submit')->name('submit');
                 Route::post('{id}/request-revision', 'requestRevision')->name('request-revision');
                 Route::post('{id}/validate-assign', 'validateAndAssign')->name('validate-assign');

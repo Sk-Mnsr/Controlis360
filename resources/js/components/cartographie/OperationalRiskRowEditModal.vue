@@ -81,6 +81,16 @@
             </div>
         </div>
     </Teleport>
+
+    <OperationalRiskConfirmModal
+        v-model:open="confirmOpen"
+        :title="confirmTitle"
+        :message="confirmMessage"
+        :confirm-label="confirmLabel"
+        :busy="saving"
+        :error="confirmError"
+        @confirm="runPendingConfirm"
+    />
 </template>
 
 <script setup>
@@ -88,6 +98,7 @@ import { computed, ref, watch } from 'vue';
 import api from '../../api/client';
 import OperationalRiskSubProcessFields from './OperationalRiskSubProcessFields.vue';
 import OperationalRiskExceptionFields from './OperationalRiskExceptionFields.vue';
+import OperationalRiskConfirmModal from './OperationalRiskConfirmModal.vue';
 import Phase2Fields from './OperationalRiskPhase2Fields.vue';
 import { subProcessFieldsFromRow } from '../../utils/operationalRiskGroups';
 import { emptyExceptionForm } from '../../utils/operationalRiskForms';
@@ -110,6 +121,12 @@ const error = ref('');
 const subProcessForm = ref(emptySubProcess());
 const exceptionForm = ref(emptyExceptionForm());
 const phase2Form = ref(emptyPhase2());
+const confirmOpen = ref(false);
+const confirmTitle = ref('Confirmation');
+const confirmMessage = ref('');
+const confirmLabel = ref('Confirmer');
+const confirmError = ref('');
+const pendingConfirmAction = ref(null);
 
 const editPhase1 = computed(() => {
     if (!props.row) {
@@ -219,16 +236,66 @@ async function syncSubProcessToSiblings(payload) {
             continue;
         }
 
-        await api.put(`/operational-risk-rows/${sibling.id}/phase1`, {
-            line_date: sibling.line_date ?? null,
-            major_exceptions: sibling.major_exceptions ?? '',
-            correlated_risks: sibling.correlated_risks ?? '',
-            risk_family: sibling.risk_family ?? '',
-            gravity: sibling.gravity,
-            probability: sibling.probability,
-            ...subProcessPayload,
-        });
+        try {
+            await api.put(`/operational-risk-rows/${sibling.id}/sub-process`, subProcessPayload);
+        } catch {
+            // Ne bloque pas l'envoi de la ligne courante si une sœur est incomplète.
+        }
     }
+}
+
+function isBlank(value) {
+    return value === null || value === undefined || String(value).trim() === '';
+}
+
+function validatePhase1Form() {
+    const missing = [];
+    const sub = subProcessForm.value;
+    const risk = exceptionForm.value;
+
+    if (isBlank(sub.process_number)) missing.push('N°');
+    if (isBlank(sub.process_name)) missing.push('Processus');
+    if (sub.ratio === null || sub.ratio === undefined || sub.ratio === '') missing.push('Ratio');
+    if (isBlank(sub.sub_process_name)) missing.push('Sous-processus');
+    if (isBlank(risk.line_date)) missing.push('Date ligne');
+    if (isBlank(risk.major_exceptions)) missing.push('Risques identifiés');
+    if (isBlank(risk.correlated_risks)) missing.push('Risques corrélés');
+    if (isBlank(risk.risk_family)) missing.push('Famille de risque');
+    if (isBlank(risk.gravity)) missing.push('G');
+    if (isBlank(risk.probability)) missing.push('P');
+
+    if (missing.length) {
+        error.value = `Veuillez renseigner tous les champs : ${missing.join(', ')}.`;
+        return false;
+    }
+
+    return true;
+}
+
+function validatePhase2Form() {
+    const missing = [];
+    const form = phase2Form.value;
+
+    if (isBlank(form.control_description)) missing.push('Description du dispositif');
+    if (form.control_exists === null || form.control_exists === undefined || form.control_exists === '') {
+        missing.push('Dispositif existant');
+    }
+    if (isBlank(form.control_owner)) missing.push('Owner du contrôle');
+    if (isBlank(form.control_effectiveness)) missing.push('Efficacité');
+    else {
+        const effectiveness = Number(form.control_effectiveness);
+        if (!Number.isFinite(effectiveness) || effectiveness < 1 || effectiveness > 5) {
+            error.value = 'L\'efficacité doit être un entier entre 1 et 5.';
+            return false;
+        }
+    }
+
+    if (missing.length) {
+        error.value = `Veuillez renseigner tous les champs : ${missing.join(', ')}.`;
+        return false;
+    }
+
+    return true;
 }
 
 async function persistChanges() {
@@ -249,6 +316,14 @@ async function persistChanges() {
 
 async function save() {
     if (!props.row) {
+        return;
+    }
+
+    if (editPhase1.value && !validatePhase1Form()) {
+        return;
+    }
+
+    if (editPhase2.value && !validatePhase2Form()) {
         return;
     }
 
@@ -276,28 +351,21 @@ async function submitRow() {
         return;
     }
 
-    if (!confirm('Envoyer cette ligne pour validation ?')) {
+    if (!validatePhase1Form()) {
         return;
     }
 
-    saving.value = true;
-    error.value = '';
-
-    try {
-        await persistChanges();
-        await api.post(`/operational-risk-rows/${props.row.id}/submit`);
-        emit('submitted');
-        close();
-    } catch (err) {
-        const messages = err.response?.data?.data ?? err.response?.data?.errors;
-        if (typeof messages === 'object' && messages !== null) {
-            error.value = Object.values(messages).flat().join(' ');
-        } else {
-            error.value = 'Impossible d\'envoyer la ligne.';
-        }
-    } finally {
-        saving.value = false;
-    }
+    askConfirm({
+        title: 'Envoyer au contrôle',
+        message: 'Envoyer cette ligne pour validation ?',
+        confirmLabel: 'Envoyer',
+        action: async () => {
+            await persistChanges();
+            await api.post(`/operational-risk-rows/${props.row.id}/submit`);
+            emit('submitted');
+            close();
+        },
+    });
 }
 
 async function submitEntityToControl() {
@@ -305,23 +373,51 @@ async function submitEntityToControl() {
         return;
     }
 
-    if (!confirm('Envoyer cette ligne au contrôle pour validation ?')) {
+    if (!validatePhase2Form()) {
+        return;
+    }
+
+    askConfirm({
+        title: 'Envoyer au contrôle',
+        message: 'Envoyer cette ligne au contrôle pour validation ?',
+        confirmLabel: 'Envoyer',
+        action: async () => {
+            await persistChanges();
+            await api.post(`/operational-risk-rows/${props.row.id}/submit-entity`, phase2Form.value);
+            emit('submitted');
+            close();
+        },
+    });
+}
+
+function askConfirm({ title, message, confirmLabel: label = 'Confirmer', action }) {
+    confirmTitle.value = title;
+    confirmMessage.value = message;
+    confirmLabel.value = label;
+    confirmError.value = '';
+    pendingConfirmAction.value = action;
+    confirmOpen.value = true;
+}
+
+async function runPendingConfirm() {
+    if (!pendingConfirmAction.value) {
+        confirmOpen.value = false;
         return;
     }
 
     saving.value = true;
+    confirmError.value = '';
     error.value = '';
 
     try {
-        await api.post(`/operational-risk-rows/${props.row.id}/submit-entity`, phase2Form.value);
-        emit('submitted');
-        close();
+        await pendingConfirmAction.value();
+        confirmOpen.value = false;
     } catch (err) {
         const messages = err.response?.data?.data ?? err.response?.data?.errors;
         if (typeof messages === 'object' && messages !== null) {
-            error.value = Object.values(messages).flat().join(' ');
+            confirmError.value = Object.values(messages).flat().join(' ');
         } else {
-            error.value = 'Impossible d\'envoyer la ligne au contrôle.';
+            confirmError.value = 'Impossible d\'envoyer la ligne.';
         }
     } finally {
         saving.value = false;

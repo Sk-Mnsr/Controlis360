@@ -31,23 +31,25 @@
             <div class="top-risks-editor-scores">
                 <div class="top-risks-editor-field">
                     <label class="top-risks-editor-label">Gravité (G)</label>
-                    <input
-                        v-model.number="row.gravity"
-                        type="number"
-                        min="1"
-                        max="6"
+                    <select
                         class="top-risks-editor-input"
-                    />
+                        :value="row.gravity ?? ''"
+                        @change="setScore(row, 'gravity', $event.target.value)"
+                    >
+                        <option value="">—</option>
+                        <option v-for="level in scoreLevels" :key="`g-${level}`" :value="level">{{ level }}</option>
+                    </select>
                 </div>
                 <div class="top-risks-editor-field">
                     <label class="top-risks-editor-label">Probabilité (P)</label>
-                    <input
-                        v-model.number="row.probability"
-                        type="number"
-                        min="1"
-                        max="6"
+                    <select
                         class="top-risks-editor-input"
-                    />
+                        :value="row.probability ?? ''"
+                        @change="setScore(row, 'probability', $event.target.value)"
+                    >
+                        <option value="">—</option>
+                        <option v-for="level in scoreLevels" :key="`p-${level}`" :value="level">{{ level }}</option>
+                    </select>
                 </div>
                 <div class="top-risks-editor-rb">
                     <span class="top-risks-editor-label">Rb (G × P)</span>
@@ -74,6 +76,23 @@ defineProps({
 });
 
 defineEmits(['add-row', 'remove-row']);
+
+const scoreLevels = [1, 2, 3, 4, 5, 6];
+
+function setScore(row, field, rawValue) {
+    if (rawValue === '' || rawValue === null || rawValue === undefined) {
+        row[field] = null;
+        return;
+    }
+
+    const value = Number(rawValue);
+    if (!Number.isFinite(value)) {
+        row[field] = null;
+        return;
+    }
+
+    row[field] = Math.min(6, Math.max(1, Math.round(value)));
+}
 
 function rowKey(row, index) {
     return row.id ?? `new-${index}-${row.sub_process_name}`;

@@ -567,7 +567,6 @@ const isFullBleedPage = computed(() =>
     || route.name === 'cartographie.cartographie'
     || route.name === 'cartographie.methodology.show'
     || route.name === 'cartographie.departement-analyse'
-    || route.name === 'cartographie.departement-dashboard'
     || route.name === 'cartographie.plus-gros-risques'
     || route.name === 'cartographie.definitions-objectifs'
     || route.name === 'cartographie.preambule'

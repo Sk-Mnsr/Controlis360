@@ -1,5 +1,14 @@
 <template>
-    <table class="risk-form-table" :class="{ 'risk-form-table-readonly': readonly }">
+    <table class="risk-form-table risk-exception-table" :class="{ 'risk-form-table-readonly': readonly }">
+        <colgroup>
+            <col style="width: 7%" />
+            <col style="width: 42%" />
+            <col style="width: 22%" />
+            <col style="width: 12%" />
+            <col style="width: 5.5%" />
+            <col style="width: 5.5%" />
+            <col style="width: 6%" />
+        </colgroup>
         <thead>
             <tr>
                 <th class="risk-form-head">Date ligne</th>
@@ -13,10 +22,11 @@
         </thead>
         <tbody>
             <tr>
-                <td class="risk-form-cell risk-form-cell-date">
+                <td class="risk-form-cell">
                     <input
                         v-model="model.line_date"
                         type="date"
+                        required
                         class="risk-form-input"
                         :readonly="readonly"
                     />
@@ -33,12 +43,14 @@
                 <td class="risk-form-cell">
                     <select
                         v-if="hasDetailOptions"
-                        class="risk-form-select"
+                        class="risk-form-select risk-form-select-correlated"
                         :value="model.correlated_risks || ''"
                         :disabled="readonly"
+                        required
+                        :title="model.correlated_risks || ''"
                         @change="onDetailSelected"
                     >
-                        <option value="">— Sélectionner un détail —</option>
+                        <option value="">— Sélectionner —</option>
                         <optgroup
                             v-for="category in riskCategories"
                             :key="category.id ?? category.name"
@@ -55,12 +67,14 @@
                     </select>
                     <select
                         v-else-if="riskFamilies.length"
-                        class="risk-form-select"
+                        class="risk-form-select risk-form-select-correlated"
                         :value="model.correlated_risks || ''"
                         :disabled="readonly"
+                        required
+                        :title="model.correlated_risks || ''"
                         @change="onLegacyDetailSelected"
                     >
-                        <option value="">— Sélectionner un détail —</option>
+                        <option value="">— Sélectionner —</option>
                         <option v-for="family in riskFamilies" :key="family" :value="family">
                             {{ family }}
                         </option>
@@ -69,6 +83,7 @@
                         v-else
                         v-model="model.correlated_risks"
                         rows="1"
+                        required
                         class="risk-form-textarea"
                         :readonly="readonly"
                     />
@@ -79,30 +94,39 @@
                         type="text"
                         class="risk-form-input"
                         readonly
+                        required
                         tabindex="-1"
                         placeholder="—"
-                        title="Remplie automatiquement selon le détail sélectionné"
+                        :title="model.risk_family || 'Remplie automatiquement selon le détail sélectionné'"
                     />
                 </td>
                 <td class="risk-form-cell risk-form-cell-score">
-                    <input
-                        v-model.number="model.gravity"
-                        type="number"
-                        min="1"
-                        max="6"
-                        class="risk-form-input risk-form-input-center"
-                        :readonly="readonly"
-                    />
+                    <select
+                        class="risk-form-select risk-form-input-center"
+                        :value="model.gravity ?? ''"
+                        :disabled="readonly"
+                        required
+                        @change="setScore('gravity', $event.target.value)"
+                    >
+                        <option value="">—</option>
+                        <option v-for="level in scoreLevels" :key="`g-${level}`" :value="level">
+                            {{ level }}
+                        </option>
+                    </select>
                 </td>
                 <td class="risk-form-cell risk-form-cell-score">
-                    <input
-                        v-model.number="model.probability"
-                        type="number"
-                        min="1"
-                        max="6"
-                        class="risk-form-input risk-form-input-center"
-                        :readonly="readonly"
-                    />
+                    <select
+                        class="risk-form-select risk-form-input-center"
+                        :value="model.probability ?? ''"
+                        :disabled="readonly"
+                        required
+                        @change="setScore('probability', $event.target.value)"
+                    >
+                        <option value="">—</option>
+                        <option v-for="level in scoreLevels" :key="`p-${level}`" :value="level">
+                            {{ level }}
+                        </option>
+                    </select>
                 </td>
                 <td class="risk-form-cell risk-form-cell-rb">
                     <div class="risk-form-rb" :style="rbStyle">{{ rbScore ?? '—' }}</div>
@@ -128,6 +152,23 @@ const props = defineProps({
 const hasDetailOptions = computed(() =>
     props.riskCategories.some((category) => (category.families || []).length > 0),
 );
+
+const scoreLevels = [1, 2, 3, 4, 5, 6];
+
+function setScore(field, rawValue) {
+    if (rawValue === '' || rawValue === null || rawValue === undefined) {
+        model.value[field] = null;
+        return;
+    }
+
+    const value = Number(rawValue);
+    if (!Number.isFinite(value)) {
+        model.value[field] = null;
+        return;
+    }
+
+    model.value[field] = Math.min(6, Math.max(1, Math.round(value)));
+}
 
 const rbScore = computed(() => grossRiskScore(model.value.gravity, model.value.probability));
 
@@ -172,13 +213,26 @@ function onLegacyDetailSelected(event) {
 <style scoped>
 @import './risk-form-table.css';
 
-.risk-form-cell-date {
-    width: 9rem;
-    min-width: 9rem;
+.risk-exception-table {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.risk-form-select-correlated {
+    white-space: normal;
+    height: auto;
+    min-height: 2.5rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
 }
 
 .risk-form-textarea-risk {
-    min-height: 4.5rem;
+    min-height: 5.5rem;
     resize: vertical;
+}
+
+.risk-exception-table :deep(.risk-form-cell-score),
+.risk-exception-table :deep(.risk-form-cell-rb) {
+    width: auto;
 }
 </style>

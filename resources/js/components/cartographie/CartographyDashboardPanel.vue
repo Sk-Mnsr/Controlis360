@@ -19,11 +19,13 @@
 
             <div class="cartography-dashboard-side">
                 <RiskDetailSummary
+                    class="cartography-dashboard-detail"
                     :rows="rows"
                     :categories="categories"
                     :classifications="classifications"
                 />
                 <RiskDistributionDonut
+                    class="cartography-dashboard-distribution"
                     :title="scope === 'groupe' ? 'Répartition des filiales' : 'Répartition des risques'"
                     :distribution="modeData.distribution"
                     :classifications="classifications"
@@ -90,12 +92,36 @@ const heatmapEmptyMessage = computed(() => {
 
 .cartography-dashboard-heatmap {
     min-width: 0;
+    height: 100%;
+}
+
+.cartography-dashboard-main :deep(.cartography-heatmap) {
+    height: 100%;
 }
 
 .cartography-dashboard-side {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    min-height: 0;
+    align-self: stretch;
+    height: 100%;
+}
+
+.cartography-dashboard-side :deep(.cartography-dashboard-detail) {
+    flex: 0 0 auto;
+}
+
+.cartography-dashboard-side :deep(.cartography-dashboard-distribution) {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.cartography-dashboard-side :deep(.risk-distribution) {
+    flex: 1 1 auto;
+    height: auto;
 }
 
 @media (max-width: 1200px) {

@@ -585,14 +585,17 @@ function residualScoreStyle(row) {
 }
 
 .operational-risk-col-exceptions {
-    min-width: 16rem;
-    max-width: 28rem;
+    min-width: 18rem;
+    max-width: 32rem;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .operational-risk-col-correlated {
-    min-width: 10rem;
-    max-width: 16rem;
+    min-width: 9rem;
+    max-width: 14rem;
+    overflow-wrap: anywhere;
 }
 
 .operational-risk-col-description {

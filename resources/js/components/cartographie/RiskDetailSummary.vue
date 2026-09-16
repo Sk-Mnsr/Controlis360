@@ -8,25 +8,23 @@
             <table class="risk-detail-summary-table">
                 <thead>
                     <tr>
-                        <th>Détails par famille</th>
-                        <th>Famille</th>
+                        <th>Niveau</th>
                         <th class="risk-detail-summary-center">Occurrences</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-if="!items.length">
-                        <td colspan="3" class="risk-detail-summary-empty">Aucun détail renseigné.</td>
+                        <td colspan="2" class="risk-detail-summary-empty">Aucun détail renseigné.</td>
                     </tr>
-                    <tr v-for="item in items" :key="item.detail">
+                    <tr v-for="item in items" :key="item.code">
                         <td class="risk-detail-summary-risk">
                             <span
                                 class="risk-detail-summary-bar"
                                 :style="{ backgroundColor: item.color }"
-                                :title="item.levelLabel"
+                                :title="item.name"
                             />
-                            {{ item.detail }}
+                            {{ item.name }}
                         </td>
-                        <td class="risk-detail-summary-family">{{ item.category }}</td>
                         <td class="risk-detail-summary-score">{{ item.occurrences }}</td>
                     </tr>
                 </tbody>
@@ -37,7 +35,7 @@
 
 <script setup>
 import { computed } from 'vue';
-import { classificationForScore } from '../../utils/riskScore';
+import { classificationForCell } from '../../utils/riskScore';
 
 const props = defineProps({
     title: { type: String, default: 'DÉTAIL DES RISQUES' },
@@ -48,69 +46,43 @@ const props = defineProps({
 
 const NEUTRAL_COLOR = '#cbd5e1';
 
-const detailCategoryMap = computed(() => {
-    const map = new Map();
-
-    for (const category of props.categories) {
-        for (const detail of category.families ?? []) {
-            map.set(detail.name, category.name);
-        }
-    }
-
-    return map;
-});
-
-function grossRisk(row) {
-    const gravity = Number(row.gravity);
-    const probability = Number(row.probability);
-
-    if (!gravity || !probability) {
-        return 0;
-    }
-
-    return gravity * probability;
-}
-
 const items = computed(() => {
-    const grouped = new Map();
+    const counts = new Map();
 
     for (const row of props.rows) {
-        // Les nouvelles lignes stockent le détail dans correlated_risks.
-        // Pour les anciennes lignes, risk_family peut encore contenir ce détail.
-        const detail = detailCategoryMap.value.has(row.correlated_risks)
-            ? row.correlated_risks
-            : (detailCategoryMap.value.has(row.risk_family) ? row.risk_family : null);
+        const gravity = Number(row.gravity);
+        const probability = Number(row.probability);
 
-        if (!detail) {
+        if (!gravity || !probability) {
             continue;
         }
 
-        const current = grouped.get(detail);
-        const risk = grossRisk(row);
+        const classification = classificationForCell(gravity, probability, props.classifications);
+        const code = classification?.code ?? 'unknown';
 
-        grouped.set(detail, {
-            detail,
-            category: detailCategoryMap.value.get(detail) ?? row.risk_family ?? '—',
-            occurrences: (current?.occurrences ?? 0) + 1,
-            maxRisk: Math.max(current?.maxRisk ?? 0, risk),
-        });
+        counts.set(code, (counts.get(code) ?? 0) + 1);
     }
 
-    return [...grouped.values()]
-        .map((item) => {
-            const classification = classificationForScore(item.maxRisk, props.classifications);
+    const legend = [...props.classifications]
+        .sort((a, b) => b.sort_order - a.sort_order)
+        .map((level) => ({
+            code: level.code,
+            name: level.name,
+            color: level.color ?? NEUTRAL_COLOR,
+            occurrences: counts.get(level.code) ?? 0,
+        }));
 
-            return {
-                ...item,
-                color: classification?.color ?? NEUTRAL_COLOR,
-                levelLabel: classification?.name ?? 'Non significatif',
-            };
-        })
-        .sort((a, b) =>
-            b.maxRisk - a.maxRisk
-            || b.occurrences - a.occurrences
-            || a.detail.localeCompare(b.detail, 'fr'),
-        );
+    if (legend.length) {
+        return legend;
+    }
+
+    // Fallback si aucune classification n'est chargée
+    return [...counts.entries()].map(([code, occurrences]) => ({
+        code,
+        name: code,
+        color: NEUTRAL_COLOR,
+        occurrences,
+    }));
 });
 </script>
 
@@ -165,17 +137,12 @@ const items = computed(() => {
 
 .risk-detail-summary-table th:nth-child(1),
 .risk-detail-summary-table td:nth-child(1) {
-    width: 46%;
+    width: 72%;
 }
 
 .risk-detail-summary-table th:nth-child(2),
 .risk-detail-summary-table td:nth-child(2) {
-    width: 38%;
-}
-
-.risk-detail-summary-table th:nth-child(3),
-.risk-detail-summary-table td:nth-child(3) {
-    width: 16%;
+    width: 28%;
 }
 
 .risk-detail-summary-center {
@@ -198,11 +165,6 @@ const items = computed(() => {
     border-radius: 999px;
     margin-right: 0.6rem;
     vertical-align: middle;
-}
-
-.risk-detail-summary-family {
-    font-size: 0.78rem;
-    color: #64748b;
 }
 
 .risk-detail-summary-score {

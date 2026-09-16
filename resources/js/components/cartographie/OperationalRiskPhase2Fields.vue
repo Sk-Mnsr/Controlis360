@@ -3,11 +3,11 @@
         <div class="phase2-grid">
             <div class="phase2-wide">
                 <label class="phase2-label">Description du dispositif</label>
-                <textarea v-model="model.control_description" rows="4" class="phase2-textarea" />
+                <textarea v-model="model.control_description" rows="4" required class="phase2-textarea" />
             </div>
             <div>
                 <label class="phase2-label">Dispositif existant</label>
-                <select v-model="model.control_exists" class="phase2-input">
+                <select v-model="model.control_exists" required class="phase2-input">
                     <option :value="null">—</option>
                     <option :value="true">OUI</option>
                     <option :value="false">NON</option>
@@ -15,11 +15,11 @@
             </div>
             <div>
                 <label class="phase2-label">Owner du contrôle</label>
-                <input v-model="model.control_owner" class="phase2-input" />
+                <input v-model="model.control_owner" required class="phase2-input" />
             </div>
             <div>
                 <label class="phase2-label">Efficacité</label>
-                <input v-model.number="model.control_effectiveness" type="number" min="1" max="5" class="phase2-input" />
+                <input v-model.number="model.control_effectiveness" type="number" min="1" max="5" required class="phase2-input" />
             </div>
             <div>
                 <label class="phase2-label">Gravité résiduelle (G)</label>

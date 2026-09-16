@@ -328,6 +328,34 @@ function resetExceptionFields() {
     submitError.value = '';
 }
 
+function isBlank(value) {
+    return value === null || value === undefined || String(value).trim() === '';
+}
+
+function validateForm() {
+    const missing = [];
+    const sub = subProcessForm.value;
+    const risk = exceptionForm.value;
+
+    if (isBlank(sub.process_number)) missing.push('N°');
+    if (isBlank(sub.process_name)) missing.push('Processus');
+    if (sub.ratio === null || sub.ratio === undefined || sub.ratio === '') missing.push('Ratio');
+    if (isBlank(sub.sub_process_name)) missing.push('Sous-processus');
+    if (isBlank(risk.line_date)) missing.push('Date ligne');
+    if (isBlank(risk.major_exceptions)) missing.push('Risques identifiés');
+    if (isBlank(risk.correlated_risks)) missing.push('Risques corrélés');
+    if (isBlank(risk.risk_family)) missing.push('Famille de risque');
+    if (isBlank(risk.gravity)) missing.push('G');
+    if (isBlank(risk.probability)) missing.push('P');
+
+    if (missing.length) {
+        submitError.value = `Veuillez renseigner tous les champs obligatoires : ${missing.join(', ')}.`;
+        return false;
+    }
+
+    return true;
+}
+
 watch(saisieMode, (mode) => {
     if (mode === 'new') {
         selectedGroupKey.value = '';
@@ -340,9 +368,14 @@ async function submit(andSend = false) {
         return;
     }
 
-    saving.value = true;
     submitError.value = '';
     success.value = '';
+
+    if (!validateForm()) {
+        return;
+    }
+
+    saving.value = true;
 
     try {
         const { data } = await api.post(
@@ -400,11 +433,27 @@ watch(() => route.query, () => {
 @import '../../components/cartographie/risk-form-table.css';
 
 .saisie-page {
-    max-width: 72rem;
-    margin: 0 auto;
+    max-width: none;
+    width: 100%;
+    margin: 0;
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
+    box-sizing: border-box;
+}
+
+.saisie-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+}
+
+.saisie-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
 }
 
 .saisie-header {
@@ -429,18 +478,6 @@ watch(() => route.query, () => {
 .saisie-loading {
     color: #64748b;
     font-size: 0.875rem;
-}
-
-.saisie-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-}
-
-.saisie-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
 }
 
 .saisie-section-title {

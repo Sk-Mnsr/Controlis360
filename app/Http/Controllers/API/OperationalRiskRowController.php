@@ -98,6 +98,36 @@ class OperationalRiskRowController extends APIController
         return $this->responseOk(['row' => $this->formatRow($row->fresh(['assignedEntity']))]);
     }
 
+    public function updateSubProcess(Request $request, int $id)
+    {
+        $row = $this->findRow($id);
+
+        if (! $row) {
+            return $this->responseError(['id' => ['Ligne introuvable']], 404);
+        }
+
+        if (! $row->canEditPhase1By($request->user())) {
+            return $this->responseError(['auth' => ['Modification non autorisée pour cette ligne']], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'process_number' => 'required|integer|min:1|max:99',
+            'process_name' => 'required|string|max:255',
+            'ratio' => 'required|numeric|min:0|max:100',
+            'sub_process_name' => 'required|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->responseError($validator->errors()->toArray(), 422);
+        }
+
+        $row->update($validator->validated());
+
+        OperationalRiskLogger::log($row, $request->user(), 'updated');
+
+        return $this->responseOk(['row' => $this->formatRow($row->fresh(['assignedEntity']))]);
+    }
+
     public function submit(Request $request, int $id)
     {
         $row = $this->findRow($id);
@@ -114,6 +144,42 @@ class OperationalRiskRowController extends APIController
 
         if (! in_array($row->status, [OperationalRiskRowStatus::Draft, OperationalRiskRowStatus::RevisionRequested], true)) {
             return $this->responseError(['status' => ['Cette ligne ne peut pas être soumise']], 422);
+        }
+
+        $missing = [];
+        if ($row->process_number === null) {
+            $missing['process_number'] = ['Le N° est obligatoire avant envoi.'];
+        }
+        if (! trim((string) $row->process_name)) {
+            $missing['process_name'] = ['Le processus est obligatoire avant envoi.'];
+        }
+        if ($row->ratio === null) {
+            $missing['ratio'] = ['Le ratio est obligatoire avant envoi.'];
+        }
+        if (! trim((string) $row->sub_process_name)) {
+            $missing['sub_process_name'] = ['Le sous-processus est obligatoire avant envoi.'];
+        }
+        if (! $row->line_date) {
+            $missing['line_date'] = ['La date ligne est obligatoire avant envoi.'];
+        }
+        if (! trim((string) $row->major_exceptions)) {
+            $missing['major_exceptions'] = ['Les risques identifiés sont obligatoires avant envoi.'];
+        }
+        if (! trim((string) $row->correlated_risks)) {
+            $missing['correlated_risks'] = ['Les risques corrélés sont obligatoires avant envoi.'];
+        }
+        if (! trim((string) $row->risk_family)) {
+            $missing['risk_family'] = ['La famille de risque est obligatoire avant envoi.'];
+        }
+        if ($row->gravity === null) {
+            $missing['gravity'] = ['La gravité (G) est obligatoire avant envoi.'];
+        }
+        if ($row->probability === null) {
+            $missing['probability'] = ['La probabilité (P) est obligatoire avant envoi.'];
+        }
+
+        if ($missing !== []) {
+            return $this->responseError($missing, 422);
         }
 
         $row->update([
@@ -606,16 +672,16 @@ class OperationalRiskRowController extends APIController
     private function phase1Rules(): array
     {
         return [
-            'process_number' => 'nullable|integer|min:1|max:99',
-            'process_name' => 'nullable|string|max:255',
-            'ratio' => 'nullable|numeric|min:0|max:100',
+            'process_number' => 'required|integer|min:1|max:99',
+            'process_name' => 'required|string|max:255',
+            'ratio' => 'required|numeric|min:0|max:100',
             'sub_process_name' => 'required|string|max:255',
-            'line_date' => 'nullable|date',
-            'major_exceptions' => 'required|string',
-            'correlated_risks' => 'nullable|string',
-            'risk_family' => 'nullable|string|max:255',
-            'gravity' => 'nullable|integer|min:1|max:6',
-            'probability' => 'nullable|integer|min:1|max:6',
+            'line_date' => 'required|date',
+            'major_exceptions' => 'required|string|min:3',
+            'correlated_risks' => 'required|string|max:255',
+            'risk_family' => 'required|string|max:255',
+            'gravity' => 'required|integer|min:1|max:6',
+            'probability' => 'required|integer|min:1|max:6',
         ];
     }
 
@@ -638,10 +704,10 @@ class OperationalRiskRowController extends APIController
     private function phase2Rules(): array
     {
         return [
-            'control_description' => 'nullable|string',
-            'control_exists' => 'nullable|boolean',
-            'control_owner' => 'nullable|string|max:255',
-            'control_effectiveness' => 'nullable|integer|min:1|max:5',
+            'control_description' => 'required|string|min:3',
+            'control_exists' => 'required|boolean',
+            'control_owner' => 'required|string|max:255',
+            'control_effectiveness' => 'required|integer|min:1|max:5',
             'residual_gravity' => 'nullable|integer|min:1|max:6',
             'residual_probability' => 'nullable|numeric|min:1|max:6',
         ];

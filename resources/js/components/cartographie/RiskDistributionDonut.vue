@@ -90,11 +90,16 @@ const segments = computed(() => {
     border-radius: 0.85rem;
     background: #ffffff;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 16rem;
 }
 
 .risk-distribution-header {
     border-bottom: 1px solid #e2e8f0;
     padding: 0.9rem 1.1rem;
+    flex: 0 0 auto;
 }
 
 .risk-distribution-title {
@@ -110,14 +115,16 @@ const segments = computed(() => {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
-    padding: 1rem;
+    justify-content: center;
+    gap: 1.15rem;
+    padding: 1.25rem 1rem 1.4rem;
+    flex: 1 1 auto;
 }
 
 .risk-distribution-chart {
     position: relative;
-    width: 9rem;
-    height: 9rem;
+    width: 10.5rem;
+    height: 10.5rem;
 }
 
 .risk-distribution-svg {
