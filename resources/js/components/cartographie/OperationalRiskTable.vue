@@ -38,22 +38,38 @@
                 <template v-for="group in groupedRows" :key="group.key">
                     <tr v-for="(row, index) in group.exceptions" :key="row.id">
                         <template v-if="index === 0">
-                            <td class="operational-risk-center operational-risk-col-num" :rowspan="group.exceptions.length">
+                            <td
+                                class="operational-risk-center operational-risk-col-num operational-risk-group-cell"
+                                :rowspan="group.exceptions.length"
+                            >
                                 {{ group.display_number ?? group.process_number ?? '—' }}
                             </td>
-                            <td class="operational-risk-center operational-risk-col-process" :rowspan="group.exceptions.length">
+                            <td
+                                class="operational-risk-center operational-risk-col-process operational-risk-group-cell"
+                                :rowspan="group.exceptions.length"
+                            >
                                 {{ group.process_name || '—' }}
                             </td>
-                            <td class="operational-risk-center operational-risk-col-ratio" :rowspan="group.exceptions.length">
+                            <td
+                                class="operational-risk-center operational-risk-col-ratio operational-risk-group-cell"
+                                :rowspan="group.exceptions.length"
+                            >
                                 {{ formatRatio(group.ratio) }}
                             </td>
-                            <td class="operational-risk-strong operational-risk-col-subprocess" :rowspan="group.exceptions.length">
+                            <td
+                                class="operational-risk-strong operational-risk-center operational-risk-col-subprocess operational-risk-group-cell"
+                                :rowspan="group.exceptions.length"
+                            >
                                 {{ group.sub_process_name }}
                             </td>
                         </template>
                         <td class="operational-risk-col-exceptions">{{ row.major_exceptions || '—' }}</td>
-                        <td class="operational-risk-col-correlated">{{ row.correlated_risks || '—' }}</td>
-                        <td>{{ row.risk_family || '—' }}</td>
+                        <td class="operational-risk-col-correlated">
+                            {{ row.correlated_risks || '—' }}
+                        </td>
+                        <td class="operational-risk-col-family">
+                            {{ row.risk_family || '—' }}
+                        </td>
                         <td class="operational-risk-center operational-risk-col-narrow">{{ row.gravity ?? '—' }}</td>
                         <td class="operational-risk-center operational-risk-col-narrow">{{ row.probability ?? '—' }}</td>
                         <td class="operational-risk-score" :style="scoreStyle(row.gross_classification)">
@@ -417,6 +433,10 @@ onUnmounted(() => {
 });
 
 function canDelete(row) {
+    if (props.permissions.is_super_admin) {
+        return true;
+    }
+
     return props.permissions.can_create_row && row.status === 'draft';
 }
 
@@ -449,6 +469,10 @@ function canRequestEntityRevision(row) {
 }
 
 function canEdit(row) {
+    if (props.permissions.is_super_admin) {
+        return true;
+    }
+
     if (props.permissions.can_create_row && ['draft', 'revision_requested'].includes(row.status)) {
         return true;
     }
@@ -459,10 +483,6 @@ function canEdit(row) {
 
     if (row.status !== 'assigned') {
         return false;
-    }
-
-    if (props.permissions.is_super_admin) {
-        return true;
     }
 
     if (!props.permissions.is_entity_responsable) {
@@ -523,6 +543,11 @@ function residualScoreStyle(row) {
     word-break: normal;
     overflow-wrap: break-word;
     hyphens: none;
+}
+
+.operational-risk-table td.operational-risk-group-cell {
+    vertical-align: middle;
+    text-align: center;
 }
 
 .operational-risk-title {
@@ -592,10 +617,23 @@ function residualScoreStyle(row) {
     word-break: break-word;
 }
 
-.operational-risk-col-correlated {
-    min-width: 9rem;
-    max-width: 14rem;
+.operational-risk-table td.operational-risk-col-correlated,
+.operational-risk-table td.operational-risk-col-family {
+    text-align: center;
+    vertical-align: middle;
+    white-space: normal;
     overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.operational-risk-col-correlated {
+    min-width: 10rem;
+    max-width: 16rem;
+}
+
+.operational-risk-col-family {
+    min-width: 10rem;
+    max-width: 16rem;
 }
 
 .operational-risk-col-description {

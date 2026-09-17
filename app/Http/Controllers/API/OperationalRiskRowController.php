@@ -457,7 +457,7 @@ class OperationalRiskRowController extends APIController
 
         $user = $request->user();
 
-        if (! $user->isSuperAdmin() && ! ($user->canCreateOperationalRiskRow() && $row->status === OperationalRiskRowStatus::Draft)) {
+        if (! $user->isPlatformAdministrator() && ! ($user->canCreateOperationalRiskRow() && $row->status === OperationalRiskRowStatus::Draft)) {
             return $this->responseError(['auth' => ['Suppression non autorisée']], 403);
         }
 

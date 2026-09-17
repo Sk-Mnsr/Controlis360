@@ -141,12 +141,16 @@ class OperationalRiskRow extends ModelBase
 
     public function canEditPhase2By(User $user): bool
     {
-        if ($this->status !== OperationalRiskRowStatus::Assigned) {
-            return false;
+        if ($user->isPlatformAdministrator() && in_array($this->status, [
+            OperationalRiskRowStatus::Assigned,
+            OperationalRiskRowStatus::EntitySubmitted,
+            OperationalRiskRowStatus::Completed,
+        ], true)) {
+            return true;
         }
 
-        if ($user->isPlatformAdministrator()) {
-            return true;
+        if ($this->status !== OperationalRiskRowStatus::Assigned) {
+            return false;
         }
 
         return $user->isEntityResponsable()

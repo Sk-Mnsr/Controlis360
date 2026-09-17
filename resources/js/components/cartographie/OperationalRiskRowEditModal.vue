@@ -43,8 +43,8 @@
                         <h3 class="risk-edit-modal-section-title">Dispositif de contrôle et risque résiduel</h3>
                         <Phase2Fields
                             v-model="phase2Form"
-                            :gravity="row?.gravity"
-                            :probability="row?.probability"
+                            :gravity="exceptionForm.gravity ?? row?.gravity"
+                            :probability="exceptionForm.probability ?? row?.probability"
                             :risk-classifications="riskClassifications"
                         />
                     </section>
@@ -65,7 +65,7 @@
                             {{ saving ? 'Envoi...' : 'Envoyer au contrôle' }}
                         </button>
                         <button
-                            v-if="editPhase2"
+                            v-if="canSubmitEntityFromModal"
                             type="button"
                             class="risk-form-btn risk-form-btn-primary"
                             :disabled="saving"
@@ -133,6 +133,10 @@ const editPhase1 = computed(() => {
         return false;
     }
 
+    if (props.permissions.is_super_admin) {
+        return true;
+    }
+
     if (props.permissions.can_validate && props.row.status === 'submitted') {
         return true;
     }
@@ -147,17 +151,26 @@ const canSubmitToControl = computed(() =>
 );
 
 const editPhase2 = computed(() => {
-    if (!props.row || props.row.status !== 'assigned') {
+    if (!props.row) {
         return false;
     }
 
-    if (props.permissions.is_super_admin) {
+    if (props.permissions.is_super_admin
+        && ['assigned', 'entity_submitted', 'completed'].includes(props.row.status)) {
         return true;
+    }
+
+    if (props.row.status !== 'assigned') {
+        return false;
     }
 
     return props.permissions.is_entity_responsable
         && Number(props.permissions.entity_id) === Number(props.row.assigned_entity_id);
 });
+
+const canSubmitEntityFromModal = computed(() =>
+    editPhase2.value && props.row?.status === 'assigned',
+);
 
 function emptySubProcess() {
     return { process_number: null, process_name: '', ratio: null, sub_process_name: '' };
@@ -306,7 +319,6 @@ async function persistChanges() {
         };
         await api.put(`/operational-risk-rows/${props.row.id}/phase1`, payload);
         await syncSubProcessToSiblings(payload);
-        return;
     }
 
     if (editPhase2.value) {
@@ -435,13 +447,13 @@ async function runPendingConfirm() {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1rem;
+    padding: 0.75rem;
     background: rgba(15, 23, 42, 0.45);
 }
 
 .risk-edit-modal {
-    width: min(56rem, 100%);
-    max-height: calc(100vh - 2rem);
+    width: min(78rem, calc(100vw - 1.5rem));
+    max-height: calc(100vh - 1.5rem);
     display: flex;
     flex-direction: column;
     border-radius: 0.75rem;

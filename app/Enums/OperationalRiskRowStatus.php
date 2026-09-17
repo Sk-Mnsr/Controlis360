@@ -19,7 +19,7 @@ enum OperationalRiskRowStatus: string
             self::RevisionRequested => 'Modifications demandées',
             self::Assigned => 'Affecté à l\'entité',
             self::EntitySubmitted => 'Soumis par l\'entité',
-            self::Completed => 'Complété',
+            self::Completed => 'Done',
         };
     }
 
