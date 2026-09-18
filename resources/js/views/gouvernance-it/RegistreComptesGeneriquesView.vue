@@ -145,7 +145,7 @@
                     type="button"
                     class="rcg-menu-item"
                     role="menuitem"
-                    @click="runMenuAction(() => openEdit(openMenuRow))"
+                    @click="runMenuAction(openMenuRow, openEdit)"
                 >
                     Modifier
                 </button>
@@ -155,7 +155,7 @@
                     class="rcg-menu-item rcg-menu-item-validate"
                     role="menuitem"
                     :disabled="busyId === openMenuRow.id"
-                    @click="runMenuAction(() => validateRow(openMenuRow))"
+                    @click="runMenuAction(openMenuRow, validateRow)"
                 >
                     Valider
                 </button>
@@ -165,7 +165,7 @@
                     class="rcg-menu-item rcg-menu-item-danger"
                     role="menuitem"
                     :disabled="busyId === openMenuRow.id"
-                    @click="runMenuAction(() => removeRow(openMenuRow))"
+                    @click="runMenuAction(openMenuRow, removeRow)"
                 >
                     Supprimer
                 </button>
@@ -327,12 +327,25 @@
                 </form>
             </div>
         </div>
+
+        <OperationalRiskConfirmModal
+            v-model:open="confirmOpen"
+            title="Supprimer le compte"
+            :message="confirmMessage"
+            confirm-label="Supprimer"
+            danger
+            :busy="busyId !== null"
+            :error="confirmError"
+            @confirm="confirmDelete"
+            @cancel="cancelDelete"
+        />
     </div>
 </template>
 
 <script setup>
 import { nextTick, onMounted, onUnmounted, reactive, ref } from 'vue';
 import api from '../../api/client';
+import OperationalRiskConfirmModal from '../../components/cartographie/OperationalRiskConfirmModal.vue';
 
 const loading = ref(true);
 const saving = ref(false);
@@ -358,6 +371,11 @@ const openMenuRow = ref(null);
 const openMenuId = ref(null);
 const menuPanelRef = ref(null);
 const menuPanelStyle = ref({ top: '0px', left: '0px' });
+
+const confirmOpen = ref(false);
+const confirmMessage = ref('');
+const confirmError = ref('');
+const pendingDeleteRow = ref(null);
 
 function rowHasActions(row) {
     return permissions.can_edit
@@ -406,9 +424,12 @@ function closeMenu() {
     openMenuId.value = null;
 }
 
-function runMenuAction(action) {
+function runMenuAction(row, action) {
     closeMenu();
-    action();
+    if (!row || typeof action !== 'function') {
+        return;
+    }
+    action(row);
 }
 
 function onDocumentClick(event) {
@@ -595,20 +616,38 @@ async function validateRow(row) {
 }
 
 async function removeRow(row) {
-    if (!window.confirm(`Supprimer le compte ${row.user_id} ?`)) {
+    pendingDeleteRow.value = row;
+    confirmMessage.value = `Supprimer le compte ${row.user_id} ? Cette action est définitive.`;
+    confirmError.value = '';
+    confirmOpen.value = true;
+}
+
+function cancelDelete() {
+    confirmOpen.value = false;
+    pendingDeleteRow.value = null;
+    confirmError.value = '';
+}
+
+async function confirmDelete() {
+    const row = pendingDeleteRow.value;
+    if (!row) {
+        confirmOpen.value = false;
         return;
     }
 
     busyId.value = row.id;
     error.value = '';
     success.value = '';
+    confirmError.value = '';
 
     try {
         await api.delete(`/generic-accounts/${row.id}`);
         success.value = 'Ligne supprimée.';
+        confirmOpen.value = false;
+        pendingDeleteRow.value = null;
         await loadRows();
     } catch (err) {
-        error.value = err.response?.data?.errors?.auth?.[0] || 'Suppression impossible.';
+        confirmError.value = err.response?.data?.errors?.auth?.[0] || 'Suppression impossible.';
     } finally {
         busyId.value = null;
     }
