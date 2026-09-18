@@ -153,7 +153,7 @@
                             <th class="px-4 py-3 font-semibold">Date début</th>
                             <th class="px-4 py-3 font-semibold">Date fin</th>
                             <th class="px-4 py-3 font-semibold">Avancement</th>
-                            <th class="px-4 py-3 font-semibold">Jours restants</th>
+                            <th class="px-4 py-3 font-semibold">Durée</th>
                             <th class="px-4 py-3 font-semibold">Status</th>
                             <th class="w-14 px-2 py-3 font-semibold text-center" aria-label="Actions" />
                         </tr>
@@ -189,11 +189,10 @@
                             </td>
                             <td class="px-4 py-3">
                                 <span
-                                    v-if="missionDaysRemaining(mission) !== null"
-                                    class="text-sm"
-                                    :style="remainingDaysTextStyle(missionDaysRemaining(mission))"
+                                    v-if="missionDurationDays(mission) !== null"
+                                    class="text-sm text-slate-800"
                                 >
-                                    {{ missionDaysRemaining(mission) }}
+                                    {{ missionDurationDays(mission) }} j
                                 </span>
                                 <span v-else class="text-slate-500">—</span>
                             </td>
@@ -461,8 +460,24 @@ function missionDaysRemaining(mission) {
     return missionRemainingDays(mission);
 }
 
+function missionDurationDays(mission) {
+    if (!mission?.start_date || !mission?.end_date) {
+        return null;
+    }
+
+    const start = new Date(`${String(mission.start_date).slice(0, 10)}T00:00:00`);
+    const end = new Date(`${String(mission.end_date).slice(0, 10)}T00:00:00`);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        return null;
+    }
+
+    return Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 function missionSearchText(mission) {
     const daysRemaining = missionDaysRemaining(mission);
+    const durationDays = missionDurationDays(mission);
     const deadline = resolveDeadlineStatus(daysRemaining);
 
     return [
@@ -485,6 +500,7 @@ function missionSearchText(mission) {
         deadline.tone,
         `${missionProgress(mission)}%`,
         daysRemaining !== null ? `${daysRemaining}` : '',
+        durationDays !== null ? `${durationDays} j` : '',
     ]
         .filter(Boolean)
         .join(' ')
