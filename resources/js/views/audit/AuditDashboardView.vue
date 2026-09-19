@@ -74,7 +74,11 @@ async function loadDashboard() {
     error.value = '';
 
     try {
-        await loadMissionParametrage();
+        try {
+            await loadMissionParametrage();
+        } catch {
+            // Paramétrage optionnel pour l’affichage ; ne bloque pas le tableau de bord.
+        }
         const { data } = await api.get('/missions');
         missions.value = extractMissions(data);
     } catch (err) {

@@ -63,7 +63,14 @@ class MissionParametrageController extends APIController
             return false;
         }
 
-        return $user->isPlatformAdministrator()
+        if ($user->isPlatformAdministrator()) {
+            return true;
+        }
+
+        // Profil module Suivi reco (module_profiles.audit) prioritaire sur le profil racine.
+        $auditProfile = $user->moduleProfile('audit');
+
+        return in_array($auditProfile, ['controle', 'audit', 'metier', 'regulateur'], true)
             || in_array($user->profile, ['controle', 'audit', 'metier', 'regulateur'], true);
     }
 
@@ -73,7 +80,11 @@ class MissionParametrageController extends APIController
             return false;
         }
 
-        return $user->isPlatformAdministrator()
+        if ($user->isPlatformAdministrator()) {
+            return true;
+        }
+
+        return $user->isAuditStaff()
             || in_array($user->profile, ['controle', 'audit'], true);
     }
 }
