@@ -40,7 +40,7 @@
                     </div>
 
                     <div class="mission-field">
-                        <label class="mission-label">Auditeur</label>
+                        <label class="mission-label">{{ auditorLabel }}</label>
                         <input v-model="form.auditor" type="text" required class="mission-input" />
                     </div>
                     <div class="mission-field">
@@ -121,6 +121,7 @@ import api from '../../api/client';
 import AutoResizeTextarea from '../../components/AutoResizeTextarea.vue';
 import MultiSelectDropdown from '../../components/MultiSelectDropdown.vue';
 import { PRIORITIES, RISK_LEVELS } from '../../config/mission-parametrage';
+import { auditorFieldLabel } from '../../config/module-access';
 import { useMissionTypes } from '../../composables/useMissionTypes';
 import { useAuthStore } from '../../stores/auth';
 
@@ -128,6 +129,8 @@ const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const { loadMissionTypes, getTypesForProfile } = useMissionTypes();
+
+const auditorLabel = computed(() => auditorFieldLabel(auth.user));
 
 const loading = ref(true);
 const loadError = ref('');

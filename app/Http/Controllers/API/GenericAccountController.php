@@ -92,7 +92,7 @@ class GenericAccountController extends APIController
         $user = $request->user();
 
         if (! $this->canWrite($user)) {
-            return $this->responseError(['auth' => ['Seul un Agent IT peut enregistrer une ligne']], 403);
+            return $this->responseError(['auth' => ['Seul un Agent IT ou Responsable IT peut enregistrer une ligne']], 403);
         }
 
         $validator = Validator::make($request->all(), self::FIELD_RULES);
@@ -129,7 +129,7 @@ class GenericAccountController extends APIController
         $user = $request->user();
 
         if (! $this->canWrite($user)) {
-            return $this->responseError(['auth' => ['Seul un Agent IT peut modifier une ligne']], 403);
+            return $this->responseError(['auth' => ['Seul un Agent IT ou Responsable IT peut modifier une ligne']], 403);
         }
 
         $row = GenericAccount::query()->find($id);
@@ -243,7 +243,7 @@ class GenericAccountController extends APIController
     {
         $profile = $this->gouvernanceProfile($user);
 
-        return in_array($profile, ['super_admin', 'admin', 'agent_it'], true);
+        return in_array($profile, ['super_admin', 'admin', 'agent_it', 'responsable_it'], true);
     }
 
     private function canValidate(User $user): bool
@@ -255,11 +255,16 @@ class GenericAccountController extends APIController
 
     private function permissions(User $user): array
     {
+        $canValidate = $this->canValidate($user);
+        $canWrite = $this->canWrite($user);
+
         return [
-            'can_create' => $this->canWrite($user),
-            'can_edit' => $this->canWrite($user),
-            'can_validate' => $this->canValidate($user),
-            'can_delete' => $this->canWrite($user) || $this->canValidate($user),
+            'can_create' => $canWrite,
+            'can_edit' => $canWrite,
+            'can_validate' => $canValidate,
+            // Agent IT : suppression uniquement des lignes non validées.
+            'can_delete' => $canWrite,
+            'can_delete_validated' => $canValidate || $user->isPlatformAdministrator(),
         ];
     }
 

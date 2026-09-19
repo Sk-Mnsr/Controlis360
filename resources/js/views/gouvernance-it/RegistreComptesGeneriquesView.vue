@@ -7,7 +7,8 @@
                 </RouterLink>
                 <h1 class="rcg-title">Registre de comptes génériques</h1>
                 <p class="rcg-hint">
-                    L’Agent IT enregistre / modifie les lignes. Le Responsable IT valide les créations et modifications.
+                    L’Agent IT et le Responsable IT peuvent enregistrer / modifier les lignes.
+                    Seul le Responsable IT valide les créations et modifications.
                 </p>
             </div>
 
@@ -150,7 +151,7 @@
                     Modifier
                 </button>
                 <button
-                    v-if="permissions.can_validate && openMenuRow.workflow_status !== 'validated'"
+                    v-if="canShowValidate(openMenuRow)"
                     type="button"
                     class="rcg-menu-item rcg-menu-item-validate"
                     role="menuitem"
@@ -160,7 +161,7 @@
                     Valider
                 </button>
                 <button
-                    v-if="permissions.can_delete"
+                    v-if="canShowDelete(openMenuRow)"
                     type="button"
                     class="rcg-menu-item rcg-menu-item-danger"
                     role="menuitem"
@@ -361,6 +362,7 @@ const permissions = reactive({
     can_edit: false,
     can_validate: false,
     can_delete: false,
+    can_delete_validated: false,
 });
 
 const modalOpen = ref(false);
@@ -377,10 +379,32 @@ const confirmMessage = ref('');
 const confirmError = ref('');
 const pendingDeleteRow = ref(null);
 
+function isValidated(row) {
+    return row?.workflow_status === 'validated';
+}
+
+/** Valider : Responsable IT uniquement, sur lignes non validées. */
+function canShowValidate(row) {
+    return Boolean(permissions.can_validate && row && !isValidated(row));
+}
+
+/**
+ * Supprimer :
+ * - Agent IT : uniquement lignes en attente
+ * - Responsable IT / admin : aussi les lignes validées
+ */
+function canShowDelete(row) {
+    if (!permissions.can_delete || !row) return false;
+    if (isValidated(row)) {
+        return Boolean(permissions.can_delete_validated || permissions.can_validate);
+    }
+    return true;
+}
+
 function rowHasActions(row) {
     return permissions.can_edit
-        || permissions.can_delete
-        || (permissions.can_validate && row.workflow_status !== 'validated');
+        || canShowDelete(row)
+        || canShowValidate(row);
 }
 
 async function positionMenu(trigger) {
@@ -490,6 +514,7 @@ function applyPermissions(payload) {
     permissions.can_edit = Boolean(next.can_edit);
     permissions.can_validate = Boolean(next.can_validate);
     permissions.can_delete = Boolean(next.can_delete);
+    permissions.can_delete_validated = Boolean(next.can_delete_validated);
 }
 
 async function loadRows() {

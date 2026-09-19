@@ -41,7 +41,7 @@
                         <div class="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
                             <h4 class="text-sm font-semibold text-slate-900">Informations mission</h4>
                             <dl class="mt-3 space-y-2.5 text-sm">
-                                <DetailRow label="Auditeur" :value="mission.auditor" />
+                                <DetailRow :label="auditorLabel" :value="mission.auditor" />
                                 <DetailRow label="Créée par" :value="mission.created_by_name" />
                                 <DetailRow label="Date début" :value="formatDate(mission.start_date)" />
                                 <DetailRow label="Date fin" :value="formatDate(mission.end_date)" />
@@ -216,6 +216,8 @@
 import { computed, ref, watch } from 'vue';
 import api from '../../api/client';
 import DetailRow from './DetailRow.vue';
+import { auditorFieldLabel } from '../../config/module-access';
+import { useAuthStore } from '../../stores/auth';
 
 const props = defineProps({
     open: { type: Boolean, default: false },
@@ -223,6 +225,9 @@ const props = defineProps({
 });
 
 defineEmits(['close', 'edit', 'delete', 'add-reco']);
+
+const auth = useAuthStore();
+const auditorLabel = computed(() => auditorFieldLabel(auth.user));
 
 const mission = ref(null);
 const loading = ref(false);

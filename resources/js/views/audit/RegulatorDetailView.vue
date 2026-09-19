@@ -29,7 +29,7 @@
                         <span class="font-semibold text-slate-900">{{ displayValue(recommendation.mission_type_fr) }}</span>
                     </li>
                     <li>
-                        <span class="text-slate-600">Auditeur :</span>
+                        <span class="text-slate-600">{{ auditorLabel }} :</span>
                         <span class="font-semibold text-slate-900">{{ displayValue(recommendation.mission_auditor) }}</span>
                     </li>
                     <li>
@@ -149,14 +149,19 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import api from '../../api/client';
 import MissionRecoActionPlanSummary from '../../components/audit/MissionRecoActionPlanSummary.vue';
 import MissionRecoRegulatorCommentForm from '../../components/audit/MissionRecoRegulatorCommentForm.vue';
 import MissionRecoRegulatorCommentsPanel from '../../components/audit/MissionRecoRegulatorCommentsPanel.vue';
+import { auditorFieldLabel } from '../../config/module-access';
+import { useAuthStore } from '../../stores/auth';
 
 const route = useRoute();
+const auth = useAuthStore();
+
+const auditorLabel = computed(() => auditorFieldLabel(auth.user));
 
 const loading = ref(true);
 const loadError = ref('');

@@ -386,3 +386,10 @@ export function isAuditProfile(profile) {
 export function isRegulatorProfile(profile) {
     return profile === 'regulateur' || profile === 'super_admin';
 }
+
+/** Libellé du champ auditeur : « Contrôle » pour les profils contrôle, sinon « Auditeur ». */
+export function auditorFieldLabel(user) {
+    const assignment = profileForModule(user, 'audit');
+    const profile = assignment?.profile ?? user?.profile ?? null;
+    return profile === 'controle' ? 'Contrôle' : 'Auditeur';
+}

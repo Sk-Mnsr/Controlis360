@@ -72,7 +72,7 @@
 
                         <dl class="grid gap-x-6 gap-y-3 sm:grid-cols-2">
                             <div>
-                                <dt class="text-xs font-medium text-slate-500">Auditeur</dt>
+                                <dt class="text-xs font-medium text-slate-500">{{ auditorLabel }}</dt>
                                 <dd class="mt-0.5 text-sm font-semibold text-slate-900">{{ mission.auditor || '—' }}</dd>
                             </div>
                             <div>
@@ -399,7 +399,7 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import MissionRecoOwnerActionsPanel from '../../components/audit/MissionRecoOwnerActionsPanel.vue';
 import MissionRecommendationViewModal from '../../components/audit/MissionRecommendationViewModal.vue';
-import { isMissionAgent, isMissionResponsible } from '../../config/module-access';
+import { auditorFieldLabel, isMissionAgent, isMissionResponsible } from '../../config/module-access';
 import { useAuthStore } from '../../stores/auth';
 import { useMissionParametrage } from '../../composables/useMissionParametrage';
 import {
@@ -445,6 +445,7 @@ const recoTableColspan = computed(() => (isOwner.value ? 6 : 7));
 
 const isOwner = computed(() => isMissionResponsible(auth.user));
 const isAgent = computed(() => isMissionAgent(auth.user));
+const auditorLabel = computed(() => auditorFieldLabel(auth.user));
 
 const ownerEntityIds = computed(() => (
     (auth.user?.entity_ids ?? []).map((id) => Number(id)).filter(Boolean)

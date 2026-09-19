@@ -32,7 +32,7 @@
                             <dd class="mt-0.5 text-slate-800">{{ mission.status_fr ?? mission.status }}</dd>
                         </div>
                         <div>
-                            <dt class="text-xs font-medium uppercase text-slate-500">Auditeur</dt>
+                            <dt class="text-xs font-medium uppercase text-slate-500">{{ auditorLabel }}</dt>
                             <dd class="mt-0.5 text-slate-800">{{ mission.auditor || '—' }}</dd>
                         </div>
                         <div>
@@ -227,9 +227,14 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import MultiSelectDropdown from '../../components/MultiSelectDropdown.vue';
 import { PRIORITIES, RISK_LEVELS } from '../../config/mission-parametrage';
+import { auditorFieldLabel } from '../../config/module-access';
+import { useAuthStore } from '../../stores/auth';
 
 const route = useRoute();
 const router = useRouter();
+const auth = useAuthStore();
+
+const auditorLabel = computed(() => auditorFieldLabel(auth.user));
 
 const mission = ref(null);
 const environmentDepartments = ref([]);

@@ -35,24 +35,32 @@
                                 class="top-risks-process"
                                 :rowspan="group.rows.length"
                             >
-                                {{ group.process_name }}
+                                <div class="top-risks-process-inner">
+                                    {{ group.process_name }}
+                                </div>
                             </td>
                             <td class="top-risks-subprocess">{{ row.sub_process_name }}</td>
                             <td class="top-risks-text">{{ row.major_exceptions || '—' }}</td>
                             <td class="top-risks-family">
-                                <span class="top-risks-family-chip">{{ row.risk_family || '—' }}</span>
+                                <div class="top-risks-vcenter">
+                                    <span class="top-risks-family-chip">{{ row.risk_family || '—' }}</span>
+                                </div>
                             </td>
                             <td class="top-risks-text">{{ row.control_description || '—' }}</td>
                             <td class="top-risks-exists">
-                                <span
-                                    class="top-risks-exists-badge"
-                                    :class="existsClass(row.control_exists)"
-                                >
-                                    {{ formatExists(row.control_exists) }}
-                                </span>
+                                <div class="top-risks-vcenter">
+                                    <span
+                                        class="top-risks-exists-badge"
+                                        :class="existsClass(row.control_exists)"
+                                    >
+                                        {{ formatExists(row.control_exists) }}
+                                    </span>
+                                </div>
                             </td>
                             <td class="top-risks-rb" :style="rbStyle(row)">
-                                {{ row.gross_risk ?? '—' }}
+                                <div class="top-risks-vcenter">
+                                    {{ row.gross_risk ?? '—' }}
+                                </div>
                             </td>
                         </tr>
                     </template>
@@ -205,11 +213,24 @@ function rbStyle(row) {
 .top-risks-process {
     font-weight: 800;
     text-transform: uppercase;
-    vertical-align: middle;
     letter-spacing: 0.03em;
     color: #7f1d1d;
     background: #fef2f2;
     border-right: 1px solid #fecaca;
+}
+
+.top-risks-table td.top-risks-process {
+    vertical-align: middle;
+    text-align: center;
+}
+
+.top-risks-process-inner,
+.top-risks-vcenter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 100%;
 }
 
 .top-risks-subprocess {
@@ -224,6 +245,11 @@ function rbStyle(row) {
 
 .top-risks-family {
     text-align: center;
+}
+
+.top-risks-table td.top-risks-family,
+.top-risks-table td.top-risks-exists,
+.top-risks-table td.top-risks-rb {
     vertical-align: middle;
 }
 
@@ -241,7 +267,6 @@ function rbStyle(row) {
 
 .top-risks-exists {
     text-align: center;
-    vertical-align: middle;
 }
 
 .top-risks-exists-badge {
@@ -273,7 +298,6 @@ function rbStyle(row) {
 
 .top-risks-rb {
     text-align: center;
-    vertical-align: middle;
     font-size: 1rem;
     font-weight: 800;
 }
