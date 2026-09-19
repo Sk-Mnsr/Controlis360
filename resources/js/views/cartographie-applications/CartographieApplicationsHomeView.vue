@@ -123,15 +123,17 @@
                             :rowspan="entry.typeRowspan"
                             :title="entry.groupFillTitle"
                         >
-                            <div class="sit-rate">
-                                <span class="sit-rate-track">
-                                    <span
-                                        class="sit-rate-fill"
-                                        :class="rateClass(entry.groupFillRate)"
-                                        :style="{ width: `${Math.min(100, Number(entry.groupFillRate) || 0)}%` }"
-                                    />
-                                </span>
-                                <span class="sit-rate-pct">{{ entry.groupFillRate }}%</span>
+                            <div class="sit-merged-inner">
+                                <div class="sit-rate">
+                                    <span class="sit-rate-track">
+                                        <span
+                                            class="sit-rate-fill"
+                                            :class="rateClass(entry.groupFillRate)"
+                                            :style="{ width: `${Math.min(100, Number(entry.groupFillRate) || 0)}%` }"
+                                        />
+                                    </span>
+                                    <span class="sit-rate-pct">{{ entry.groupFillRate }}%</span>
+                                </div>
                             </div>
                         </td>
                         <td
@@ -139,22 +141,26 @@
                             class="sit-cell-app sit-cell-merged"
                             :rowspan="entry.typeRowspan"
                         >
-                            <span
-                                class="sit-type-badge"
-                                :style="badgeStyle(entry.row.accent_color)"
-                                :title="applicationTitle(entry.row)"
-                            >
-                                {{ entry.row.code }}
-                            </span>
+                            <div class="sit-merged-inner">
+                                <span
+                                    class="sit-type-badge"
+                                    :style="badgeStyle(entry.row.accent_color)"
+                                    :title="applicationTitle(entry.row)"
+                                >
+                                    {{ entry.row.code }}
+                                </span>
+                            </div>
                         </td>
                         <td
                             v-if="entry.isTypeGroupStart"
-                            class="sit-cell-merged"
+                            class="sit-cell-merged sit-cell-exists"
                             :rowspan="entry.typeRowspan"
                         >
-                            <span class="sit-yn" :class="ynClass(entry.groupExistsFlag)">
-                                {{ displayYn(entry.groupExistsFlag) || '—' }}
-                            </span>
+                            <div class="sit-merged-inner">
+                                <span class="sit-yn" :class="ynClass(entry.groupExistsFlag)">
+                                    {{ displayYn(entry.groupExistsFlag) || '—' }}
+                                </span>
+                            </div>
                         </td>
                         <td class="sit-cell-text sit-cell-solution">
                             <button
@@ -923,8 +929,24 @@ onMounted(loadDashboard);
     background: #f8fafc;
 }
 
-.sit-cell-merged {
+.sit-table td.sit-cell-merged {
     vertical-align: middle;
+}
+
+.sit-merged-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 100%;
+}
+
+.sit-cell-rate .sit-merged-inner {
+    justify-content: flex-start;
+}
+
+.sit-cell-exists .sit-merged-inner {
+    justify-content: center;
 }
 
 .sit-cell-rate {
