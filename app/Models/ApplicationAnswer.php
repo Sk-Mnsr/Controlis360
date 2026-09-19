@@ -9,6 +9,7 @@ class ApplicationAnswer extends BaseModel
     protected $fillable = [
         'question_id',
         'application_type_id',
+        'application_id',
         'value',
         'details',
         'answered_by_id',
@@ -22,6 +23,11 @@ class ApplicationAnswer extends BaseModel
     public function applicationType(): BelongsTo
     {
         return $this->belongsTo(ApplicationType::class);
+    }
+
+    public function application(): BelongsTo
+    {
+        return $this->belongsTo(Application::class);
     }
 
     public function answeredBy(): BelongsTo

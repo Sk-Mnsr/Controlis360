@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\Application;
 use App\Models\ApplicationType;
 use App\Services\ItServiceDashboardService;
 use Illuminate\Http\Request;
@@ -27,6 +28,7 @@ class ItServiceController extends APIController
         $validator = Validator::make($request->all(), [
             'scope' => 'required|in:generic,security,type',
             'application_type_id' => 'nullable|required_if:scope,type|exists:application_types,id',
+            'application_id' => 'nullable|integer|exists:applications,id',
         ]);
 
         if ($validator->fails()) {
@@ -36,10 +38,19 @@ class ItServiceController extends APIController
         $data = $validator->validated();
         $scope = $data['scope'];
         $typeId = isset($data['application_type_id']) ? (int) $data['application_type_id'] : null;
+        $applicationId = isset($data['application_id']) ? (int) $data['application_id'] : null;
 
         $type = null;
+        $application = null;
+
         if ($scope === 'type' && $typeId) {
             $type = ApplicationType::query()->find($typeId);
+            $application = $this->dashboardService->ensureInventoryApplication(
+                $typeId,
+                $applicationId,
+                $request->user()?->id,
+            );
+            $applicationId = $application->id;
         }
 
         return $this->responseOk([
@@ -50,8 +61,13 @@ class ItServiceController extends APIController
                 'name' => $type->name,
                 'accent_color' => $type->accent_color,
             ] : null,
-            'questions' => $this->dashboardService->questionsForScope($scope, $typeId),
-            'fill_rate' => $this->dashboardService->scopeFillRate($scope, $typeId),
+            'application' => $application ? [
+                'id' => $application->id,
+                'code' => $application->code,
+                'name' => $application->name,
+            ] : null,
+            'questions' => $this->dashboardService->questionsForScope($scope, $typeId, $applicationId),
+            'fill_rate' => $this->dashboardService->scopeFillRate($scope, $typeId, $applicationId),
         ]);
     }
 
@@ -60,6 +76,7 @@ class ItServiceController extends APIController
         $validator = Validator::make($request->all(), [
             'scope' => 'required|in:generic,security,type',
             'application_type_id' => 'nullable|required_if:scope,type|exists:application_types,id',
+            'application_id' => 'nullable|required_if:scope,type|integer|exists:applications,id',
             'answers' => 'required|array',
             'answers.*.question_id' => 'required|integer|exists:application_questions,id',
             'answers.*.value' => 'nullable|string',
@@ -71,11 +88,26 @@ class ItServiceController extends APIController
         }
 
         $data = $validator->validated();
+        $typeId = isset($data['application_type_id']) ? (int) $data['application_type_id'] : null;
+        $applicationId = isset($data['application_id']) ? (int) $data['application_id'] : null;
+
+        if ($data['scope'] === 'type' && $applicationId && $typeId) {
+            $belongs = Application::query()
+                ->where('id', $applicationId)
+                ->where('application_type_id', $typeId)
+                ->exists();
+
+            if (! $belongs) {
+                return $this->responseError(['application_id' => ['La solution ne correspond pas au type.']], 422);
+            }
+        }
+
         $fill = $this->dashboardService->saveAnswers(
             $data['scope'],
-            isset($data['application_type_id']) ? (int) $data['application_type_id'] : null,
+            $typeId,
             $data['answers'],
             $request->user()?->id,
+            $applicationId,
         );
 
         return $this->responseOk([
@@ -89,6 +121,7 @@ class ItServiceController extends APIController
         $type = ApplicationType::query()->findOrFail($applicationTypeId);
 
         $validator = Validator::make($request->all(), [
+            'inventory_application_id' => 'nullable|integer|exists:applications,id',
             'exists_flag' => 'nullable|string|max:10',
             'solution_name' => 'nullable|string|max:255',
             'editor' => 'nullable|string|max:255',

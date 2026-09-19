@@ -5,7 +5,8 @@
                 <p class="sit-kicker">Analyse IT Audit Tool · Accueil</p>
                 <h2 class="sit-title">Services IT</h2>
                 <p class="sit-subtitle">
-                    Page d’accueil du référentiel — questionnaires QG / Sécurité, fiches par type applicatif (CBS, LOS…).
+                    Questionnaires QG / Sécurité et fiches par type (CBS, LOS…).
+                    Les données solution se modifient dans l’inventaire Applications.
                 </p>
             </div>
             <div class="sit-header-actions">
@@ -112,89 +113,136 @@
                 </thead>
                 <tbody>
                     <tr
-                        v-for="row in filteredServices"
-                        :key="row.application_type_id"
+                        v-for="entry in serviceRows"
+                        :key="entry.row.inventory_application_id || `type-${entry.row.application_type_id}`"
                         class="sit-row"
-                        @dblclick="openServiceEdit(row)"
                     >
-                        <td class="sit-cell-rate" @click="openQuestions('type', row)">
-                            <div class="sit-rate" :title="`${row.answered_count}/${row.questions_count} questions`">
+                        <td
+                            v-if="entry.isTypeGroupStart"
+                            class="sit-cell-rate sit-cell-merged"
+                            :rowspan="entry.typeRowspan"
+                            :title="entry.groupFillTitle"
+                        >
+                            <div class="sit-rate">
                                 <span class="sit-rate-track">
                                     <span
                                         class="sit-rate-fill"
-                                        :class="rateClass(row.fill_rate)"
-                                        :style="{ width: `${Math.min(100, Number(row.fill_rate) || 0)}%` }"
+                                        :class="rateClass(entry.groupFillRate)"
+                                        :style="{ width: `${Math.min(100, Number(entry.groupFillRate) || 0)}%` }"
                                     />
                                 </span>
-                                <span class="sit-rate-pct">{{ row.fill_rate }}%</span>
+                                <span class="sit-rate-pct">{{ entry.groupFillRate }}%</span>
                             </div>
                         </td>
-                        <td class="sit-cell-app">
-                            <button
-                                type="button"
+                        <td
+                            v-if="entry.isTypeGroupStart"
+                            class="sit-cell-app sit-cell-merged"
+                            :rowspan="entry.typeRowspan"
+                        >
+                            <span
                                 class="sit-type-badge"
-                                :style="badgeStyle(row.accent_color)"
-                                :title="applicationTitle(row)"
-                                @click="openQuestions('type', row)"
+                                :style="badgeStyle(entry.row.accent_color)"
+                                :title="applicationTitle(entry.row)"
                             >
-                                {{ row.code }}
-                            </button>
-                        </td>
-                        <td>
-                            <span class="sit-yn" :class="ynClass(field(row, 'exists_flag'))" @click="openServiceEdit(row)">
-                                {{ displayYn(field(row, 'exists_flag')) || '—' }}
+                                {{ entry.row.code }}
                             </span>
                         </td>
-                        <td class="sit-cell-text" @click="openServiceEdit(row)">
-                            {{ cell(field(row, 'solution_name')) || '—' }}
+                        <td
+                            v-if="entry.isTypeGroupStart"
+                            class="sit-cell-merged"
+                            :rowspan="entry.typeRowspan"
+                        >
+                            <span class="sit-yn" :class="ynClass(entry.groupExistsFlag)">
+                                {{ displayYn(entry.groupExistsFlag) || '—' }}
+                            </span>
                         </td>
-                        <td class="sit-cell-text" @click="openServiceEdit(row)">
-                            {{ cell(field(row, 'editor')) || '—' }}
-                        </td>
-                        <td @click="openServiceEdit(row)">
-                            <span
-                                v-if="field(row, 'importance')"
-                                class="sit-importance"
-                                :class="importanceClass(field(row, 'importance'))"
+                        <td class="sit-cell-text sit-cell-solution">
+                            <button
+                                type="button"
+                                class="sit-solution-q"
+                                :title="'Questionnaire — ' + (cell(field(entry.row, 'solution_name')) || entry.row.code)"
+                                @click="openQuestions('type', entry.row)"
                             >
-                                {{ field(row, 'importance') }}
+                                {{ cell(field(entry.row, 'solution_name')) || '—' }}
+                            </button>
+                        </td>
+                        <td
+                            class="sit-cell-text"
+                            :title="cell(field(entry.row, 'editor')) || ''"
+                        >
+                            {{ cell(field(entry.row, 'editor')) || '—' }}
+                        </td>
+                        <td>
+                            <span
+                                v-if="field(entry.row, 'importance')"
+                                class="sit-importance"
+                                :class="importanceClass(field(entry.row, 'importance'))"
+                            >
+                                {{ field(entry.row, 'importance') }}
                             </span>
                             <span v-else>—</span>
                         </td>
-                        <td @click="openServiceEdit(row)">{{ cell(field(row, 'version')) || '—' }}</td>
-                        <td @click="openServiceEdit(row)">{{ cell(field(row, 'last_version')) || '—' }}</td>
+                        <td class="sit-cell-compact">{{ cell(field(entry.row, 'version')) || '—' }}</td>
+                        <td class="sit-cell-compact">{{ cell(field(entry.row, 'last_version')) || '—' }}</td>
                         <td>
-                            <span class="sit-yn" :class="ynClass(field(row, 'sla_exists'))" @click="openServiceEdit(row)">
-                                {{ displayYn(field(row, 'sla_exists')) || '—' }}
+                            <span class="sit-yn" :class="ynClass(field(entry.row, 'sla_exists'))">
+                                {{ displayYn(field(entry.row, 'sla_exists')) || '—' }}
                             </span>
                         </td>
-                        <td @click="openServiceEdit(row)">{{ cell(field(row, 'hosting_mode')) || '—' }}</td>
-                        <td class="sit-cell-text" @click="openServiceEdit(row)">
-                            {{ cell(field(row, 'users_count')) || '—' }}
+                        <td
+                            class="sit-cell-text"
+                            :title="cell(field(entry.row, 'hosting_mode')) || ''"
+                        >
+                            {{ cell(field(entry.row, 'hosting_mode')) || '—' }}
                         </td>
-                        <td class="sit-cell-text" @click="openServiceEdit(row)">
-                            {{ cell(field(row, 'licenses_count')) || '—' }}
+                        <td
+                            class="sit-cell-text"
+                            :title="cell(field(entry.row, 'users_count')) || ''"
+                        >
+                            {{ cell(field(entry.row, 'users_count')) || '—' }}
                         </td>
-                        <td @click="openServiceEdit(row)">{{ cell(field(row, 'license_type')) || '—' }}</td>
-                        <td @click="openServiceEdit(row)">{{ cell(field(row, 'customization_level')) || '—' }}</td>
+                        <td
+                            class="sit-cell-text"
+                            :title="cell(field(entry.row, 'licenses_count')) || ''"
+                        >
+                            {{ cell(field(entry.row, 'licenses_count')) || '—' }}
+                        </td>
+                        <td
+                            class="sit-cell-text"
+                            :title="cell(field(entry.row, 'license_type')) || ''"
+                        >
+                            {{ cell(field(entry.row, 'license_type')) || '—' }}
+                        </td>
+                        <td
+                            class="sit-cell-text"
+                            :title="cell(field(entry.row, 'customization_level')) || ''"
+                        >
+                            {{ cell(field(entry.row, 'customization_level')) || '—' }}
+                        </td>
                         <td>
-                            <span class="sit-yn" :class="ynClass(field(row, 'backups'))" @click="openServiceEdit(row)">
-                                {{ displayYn(field(row, 'backups')) || '—' }}
+                            <span class="sit-yn" :class="ynClass(field(entry.row, 'backups'))">
+                                {{ displayYn(field(entry.row, 'backups')) || '—' }}
                             </span>
                         </td>
-                        <td class="sit-etp" @click="openServiceEdit(row)">
-                            {{ cell(field(row, 'etp_support')) || '—' }}
+                        <td
+                            class="sit-etp"
+                            :title="cell(field(entry.row, 'etp_support')) || ''"
+                        >
+                            {{ cell(field(entry.row, 'etp_support')) || '—' }}
                         </td>
-                        <td class="sit-etp" @click="openServiceEdit(row)">
-                            {{ cell(field(row, 'etp_changes')) || '—' }}
+                        <td
+                            class="sit-etp"
+                            :title="cell(field(entry.row, 'etp_changes')) || ''"
+                        >
+                            {{ cell(field(entry.row, 'etp_changes')) || '—' }}
                         </td>
                         <td>
-                            <span class="sit-yn" :class="ynClass(field(row, 'archi_ho'))" @click="openServiceEdit(row)">
-                                {{ displayYn(field(row, 'archi_ho')) || '—' }}
+                            <span class="sit-yn" :class="ynClass(field(entry.row, 'archi_ho'))">
+                                {{ displayYn(field(entry.row, 'archi_ho')) || '—' }}
                             </span>
                         </td>
                     </tr>
-                    <tr v-if="!filteredServices.length">
+                    <tr v-if="!serviceRows.length">
                         <td colspan="18" class="sit-empty-cell">
                             {{ services.length ? 'Aucun service ne correspond aux filtres.' : 'Aucun service IT enregistré.' }}
                         </td>
@@ -204,8 +252,8 @@
         </div>
 
         <p class="sit-footnote">
-            Colonnes hors « Application » = données de l’inventaire Applications (type lié).
-            Clic taux/badge → questionnaire · double-clic ligne → fiche inventaire
+            Colonnes hors « Application » = lecture seule (inventaire Applications via le menu).
+            Plusieurs solutions du même type → taux fusionné · clic nom de solution → questionnaire.
         </p>
 
         <!-- Questionnaire -->
@@ -297,145 +345,6 @@
                 </div>
             </form>
         </div>
-
-        <!-- Édition service -->
-        <div v-if="showServiceForm" class="sit-modal-backdrop" @click.self="closeServiceEdit">
-            <form class="sit-modal sit-modal-wide" @submit.prevent="saveService">
-                <header class="sit-modal-head">
-                    <div>
-                        <p class="sit-modal-kicker">Fiche inventaire</p>
-                        <h3>
-                            <span
-                                class="sit-type-badge sit-type-badge-inline"
-                                :style="badgeStyle(editingRow?.accent_color)"
-                            >{{ editingRow?.code }}</span>
-                            {{ editingRow?.name }}
-                        </h3>
-                        <p class="sit-modal-meta">
-                            Les données sont enregistrées dans
-                            <strong>Applications</strong>
-                            <template v-if="editingRow?.inventory_application_code">
-                                ({{ editingRow.inventory_application_code }})
-                            </template>
-                            .
-                        </p>
-                    </div>
-                    <button type="button" class="sit-btn-secondary" @click="closeServiceEdit">Fermer</button>
-                </header>
-                <div class="sit-form-grid">
-                    <label>
-                        <span>Existant</span>
-                        <select v-model="serviceForm.exists_flag" class="sit-input">
-                            <option value="">—</option>
-                            <option value="oui">Oui</option>
-                            <option value="non">Non</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Nom de la solution</span>
-                        <input v-model="serviceForm.solution_name" class="sit-input" />
-                    </label>
-                    <label>
-                        <span>Éditeur</span>
-                        <input v-model="serviceForm.editor" class="sit-input" />
-                    </label>
-                    <label>
-                        <span>Importance</span>
-                        <select v-model="serviceForm.importance" class="sit-input">
-                            <option value="">—</option>
-                            <option value="Faible">Faible</option>
-                            <option value="Moyen">Moyen</option>
-                            <option value="Haut">Haut</option>
-                            <option value="Très haut">Très haut</option>
-                            <option value="Primordial">Primordial</option>
-                            <option value="Critique">Critique</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Version</span>
-                        <input v-model="serviceForm.version" class="sit-input" />
-                    </label>
-                    <label>
-                        <span>Dernière version</span>
-                        <input v-model="serviceForm.last_version" class="sit-input" />
-                    </label>
-                    <label>
-                        <span>SLA existant</span>
-                        <select v-model="serviceForm.sla_exists" class="sit-input">
-                            <option value="">—</option>
-                            <option value="oui">Oui</option>
-                            <option value="non">Non</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>SaaS ou on-site</span>
-                        <select v-model="serviceForm.hosting_mode" class="sit-input">
-                            <option value="">—</option>
-                            <option value="On-site">On-site</option>
-                            <option value="Cloud">Cloud</option>
-                            <option value="SaaS">SaaS</option>
-                            <option value="Hybride">Hybride</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span># users</span>
-                        <input v-model="serviceForm.users_count" class="sit-input" />
-                    </label>
-                    <label>
-                        <span># licences</span>
-                        <input v-model="serviceForm.licenses_count" class="sit-input" />
-                    </label>
-                    <label>
-                        <span>Type de licences</span>
-                        <input v-model="serviceForm.license_type" class="sit-input" />
-                    </label>
-                    <label>
-                        <span>Niveau de personnalisation</span>
-                        <select v-model="serviceForm.customization_level" class="sit-input">
-                            <option value="">—</option>
-                            <option value="Faible">Faible</option>
-                            <option value="Moyen">Moyen</option>
-                            <option value="Haut">Haut</option>
-                            <option value="Très haut">Très haut</option>
-                            <option value="Non">Non</option>
-                        </select>
-                    </label>
-                    <label>
-                        <span>Sauvegardes</span>
-                        <select v-model="serviceForm.backups" class="sit-input">
-                            <option value="">—</option>
-                            <option value="oui">Oui</option>
-                            <option value="non">Non</option>
-                        </select>
-                    </label>
-                    <label class="sit-span-2">
-                        <span>ETP Support</span>
-                        <textarea v-model="serviceForm.etp_support" rows="3" class="sit-input" />
-                    </label>
-                    <label class="sit-span-2">
-                        <span>ETP Changes</span>
-                        <textarea v-model="serviceForm.etp_changes" rows="3" class="sit-input" />
-                    </label>
-                    <label>
-                        <span>Archi HD</span>
-                        <select v-model="serviceForm.archi_ho" class="sit-input">
-                            <option value="">—</option>
-                            <option value="oui">Oui</option>
-                            <option value="non">Non</option>
-                        </select>
-                    </label>
-                </div>
-
-                <p v-if="serviceError" class="sit-error">{{ serviceError }}</p>
-
-                <div class="sit-modal-actions">
-                    <button type="button" class="sit-btn-secondary" @click="closeServiceEdit">Annuler</button>
-                    <button type="submit" class="sit-btn-primary" :disabled="serviceSaving">
-                        {{ serviceSaving ? 'Enregistrement…' : 'Enregistrer' }}
-                    </button>
-                </div>
-            </form>
-        </div>
     </div>
 </template>
 
@@ -457,20 +366,16 @@ const questionsSaving = ref(false);
 const questionsError = ref('');
 const questionsScope = ref('generic');
 const questionsType = ref(null);
+const questionsApplication = ref(null);
 const questionItems = ref([]);
 const questionsFill = ref({ rate: 0, answered: 0, total: 0 });
 const questionsSearch = ref('');
 const answerDraft = reactive({});
 
-const showServiceForm = ref(false);
-const serviceSaving = ref(false);
-const serviceError = ref('');
-const editingRow = ref(null);
-const serviceForm = reactive(emptyServiceForm());
-
 const genericRate = computed(() => genericFill.value.rate ?? 0);
 const securityRate = computed(() => securityFill.value.rate ?? 0);
 
+/** Une ligne par solution inventaire (plusieurs CBS possibles). */
 const filteredServices = computed(() => {
     const q = search.value.trim().toLowerCase();
     const existsFilter = filterExists.value;
@@ -499,10 +404,74 @@ const filteredServices = computed(() => {
     });
 });
 
+/**
+ * Fusionne taux / badge / existant par type.
+ * Taux = réponses remplies / questions totales sur toutes les solutions du groupe.
+ */
+const serviceRows = computed(() => {
+    const rows = filteredServices.value;
+    const spans = new Array(rows.length).fill(1);
+
+    for (let i = 0; i < rows.length; ) {
+        let end = i + 1;
+        while (
+            end < rows.length &&
+            rows[end].application_type_id === rows[i].application_type_id
+        ) {
+            end += 1;
+        }
+        spans[i] = end - i;
+        for (let j = i + 1; j < end; j += 1) {
+            spans[j] = 0;
+        }
+        i = end;
+    }
+
+    return rows.map((row, index) => {
+        const span = spans[index];
+        const isTypeGroupStart = span > 0;
+        let groupExistsFlag = field(row, 'exists_flag');
+        let groupFillRate = Number(row.fill_rate) || 0;
+        let groupFillTitle = `${row.answered_count ?? 0}/${row.questions_count ?? 0} questions`;
+
+        if (isTypeGroupStart) {
+            const group = rows.slice(index, index + Math.max(span, 1));
+            const flags = group.map((r) => displayYn(field(r, 'exists_flag')));
+            if (flags.some((f) => f === 'oui')) groupExistsFlag = 'oui';
+            else if (flags.some((f) => f === 'non')) groupExistsFlag = 'non';
+            else groupExistsFlag = null;
+
+            const answered = group.reduce((sum, r) => sum + (Number(r.answered_count) || 0), 0);
+            const total = group.reduce((sum, r) => sum + (Number(r.questions_count) || 0), 0);
+            groupFillRate = total > 0 ? Math.round((answered / total) * 100) : 0;
+            groupFillTitle =
+                group.length > 1
+                    ? `Taux fusionné · ${answered}/${total} sur ${group.length} solutions`
+                    : `${answered}/${total} questions`;
+        }
+
+        return {
+            row,
+            isTypeGroupStart,
+            typeRowspan: Math.max(span, 1),
+            groupExistsFlag,
+            groupFillRate,
+            groupFillTitle,
+        };
+    });
+});
+
 const questionsTitle = computed(() => {
     if (questionsScope.value === 'generic') return 'Questions génériques IT';
     if (questionsScope.value === 'security') return 'Questions Sécurité IT';
-    return `Questions — ${questionsType.value?.code || 'type'} · ${questionsType.value?.name || ''}`;
+    const typeLabel = `${questionsType.value?.code || 'type'} · ${questionsType.value?.name || ''}`;
+    const solution =
+        questionsApplication.value?.name ||
+        field(questionsType.value, 'solution_name') ||
+        '';
+    return solution
+        ? `Questions — ${typeLabel} · ${solution}`
+        : `Questions — ${typeLabel}`;
 });
 
 const visibleQuestions = computed(() => {
@@ -514,27 +483,6 @@ const visibleQuestions = computed(() => {
         return haystack.includes(q);
     });
 });
-
-function emptyServiceForm() {
-    return {
-        exists_flag: '',
-        solution_name: '',
-        editor: '',
-        importance: '',
-        version: '',
-        last_version: '',
-        sla_exists: '',
-        hosting_mode: '',
-        users_count: '',
-        licenses_count: '',
-        license_type: '',
-        customization_level: '',
-        backups: '',
-        etp_support: '',
-        etp_changes: '',
-        archi_ho: '',
-    };
-}
 
 function cell(value) {
     return value && String(value).trim() !== '' ? value : '';
@@ -586,11 +534,9 @@ function badgeStyle(color) {
 }
 
 function applicationTitle(row) {
-    const parts = [row.name || row.code, 'Ouvrir le questionnaire'];
+    const parts = [row.name || row.code];
     if (row.inventory_application_code) {
-        parts.splice(1, 0, `Inventaire ${row.inventory_application_code}`);
-    } else {
-        parts.splice(1, 0, 'Aucune app inventaire liée');
+        parts.push(`Inventaire ${row.inventory_application_code}`);
     }
     return parts.join(' — ');
 }
@@ -654,6 +600,7 @@ async function loadDashboard() {
 async function openQuestions(scope, row = null) {
     questionsScope.value = scope;
     questionsType.value = row;
+    questionsApplication.value = null;
     questionsError.value = '';
     questionsSearch.value = '';
     showQuestions.value = true;
@@ -666,11 +613,16 @@ async function openQuestions(scope, row = null) {
             params: {
                 scope,
                 application_type_id: scope === 'type' ? row.application_type_id : undefined,
+                application_id: scope === 'type' ? row.inventory_application_id || undefined : undefined,
             },
         });
         const root = data?.data ?? data;
         questionItems.value = root?.questions ?? [];
         questionsFill.value = root?.fill_rate ?? { rate: 0, answered: 0, total: 0 };
+        questionsApplication.value = root?.application ?? null;
+        if (questionsApplication.value?.id && row) {
+            row.inventory_application_id = questionsApplication.value.id;
+        }
         for (const q of questionItems.value) {
             answerDraft[q.id] = {
                 value: q.value ?? '',
@@ -688,6 +640,7 @@ function closeQuestions() {
     showQuestions.value = false;
     questionsError.value = '';
     questionsSearch.value = '';
+    questionsApplication.value = null;
 }
 
 async function saveQuestions() {
@@ -705,6 +658,10 @@ async function saveQuestions() {
             scope: questionsScope.value,
             application_type_id:
                 questionsScope.value === 'type' ? questionsType.value?.application_type_id : undefined,
+            application_id:
+                questionsScope.value === 'type'
+                    ? questionsApplication.value?.id || questionsType.value?.inventory_application_id
+                    : undefined,
             answers,
         });
         const root = data?.data ?? data;
@@ -718,57 +675,6 @@ async function saveQuestions() {
             'Erreur lors de l’enregistrement.';
     } finally {
         questionsSaving.value = false;
-    }
-}
-
-function openServiceEdit(row) {
-    editingRow.value = row;
-    Object.assign(serviceForm, emptyServiceForm(), {
-        exists_flag: field(row, 'exists_flag') ?? '',
-        solution_name: field(row, 'solution_name') ?? '',
-        editor: field(row, 'editor') ?? '',
-        importance: field(row, 'importance') ?? '',
-        version: field(row, 'version') ?? '',
-        last_version: field(row, 'last_version') ?? '',
-        sla_exists: field(row, 'sla_exists') ?? '',
-        hosting_mode: field(row, 'hosting_mode') ?? '',
-        users_count: field(row, 'users_count') ?? '',
-        licenses_count: field(row, 'licenses_count') ?? '',
-        license_type: field(row, 'license_type') ?? '',
-        customization_level: field(row, 'customization_level') ?? '',
-        backups: field(row, 'backups') ?? '',
-        etp_support: field(row, 'etp_support') ?? '',
-        etp_changes: field(row, 'etp_changes') ?? '',
-        archi_ho: field(row, 'archi_ho') ?? '',
-    });
-    serviceError.value = '';
-    showServiceForm.value = true;
-}
-
-function closeServiceEdit() {
-    showServiceForm.value = false;
-    editingRow.value = null;
-}
-
-async function saveService() {
-    if (!editingRow.value) return;
-    serviceSaving.value = true;
-    serviceError.value = '';
-
-    try {
-        const { data } = await api.put(`/it-services/${editingRow.value.application_type_id}`, {
-            ...serviceForm,
-        });
-        const root = data?.data ?? data;
-        if (root?.dashboard) applyDashboard({ data: root.dashboard });
-        closeServiceEdit();
-    } catch (err) {
-        serviceError.value =
-            err.response?.data?.message ||
-            Object.values(err.response?.data?.errors || {}).flat()[0] ||
-            'Erreur lors de l’enregistrement.';
-    } finally {
-        serviceSaving.value = false;
     }
 }
 
@@ -968,8 +874,11 @@ onMounted(loadDashboard);
     padding: 0.45rem 0.65rem;
     border: 1px solid #e2e8f0;
     text-align: left;
-    vertical-align: middle;
-    white-space: nowrap;
+    vertical-align: top;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-width: 11rem;
 }
 
 .sit-group-row th {
@@ -1014,9 +923,16 @@ onMounted(loadDashboard);
     background: #f8fafc;
 }
 
+.sit-cell-merged {
+    vertical-align: middle;
+}
+
 .sit-cell-rate {
-    cursor: pointer;
     min-width: 6.5rem;
+    max-width: 8rem;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .sit-rate {
@@ -1055,7 +971,11 @@ onMounted(loadDashboard);
 .sit-cell-app {
     text-align: center;
     min-width: 7.5rem;
+    max-width: 8.5rem;
     vertical-align: middle;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .sit-type-badge {
@@ -1070,18 +990,9 @@ onMounted(loadDashboard);
     font-weight: 800;
     font-size: 0.78rem;
     letter-spacing: 0.02em;
-    cursor: pointer;
     text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
     white-space: nowrap;
     line-height: 1.1;
-}
-
-.sit-type-badge:hover {
-    filter: brightness(1.06);
-}
-
-.sit-type-badge:active {
-    transform: translateY(1px);
 }
 
 .sit-type-badge-inline {
@@ -1144,19 +1055,54 @@ onMounted(loadDashboard);
 
 .sit-cell-text {
     white-space: normal;
-    min-width: 8rem;
+    min-width: 7rem;
+    max-width: 12rem;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.sit-cell-compact {
+    max-width: 6rem;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
+.sit-cell-solution {
     max-width: 14rem;
+}
+
+.sit-solution-q {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: #0f4c81;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
     cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    text-underline-offset: 0.15em;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+}
+
+.sit-solution-q:hover {
+    text-decoration-color: currentColor;
 }
 
 .sit-etp {
     white-space: normal;
-    min-width: 11rem;
-    max-width: 16rem;
+    min-width: 10rem;
+    max-width: 14rem;
     font-size: 0.72rem;
     line-height: 1.3;
     color: #475569;
-    cursor: pointer;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .sit-empty,
@@ -1198,6 +1144,9 @@ onMounted(loadDashboard);
     border: 0;
     background: #0f4c81;
     color: #fff;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
 }
 
 .sit-btn-secondary {

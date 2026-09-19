@@ -78,7 +78,11 @@
                             </span>
                         </td>
                         <td>{{ app.business_domain || '—' }}</td>
-                        <td class="apps-cell-wide">{{ app.main_function || '—' }}</td>
+                        <td class="apps-cell-function">
+                            <div class="apps-function-text" :title="app.main_function || ''">
+                                {{ app.main_function || '—' }}
+                            </div>
+                        </td>
                         <td>{{ app.users || '—' }}</td>
                         <td>{{ app.technology || '—' }}</td>
                         <td>{{ app.type || '—' }}</td>
@@ -110,10 +114,30 @@
                         <td>{{ app.version || '—' }}</td>
                         <td>{{ app.last_version || '—' }}</td>
                         <td class="apps-actions">
-                            <button type="button" class="apps-link" @click="openEdit(app)">Modifier</button>
-                            <button type="button" class="apps-link danger" @click="removeApplication(app)">
-                                Supprimer
-                            </button>
+                            <div class="apps-action-btns">
+                                <button
+                                    type="button"
+                                    class="apps-icon-btn"
+                                    title="Modifier"
+                                    aria-label="Modifier"
+                                    @click="openEdit(app)"
+                                >
+                                    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="apps-icon-btn apps-icon-btn-danger"
+                                    title="Supprimer"
+                                    aria-label="Supprimer"
+                                    @click="askRemove(app)"
+                                >
+                                    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     <tr v-if="!applications.length">
@@ -300,15 +324,33 @@
                 </div>
             </form>
         </div>
+
+        <OperationalRiskConfirmModal
+            v-model:open="confirmOpen"
+            title="Supprimer l’application"
+            :message="confirmMessage"
+            confirm-label="Supprimer"
+            danger
+            :busy="deleting"
+            :error="confirmError"
+            @confirm="confirmRemove"
+            @cancel="cancelRemove"
+        />
     </div>
 </template>
 
 <script setup>
 import { onMounted, onUnmounted, reactive, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
+import OperationalRiskConfirmModal from '../../components/cartographie/OperationalRiskConfirmModal.vue';
+
+const route = useRoute();
+const router = useRouter();
 
 const loading = ref(true);
 const saving = ref(false);
+const deleting = ref(false);
 const error = ref('');
 const formError = ref('');
 const applications = ref([]);
@@ -317,6 +359,10 @@ const applicationTypes = ref([]);
 const search = ref('');
 const showForm = ref(false);
 const editing = ref(null);
+const confirmOpen = ref(false);
+const confirmMessage = ref('');
+const confirmError = ref('');
+const pendingDelete = ref(null);
 
 const form = reactive(emptyForm());
 
@@ -412,6 +458,7 @@ async function loadApplications() {
             },
         });
         applications.value = extractList(data);
+        openFromQuery();
     } catch (err) {
         const status = err.response?.status;
         const errors = err.response?.data?.errors;
@@ -483,6 +530,19 @@ function openEdit(app) {
     });
     formError.value = '';
     showForm.value = true;
+}
+
+function openFromQuery() {
+    const raw = route.query.id;
+    if (raw == null || raw === '') return;
+    const id = Number(raw);
+    if (!Number.isFinite(id) || id <= 0) return;
+    const app = applications.value.find((item) => Number(item.id) === id);
+    if (!app) return;
+    openEdit(app);
+    const nextQuery = { ...route.query };
+    delete nextQuery.id;
+    router.replace({ query: nextQuery });
 }
 
 function closeForm() {
@@ -558,14 +618,38 @@ async function saveApplication() {
     }
 }
 
-async function removeApplication(app) {
-    if (!confirm(`Supprimer l’application « ${app.name} » ?`)) return;
+function askRemove(app) {
+    pendingDelete.value = app;
+    confirmMessage.value = `Supprimer l’application « ${app.name} » ? Cette action est définitive.`;
+    confirmError.value = '';
+    confirmOpen.value = true;
+}
+
+function cancelRemove() {
+    confirmOpen.value = false;
+    pendingDelete.value = null;
+    confirmError.value = '';
+}
+
+async function confirmRemove() {
+    const app = pendingDelete.value;
+    if (!app) {
+        confirmOpen.value = false;
+        return;
+    }
+
+    deleting.value = true;
+    confirmError.value = '';
 
     try {
         await api.delete(`/applications/${app.id}`);
+        confirmOpen.value = false;
+        pendingDelete.value = null;
         await loadApplications();
     } catch (err) {
-        alert(extractError(err));
+        confirmError.value = extractError(err);
+    } finally {
+        deleting.value = false;
     }
 }
 
@@ -782,6 +866,24 @@ onUnmounted(() => clearTimeout(searchTimer));
     max-width: 16rem;
 }
 
+.apps-table td.apps-cell-function {
+    white-space: normal;
+    vertical-align: top;
+    min-width: 12rem;
+    max-width: 18rem;
+    width: 18rem;
+}
+
+.apps-function-text {
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    overflow: hidden;
+}
+
 .apps-badge {
     display: inline-block;
     padding: 0.15rem 0.45rem;
@@ -815,6 +917,46 @@ onUnmounted(() => clearTimeout(searchTimer));
     right: 0;
     background: #fff;
     box-shadow: -4px 0 8px rgba(15, 23, 42, 0.06);
+    white-space: nowrap;
+}
+
+.apps-action-btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.apps-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.45rem;
+    background: #f8fafc;
+    color: #0f4c81;
+    cursor: pointer;
+    padding: 0;
+}
+
+.apps-icon-btn svg {
+    width: 1rem;
+    height: 1rem;
+}
+
+.apps-icon-btn:hover {
+    background: #e0f2fe;
+    border-color: #bae6fd;
+}
+
+.apps-icon-btn-danger {
+    color: #b91c1c;
+}
+
+.apps-icon-btn-danger:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
 }
 
 .apps-empty,

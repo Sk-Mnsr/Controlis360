@@ -29,39 +29,47 @@ class ItServiceDashboardService
             ->get()
             ->groupBy('application_type_id');
 
-        $typeAnswers = ApplicationAnswer::query()
-            ->whereNotNull('application_type_id')
+        $applicationIds = $types->flatMap(fn (ApplicationType $type) => $type->applications->pluck('id'))->unique()->values();
+
+        $answersByApplication = ApplicationAnswer::query()
+            ->whereIn('application_id', $applicationIds)
             ->whereIn('question_id', $typeQuestions->flatten()->pluck('id'))
             ->get()
-            ->groupBy('application_type_id');
+            ->groupBy('application_id');
 
-        $services = $types->map(function (ApplicationType $type) use ($typeQuestions, $typeAnswers) {
+        $services = $types->flatMap(function (ApplicationType $type) use ($typeQuestions, $answersByApplication) {
             $questions = $typeQuestions->get($type->id)
                 ?? $typeQuestions->get((string) $type->id)
                 ?? collect();
-            $answers = $typeAnswers->get($type->id)
-                ?? $typeAnswers->get((string) $type->id)
-                ?? collect();
-            $fill = $this->computeFillRate($questions, $answers);
 
             $inventoryApps = $type->applications;
-            $primary = $inventoryApps->first();
-            $service = $this->formatFromInventory($primary);
+            $count = $inventoryApps->count();
+            $apps = $count > 0 ? $inventoryApps : collect([null]);
 
-            return array_filter([
-                'application_type_id' => $type->id,
-                'code' => $type->code,
-                'name' => $type->name,
-                'accent_color' => $type->accent_color,
-                'fill_rate' => $fill['rate'],
-                'answered_count' => $fill['answered'],
-                'questions_count' => $fill['total'],
-                'inventory_application_id' => $primary?->id,
-                'inventory_applications_count' => $inventoryApps->count(),
-                'inventory_application_code' => $primary?->code,
-                'source' => $primary ? 'inventory' : 'empty',
-                'service' => $service,
-            ] + ($service ?? []), static fn ($value) => $value !== null);
+            return $apps->map(function (?Application $application) use ($type, $questions, $answersByApplication, $count) {
+                $answers = $application
+                    ? ($answersByApplication->get($application->id)
+                        ?? $answersByApplication->get((string) $application->id)
+                        ?? collect())
+                    : collect();
+                $fill = $this->computeFillRate($questions, $answers);
+                $service = $this->formatFromInventory($application);
+
+                return array_filter([
+                    'application_type_id' => $type->id,
+                    'code' => $type->code,
+                    'name' => $type->name,
+                    'accent_color' => $type->accent_color,
+                    'fill_rate' => $fill['rate'],
+                    'answered_count' => $fill['answered'],
+                    'questions_count' => $fill['total'],
+                    'inventory_application_id' => $application?->id,
+                    'inventory_applications_count' => $count,
+                    'inventory_application_code' => $application?->code,
+                    'source' => $application ? 'inventory' : 'empty',
+                    'service' => $service,
+                ] + ($service ?? []), static fn ($value) => $value !== null);
+            });
         })->values()->all();
 
         return [
@@ -71,7 +79,7 @@ class ItServiceDashboardService
         ];
     }
 
-    public function scopeFillRate(string $scope, ?int $applicationTypeId = null): array
+    public function scopeFillRate(string $scope, ?int $applicationTypeId = null, ?int $applicationId = null): array
     {
         $questions = ApplicationQuestion::query()
             ->where('scope', $scope)
@@ -88,15 +96,15 @@ class ItServiceDashboardService
             ->whereIn('question_id', $questions->pluck('id'))
             ->when(
                 $scope === 'type',
-                fn ($q) => $q->where('application_type_id', $applicationTypeId),
-                fn ($q) => $q->whereNull('application_type_id'),
+                fn ($q) => $q->where('application_id', $applicationId),
+                fn ($q) => $q->whereNull('application_id'),
             )
             ->get();
 
         return $this->computeFillRate($questions, $answers);
     }
 
-    public function questionsForScope(string $scope, ?int $applicationTypeId = null): Collection
+    public function questionsForScope(string $scope, ?int $applicationTypeId = null, ?int $applicationId = null): Collection
     {
         $query = ApplicationQuestion::query()
             ->where('scope', $scope)
@@ -115,9 +123,9 @@ class ItServiceDashboardService
         $answersQuery = ApplicationAnswer::query()->whereIn('question_id', $questions->pluck('id'));
 
         if ($scope === 'type') {
-            $answersQuery->where('application_type_id', $applicationTypeId);
+            $answersQuery->where('application_id', $applicationId);
         } else {
-            $answersQuery->whereNull('application_type_id');
+            $answersQuery->whereNull('application_id');
         }
 
         $answersByQuestion = $answersQuery->get()->keyBy('question_id');
@@ -138,8 +146,13 @@ class ItServiceDashboardService
         });
     }
 
-    public function saveAnswers(string $scope, ?int $applicationTypeId, array $answers, ?int $userId): array
-    {
+    public function saveAnswers(
+        string $scope,
+        ?int $applicationTypeId,
+        array $answers,
+        ?int $userId,
+        ?int $applicationId = null,
+    ): array {
         foreach ($answers as $item) {
             $questionId = (int) ($item['question_id'] ?? 0);
             $value = array_key_exists('value', $item) ? trim((string) ($item['value'] ?? '')) : '';
@@ -163,9 +176,10 @@ class ItServiceDashboardService
             ApplicationAnswer::query()->updateOrCreate(
                 [
                     'question_id' => $question->id,
-                    'application_type_id' => $scope === 'type' ? $applicationTypeId : null,
+                    'application_id' => $scope === 'type' ? $applicationId : null,
                 ],
                 [
+                    'application_type_id' => $scope === 'type' ? $applicationTypeId : null,
                     'value' => $value === '' ? null : $value,
                     'details' => $details === '' ? null : $details,
                     'answered_by_id' => $userId,
@@ -173,18 +187,8 @@ class ItServiceDashboardService
             );
         }
 
-        if ($scope === 'type' && $applicationTypeId) {
-            $questions = ApplicationQuestion::query()
-                ->where('scope', 'type')
-                ->where('application_type_id', $applicationTypeId)
-                ->where('is_active', true)
-                ->get();
-            $answersModels = ApplicationAnswer::query()
-                ->where('application_type_id', $applicationTypeId)
-                ->whereIn('question_id', $questions->pluck('id'))
-                ->get();
-
-            return $this->computeFillRate($questions, $answersModels);
+        if ($scope === 'type' && $applicationTypeId && $applicationId) {
+            return $this->scopeFillRate('type', $applicationTypeId, $applicationId);
         }
 
         return $this->scopeFillRate($scope);
@@ -192,6 +196,7 @@ class ItServiceDashboardService
 
     /**
      * Met à jour (ou crée) l'application d'inventaire rattachée au type Accueil.
+     * Si inventory_application_id est fourni, cible cette fiche ; sinon la première du type (ou création).
      */
     public function upsertService(int $applicationTypeId, array $data, ?int $userId): Application
     {
@@ -228,11 +233,22 @@ class ItServiceDashboardService
             return $value;
         })->all();
 
-        $application = Application::query()
-            ->where('application_type_id', $type->id)
-            ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
-            ->orderBy('id')
-            ->first();
+        $inventoryApplicationId = ! empty($data['inventory_application_id'])
+            ? (int) $data['inventory_application_id']
+            : null;
+
+        if ($inventoryApplicationId) {
+            $application = Application::query()
+                ->where('id', $inventoryApplicationId)
+                ->where('application_type_id', $type->id)
+                ->firstOrFail();
+        } else {
+            $application = Application::query()
+                ->where('application_type_id', $type->id)
+                ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
+                ->orderBy('id')
+                ->first();
+        }
 
         $mapped = [
             'application_type_id' => $type->id,
@@ -267,6 +283,40 @@ class ItServiceDashboardService
         $mapped['created_by_id'] = $userId;
 
         return Application::query()->create($mapped);
+    }
+
+    /**
+     * Garantit une fiche inventaire pour ouvrir le questionnaire d'un type encore vide.
+     */
+    public function ensureInventoryApplication(int $applicationTypeId, ?int $applicationId, ?int $userId): Application
+    {
+        $type = ApplicationType::query()->findOrFail($applicationTypeId);
+
+        if ($applicationId) {
+            return Application::query()
+                ->where('id', $applicationId)
+                ->where('application_type_id', $type->id)
+                ->firstOrFail();
+        }
+
+        $existing = Application::query()
+            ->where('application_type_id', $type->id)
+            ->orderByRaw("CASE WHEN status = 'active' THEN 0 ELSE 1 END")
+            ->orderBy('id')
+            ->first();
+
+        if ($existing) {
+            return $existing;
+        }
+
+        return Application::query()->create([
+            'application_type_id' => $type->id,
+            'code' => $this->nextInventoryCode($type->code),
+            'name' => $type->name,
+            'business_domain' => $type->name,
+            'status' => 'active',
+            'created_by_id' => $userId,
+        ]);
     }
 
     private function statusFromExistsFlag(?string $existsFlag, ?string $fallback = null): string

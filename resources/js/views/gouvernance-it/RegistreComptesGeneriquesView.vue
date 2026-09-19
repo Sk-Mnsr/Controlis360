@@ -49,12 +49,12 @@
                         </th>
                     </tr>
                     <tr>
-                        <th>USER_ID</th>
+                        <th class="rcg-col-userid">USER_ID</th>
                         <th>USER_NAME</th>
                         <th>Statut</th>
                         <th>Forgotten</th>
                         <th>Type de compte</th>
-                        <th>Utilité / Finalité</th>
+                        <th class="rcg-col-purpose">Utilité / Finalité</th>
                         <th>Système / Application</th>
                         <th>Owner / Responsable</th>
                         <th>Utilisation</th>
@@ -80,12 +80,12 @@
                         <td colspan="24" class="rcg-empty">Aucun compte générique enregistré.</td>
                     </tr>
                     <tr v-for="row in rows" :key="row.id">
-                        <td class="rcg-strong">{{ row.user_id }}</td>
+                        <td class="rcg-strong rcg-col-userid">{{ row.user_id }}</td>
                         <td>{{ row.user_name || '—' }}</td>
                         <td>{{ row.statut || '—' }}</td>
                         <td class="rcg-center">{{ row.forgotten || '—' }}</td>
                         <td>{{ row.account_type || '—' }}</td>
-                        <td>{{ row.purpose || '—' }}</td>
+                        <td class="rcg-col-purpose" :title="row.purpose || ''">{{ row.purpose || '—' }}</td>
                         <td>{{ row.system_application || '—' }}</td>
                         <td>{{ row.owner || '—' }}</td>
                         <td>{{ row.usage || '—' }}</td>
@@ -790,7 +790,7 @@ onUnmounted(() => {
 
 .rcg-table {
     width: 100%;
-    min-width: 110rem;
+    min-width: 118rem;
     border-collapse: collapse;
     font-size: 0.75rem;
     line-height: 1.35;
@@ -802,6 +802,23 @@ onUnmounted(() => {
     border: 1px solid #cbd5e1;
     padding: 0.5rem 0.55rem;
     vertical-align: top;
+    word-break: break-word;
+}
+
+.rcg-table th.rcg-col-userid,
+.rcg-table td.rcg-col-userid {
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
+    min-width: 7.5rem;
+}
+
+.rcg-table th.rcg-col-purpose,
+.rcg-table td.rcg-col-purpose {
+    min-width: 18rem;
+    max-width: 24rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
     word-break: break-word;
 }
 
