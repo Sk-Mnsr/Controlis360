@@ -28,13 +28,16 @@ class PasswordResetByAdminMail extends Mailable
 
     public function content(): Content
     {
+        $appUrl = rtrim((string) config('app.url'), '/');
+
         return new Content(
-            markdown: 'emails.users.password-reset',
+            html: 'emails.users.password-reset',
             with: [
                 'recipient' => $this->recipient,
                 'plainPassword' => $this->plainPassword,
                 'sender' => $this->sender,
-                'loginUrl' => rtrim((string) config('app.url'), '/').'/login',
+                'loginUrl' => $appUrl.'/login',
+                'logoUrl' => $appUrl.'/logo_Cofina.png',
             ],
         );
     }
