@@ -398,7 +398,7 @@ class OperationalRiskRowController extends APIController
         OperationalRiskLogger::log($row, $request->user(), 'completed');
 
         $this->notifyEntityResponsablesCompleted(
-            $row->fresh(['entity', 'assignedEntity', 'createdBy']),
+            $row->fresh(['entity', 'assignedEntity']),
             $request->user()
         );
 
@@ -592,20 +592,13 @@ class OperationalRiskRowController extends APIController
 
     private function notifyEntityResponsablesCompleted(OperationalRiskRow $row, User $validator): void
     {
-        $recipients = collect();
-
-        if ($row->assignedEntity) {
-            $recipients = $recipients->merge(
-                $row->assignedEntity->responsables()->whereNotNull('email')->get()
-            );
+        if (! $row->assignedEntity) {
+            return;
         }
 
-        if ($row->createdBy && filled($row->createdBy->email)) {
-            $recipients->push($row->createdBy);
-        }
-
-        $recipients = $recipients
-            ->unique('id')
+        $recipients = $row->assignedEntity->responsables()
+            ->whereNotNull('email')
+            ->get()
             ->reject(fn (User $user) => $user->id === $validator->id || blank($user->email));
 
         foreach ($recipients as $recipient) {

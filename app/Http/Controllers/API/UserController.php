@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Mail\PasswordResetByAdminMail;
 use App\Models\Entity;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 use Maravel\Http\Controllers\APIController;
 
@@ -35,6 +38,8 @@ class UserController extends APIController
         'responsable_it' => 'respit',
         'responsable_regional' => 'respreg',
     ];
+
+    private ?string $plainPasswordForMail = null;
 
     public function __construct()
     {
@@ -157,7 +162,10 @@ class UserController extends APIController
         };
 
         $this->updateBeforeUpdateFunction = function (User $model, array $requestData) {
-            if (isset($requestData['password'])) {
+            $this->plainPasswordForMail = null;
+
+            if (isset($requestData['password']) && is_string($requestData['password']) && $requestData['password'] !== '') {
+                $this->plainPasswordForMail = $requestData['password'];
                 $requestData['password'] = Hash::make($requestData['password']);
                 // Mot de passe réinitialisé par un admin → changement requis à la prochaine connexion.
                 $requestData['password_change_required'] = true;
@@ -173,6 +181,15 @@ class UserController extends APIController
 
             if (array_key_exists('activated', $requestData) && ! $model->activated) {
                 $model->tokens()->delete();
+            }
+
+            return $model;
+        };
+
+        $this->updateAfterCommitFunction = function (User $model) {
+            if ($this->plainPasswordForMail !== null) {
+                $this->sendPasswordResetMail($model, $this->plainPasswordForMail);
+                $this->plainPasswordForMail = null;
             }
 
             return $model;
@@ -436,6 +453,28 @@ class UserController extends APIController
         }
 
         return $normalized;
+    }
+
+    private function sendPasswordResetMail(User $user, string $plainPassword): void
+    {
+        if (blank($user->email)) {
+            return;
+        }
+
+        $sender = auth()->user();
+
+        try {
+            Mail::to($user->email)->send(new PasswordResetByAdminMail(
+                $user,
+                $plainPassword,
+                $sender instanceof User ? $sender : null,
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('Envoi mail réinitialisation mot de passe échoué', [
+                'user_id' => $user->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function syncUserScopes(User $model, array $requestData): void
