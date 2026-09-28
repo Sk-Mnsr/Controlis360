@@ -15,7 +15,7 @@
                     </tr>
                     <tr>
                         <td align="center" style="padding:28px 32px 8px;">
-                            <img src="{{ $logoUrl }}" alt="COFINA" width="140" style="display:block;height:auto;max-width:140px;border:0;">
+                            <img src="{{ $message->embed(public_path('logo_Cofina.png')) }}" alt="COFINA" width="140" style="display:block;margin:0 auto;height:auto;max-width:140px;border:0;">
                             <p style="margin:14px 0 0;font-size:11px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:#c00000;">Controlis360</p>
                         </td>
                     </tr>

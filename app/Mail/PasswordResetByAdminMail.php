@@ -37,7 +37,6 @@ class PasswordResetByAdminMail extends Mailable
                 'plainPassword' => $this->plainPassword,
                 'sender' => $this->sender,
                 'loginUrl' => $appUrl.'/login',
-                'logoUrl' => $appUrl.'/logo_Cofina.png',
             ],
         );
     }
