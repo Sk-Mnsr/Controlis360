@@ -121,6 +121,7 @@ export async function placeBid(auctionId, amount, userRef = 'Client', email = ''
         auction.bids.unshift({
             id: Date.now(),
             user_ref: userRef,
+            email: email || null,
             amount,
             at: new Date().toISOString(),
             status: 'Gagnante',

@@ -9,7 +9,7 @@
                 :class="{ 'is-on': liked }"
                 :aria-pressed="liked"
                 aria-label="Ajouter aux favoris"
-                @click.prevent="liked = !liked"
+                @click.prevent="favorites.toggle(auction.id)"
             >
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path
@@ -87,10 +87,11 @@
 </template>
 
 <script setup>
-import { computed, ref, toRef } from 'vue';
+import { computed, toRef } from 'vue';
 import { formatFcfa, nextMinBid } from '../../config/encheres-mock-data';
 import { ENCHERES_STATUSES } from '../../config/encheres-sn';
 import { useEncheresCountdown } from '../../composables/useEncheresCountdown';
+import { useEncheresFavorites } from '../../composables/useEncheresFavorites';
 import EncheresImage from './EncheresImage.vue';
 
 const props = defineProps({
@@ -100,7 +101,8 @@ const props = defineProps({
     },
 });
 
-const liked = ref(false);
+const favorites = useEncheresFavorites();
+const liked = computed(() => favorites.isFavorite(props.auction.id));
 const { countdown } = useEncheresCountdown(toRef(props.auction, 'ends_at'));
 
 const ended = computed(() => countdown.value.ended || new Date(props.auction.ends_at).getTime() <= Date.now());
