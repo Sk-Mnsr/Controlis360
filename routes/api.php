@@ -20,11 +20,22 @@ use App\Http\Controllers\API\RecommendationController;
 use App\Http\Controllers\API\RegulatoryReportingFicheController;
 use App\Http\Controllers\API\GouvernanceItController;
 use App\Http\Controllers\API\GenericAccountController;
+use App\Http\Controllers\API\EncheresAuctionController;
+use App\Http\Controllers\API\EncheresClientAuthController;
+use App\Http\Controllers\API\EncheresCommitteeController;
 use App\Http\Controllers\API\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::controller(AuthController::class)->group(function () {
     Route::post("auth/login", "login");
+
+    Route::get('vente-encheres/auctions', [EncheresAuctionController::class, 'index']);
+    Route::get('vente-encheres/auctions/{key}', [EncheresAuctionController::class, 'show']);
+
+    Route::post('vente-encheres/client-auth/code', [EncheresClientAuthController::class, 'requestCode']);
+    Route::post('vente-encheres/client-auth/verify', [EncheresClientAuthController::class, 'verify']);
+    Route::get('vente-encheres/client-auth/me', [EncheresClientAuthController::class, 'me']);
+    Route::delete('vente-encheres/client-auth/logout', [EncheresClientAuthController::class, 'logout']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::prefix("/auth")->name("auth.")->group(function () {
@@ -249,6 +260,20 @@ Route::controller(AuthController::class)->group(function () {
                 Route::put('/{id}', 'update')->name('update');
                 Route::post('/{id}/validate', 'validateRow')->name('validate');
                 Route::delete('/{id}', 'destroy')->name('destroy');
+            });
+
+            Route::post('vente-encheres/auctions/sync', [EncheresAuctionController::class, 'sync']);
+            Route::delete('vente-encheres/auctions/{key}', [EncheresAuctionController::class, 'destroy']);
+
+            Route::prefix('vente-encheres/comite')->controller(EncheresCommitteeController::class)->group(function () {
+                Route::get('/biens', 'index');
+                Route::post('/biens', 'syncLot');
+                Route::post('/codes', 'issue');
+                Route::post('/verifier', 'verify');
+                Route::post('/offres', 'syncBid');
+                Route::post('/message-gagnant', 'notifyWinner');
+                Route::get('/message-gagnant', 'winnerMessage');
+                Route::put('/message-gagnant', 'updateWinnerMessage');
             });
 
             // Routes supplémentaires sous autorisation

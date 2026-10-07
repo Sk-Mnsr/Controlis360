@@ -171,6 +171,7 @@ const MODULE_PROFILE_FALLBACK = {
     audit: 'audit',
     conformite: 'conformite',
     'gouvernance-it': 'agent_it',
+    'vente-encheres': 'admin_encheres',
 };
 
 function suggestDuplicateEmail(email) {

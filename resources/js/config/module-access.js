@@ -12,6 +12,9 @@ export const PROFILE_LABELS = {
     responsable_it: 'Responsable IT',
     responsable_regional: 'Responsable Régional',
     metier: 'Métier',
+    client: 'Client',
+    comite: 'Comité',
+    admin_encheres: 'Admin enchères',
 };
 
 /** Profils proposés pour chaque module (hors super_admin plateforme). */
@@ -37,6 +40,11 @@ export const MODULE_PROFILE_OPTIONS = {
         { value: 'responsable_it', label: PROFILE_LABELS.responsable_it },
         { value: 'responsable_regional', label: PROFILE_LABELS.responsable_regional },
     ],
+    'vente-encheres': [
+        { value: 'client', label: PROFILE_LABELS.client },
+        { value: 'comite', label: PROFILE_LABELS.comite },
+        { value: 'admin_encheres', label: PROFILE_LABELS.admin_encheres },
+    ],
 };
 
 const MODULE_PROFILES = {
@@ -44,6 +52,7 @@ const MODULE_PROFILES = {
     audit: ['super_admin', 'admin', 'regulateur', 'controle', 'audit', 'metier'],
     conformite: ['super_admin', 'admin', 'conformite', 'metier'],
     'gouvernance-it': ['super_admin', 'admin', 'agent_it', 'responsable_it', 'responsable_regional'],
+    'vente-encheres': ['super_admin', 'admin', 'client', 'comite', 'admin_encheres'],
 };
 
 const ALL_MODULE_SLUGS = modules.map((module) => module.slug);
@@ -312,17 +321,30 @@ export function userWithModuleContext(user, slug) {
 }
 
 export function canAccessModule(profile, slug, user = null) {
-    if (profile === 'super_admin' || profile === 'admin') {
+    if (profile === 'super_admin') {
         return canAccessModuleByProfile(profile, slug, user);
     }
 
-    if (user?.module_profiles && Object.keys(user.module_profiles).length > 0) {
-        const assignment = user.module_profiles[slug];
+    const encheresOnly = ['client', 'comite', 'admin_encheres'].includes(profile);
+    const assignedProfiles = user?.module_profiles && typeof user.module_profiles === 'object'
+        ? user.module_profiles
+        : null;
+
+    if (assignedProfiles && Object.keys(assignedProfiles).length > 0) {
+        const assignment = assignedProfiles[slug];
         if (!assignment?.profile) {
             return false;
         }
 
         return canAccessModuleByProfile(assignment.profile, slug, assignment);
+    }
+
+    if (encheresOnly && slug !== 'vente-encheres') {
+        return false;
+    }
+
+    if (profile === 'admin') {
+        return canAccessModuleByProfile(profile, slug, user);
     }
 
     if (!canAccessModuleByProfile(profile, slug, user)) {
@@ -331,7 +353,7 @@ export function canAccessModule(profile, slug, user = null) {
 
     const assigned = user?.modules;
     if (!Array.isArray(assigned) || assigned.length === 0) {
-        return true;
+        return !encheresOnly || slug === 'vente-encheres';
     }
 
     return assigned.includes(slug);

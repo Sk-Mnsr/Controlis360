@@ -428,6 +428,47 @@
                     </template>
                 </template>
 
+                <template v-else-if="activeModule?.slug === 'vente-encheres'">
+                    <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }">
+                        ← Tous les modules
+                    </RouterLink>
+
+                    <RouterLink
+                        class="nav-link"
+                        :class="{ 'nav-link-active': route.name === 'vente-encheres.home' }"
+                        :to="{ name: 'vente-encheres.home' }"
+                    >
+                        Accueil
+                    </RouterLink>
+
+                    <RouterLink
+                        v-if="canAccessVenteClient"
+                        class="nav-link"
+                        :class="{ 'nav-link-active': isVenteClientSection }"
+                        :to="{ name: 'vente-encheres.client.home' }"
+                    >
+                        Client
+                    </RouterLink>
+
+                    <RouterLink
+                        v-if="canAccessVenteComite"
+                        class="nav-link"
+                        :class="{ 'nav-link-active': route.name === 'vente-encheres.comite' }"
+                        :to="{ name: 'vente-encheres.comite' }"
+                    >
+                        Comité
+                    </RouterLink>
+
+                    <RouterLink
+                        v-if="canAccessVenteAdmin"
+                        class="nav-link"
+                        :class="{ 'nav-link-active': isVenteAdminSection }"
+                        :to="{ name: 'vente-encheres.admin.dashboard' }"
+                    >
+                        Admin
+                    </RouterLink>
+                </template>
+
                 <template v-else>
                     <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }" title="Tous les modules">
                         <span class="nav-ico" aria-hidden="true">←</span>
@@ -546,6 +587,11 @@ import { useRoute, useRouter } from 'vue-router';
 import { methodologyItems } from '../config/cartographie-nav';
 import { getModuleFromRoute } from '../config/modules';
 import { canCreateMission as userCanCreateMission, isRegulatorProfile } from '../config/module-access';
+import {
+    canAccessVenteEncheresAdmin,
+    canAccessVenteEncheresClient,
+    canAccessVenteEncheresComite,
+} from '../config/vente-encheres-access';
 import { useCartographieNavigation } from '../stores/cartographie';
 import { useAuthStore } from '../stores/auth';
 import { useCartographiePermissions } from '../composables/useCartographiePermissions';
@@ -555,6 +601,9 @@ import api from '../api/client';
 const auth = useAuthStore();
 const { canCreateRiskRow } = useCartographiePermissions();
 const canCreateMission = computed(() => userCanCreateMission(auth.baseUser ?? auth.user));
+const canAccessVenteClient = computed(() => canAccessVenteEncheresClient(auth.baseUser ?? auth.user));
+const canAccessVenteComite = computed(() => canAccessVenteEncheresComite(auth.baseUser ?? auth.user));
+const canAccessVenteAdmin = computed(() => canAccessVenteEncheresAdmin(auth.baseUser ?? auth.user));
 const route = useRoute();
 const router = useRouter();
 const { cartographie, navigateMethodology, selectDepartmentEntity } = useCartographieNavigation();
@@ -589,7 +638,15 @@ const hideSidebar = computed(() =>
     || route.name === 'gouvernance-it.centre-support'
     || route.name === 'gouvernance-it.systemes-reseaux'
     || route.name === 'gouvernance-it.base-donnees'
-    || route.name === 'gouvernance-it.retroplanning',
+    || route.name === 'gouvernance-it.retroplanning'
+    || (typeof route.name === 'string' && route.name.startsWith('vente-encheres.client'))
+    || (typeof route.name === 'string' && route.name.startsWith('vente-encheres.admin')),
+);
+const isVenteClientSection = computed(() =>
+    typeof route.name === 'string' && route.name.startsWith('vente-encheres.client'),
+);
+const isVenteAdminSection = computed(() =>
+    typeof route.name === 'string' && route.name.startsWith('vente-encheres.admin'),
 );
 const isCartographieSection = computed(() => route.name === 'cartographie.cartographie');
 const isMethodologySection = computed(() => [

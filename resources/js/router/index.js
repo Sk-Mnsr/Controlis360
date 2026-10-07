@@ -1,5 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { canAccessModule, canCreateMission } from '../config/module-access';
+import {
+    canAccessVenteEncheresAdmin,
+    canAccessVenteEncheresComite,
+} from '../config/vente-encheres-access';
 import { useAuthStore } from '../stores/auth';
 
 const routes = [
@@ -8,6 +12,43 @@ const routes = [
         name: 'login',
         component: () => import('../views/LoginView.vue'),
         meta: { guest: true },
+    },
+    {
+        path: '/vente-encheres/client',
+        component: () => import('../views/vente-encheres/client/EncheresClientLayout.vue'),
+        meta: { publicMarketplace: true },
+        children: [
+            {
+                path: '',
+                redirect: { name: 'vente-encheres.client.home' },
+            },
+            {
+                path: 'home',
+                name: 'vente-encheres.client.home',
+                component: () => import('../views/vente-encheres/client/EncheresClientHomeView.vue'),
+            },
+            {
+                path: 'encheres',
+                name: 'vente-encheres.client.list',
+                component: () => import('../views/vente-encheres/client/EncheresListView.vue'),
+            },
+            {
+                path: 'encheres/:id',
+                name: 'vente-encheres.client.detail',
+                component: () => import('../views/vente-encheres/client/EncheresDetailView.vue'),
+                props: true,
+            },
+            {
+                path: 'compte',
+                name: 'vente-encheres.client.account',
+                component: () => import('../views/vente-encheres/client/EncheresAccountView.vue'),
+            },
+            {
+                path: 'aide',
+                name: 'vente-encheres.client.help',
+                component: () => import('../views/vente-encheres/client/EncheresHelpView.vue'),
+            },
+        ],
     },
     {
         path: '/change-password',
@@ -409,6 +450,67 @@ const routes = [
                 ],
             },
             {
+                path: 'vente-encheres',
+                meta: { module: 'vente-encheres' },
+                children: [
+                    {
+                        path: '',
+                        redirect: { name: 'vente-encheres.home' },
+                    },
+                    {
+                        path: 'home',
+                        name: 'vente-encheres.home',
+                        component: () => import('../views/vente-encheres/VenteEncheresHomeView.vue'),
+                    },
+                    {
+                        path: 'client',
+                        redirect: { name: 'vente-encheres.client.home' },
+                    },
+                    {
+                        path: 'comite',
+                        name: 'vente-encheres.comite',
+                        component: () => import('../views/vente-encheres/VenteEncheresComiteView.vue'),
+                    },
+                    {
+                        path: 'admin',
+                        component: () => import('../views/vente-encheres/admin/EncheresAdminLayout.vue'),
+                        redirect: { name: 'vente-encheres.admin.dashboard' },
+                        children: [
+                            {
+                                path: 'dashboard',
+                                name: 'vente-encheres.admin.dashboard',
+                                component: () => import('../views/vente-encheres/admin/EncheresAdminDashboardView.vue'),
+                            },
+                            {
+                                path: 'deposer/:id?',
+                                name: 'vente-encheres.admin.deposit',
+                                component: () => import('../views/vente-encheres/admin/EncheresAdminDepositView.vue'),
+                            },
+                            {
+                                path: 'encheres',
+                                name: 'vente-encheres.admin.auctions',
+                                component: () => import('../views/vente-encheres/admin/EncheresAdminAuctionsView.vue'),
+                            },
+                            {
+                                path: 'encheres/:id',
+                                name: 'vente-encheres.admin.auctions.show',
+                                component: () => import('../views/vente-encheres/admin/EncheresAdminAuctionShowView.vue'),
+                            },
+                            {
+                                path: 'categories',
+                                name: 'vente-encheres.admin.categories',
+                                component: () => import('../views/vente-encheres/admin/EncheresAdminCategoriesView.vue'),
+                            },
+                            {
+                                path: 'parametrage',
+                                name: 'vente-encheres.admin.settings',
+                                component: () => import('../views/vente-encheres/admin/EncheresAdminSettingsView.vue'),
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
                 path: 'home',
                 redirect: { name: 'cartographie.home' },
             },
@@ -480,13 +582,32 @@ router.beforeEach(async (to, from, next) => {
         await auth.fetchUser();
     }
 
-    if (to.meta.requiresAuth && !auth.token) {
-        return next({ name: 'login' });
+    const isPublicMarketplace = to.matched.some((record) => record.meta.publicMarketplace)
+        && !to.matched.some((record) => record.meta.requiresAuth === true);
+
+    if (to.meta.requiresAuth && !auth.token && !isPublicMarketplace) {
+        return next({
+            name: 'login',
+            query: { redirect: to.fullPath },
+        });
+    }
+
+    // Marketplace publique : le compte EnchèreSN passe par le code e-mail, pas par Controlis
+    if (to.matched.some((record) => record.meta.publicMarketplace)) {
+        if (to.meta.guest && auth.token) {
+            // ne pas bloquer
+        }
+        return next();
     }
 
     if (to.meta.guest && auth.token) {
         if (auth.mustChangePassword) {
             return next({ name: 'change-password' });
+        }
+
+        const redirect = typeof to.query.redirect === 'string' ? to.query.redirect : null;
+        if (redirect && redirect.startsWith('/')) {
+            return next(redirect);
         }
 
         return next({ name: 'portal' });
@@ -513,6 +634,14 @@ router.beforeEach(async (to, from, next) => {
 
     if (moduleSlug && auth.baseUser && !canAccessModule(auth.baseUser.profile, moduleSlug, auth.baseUser)) {
         return next({ name: 'portal' });
+    }
+
+    const routeName = typeof to.name === 'string' ? to.name : '';
+    if (auth.baseUser && routeName === 'vente-encheres.comite' && !canAccessVenteEncheresComite(auth.baseUser)) {
+        return next({ name: 'vente-encheres.home' });
+    }
+    if (auth.baseUser && routeName.startsWith('vente-encheres.admin') && !canAccessVenteEncheresAdmin(auth.baseUser)) {
+        return next({ name: 'vente-encheres.home' });
     }
 
     if (to.meta.requiresEnvironmentManagement) {

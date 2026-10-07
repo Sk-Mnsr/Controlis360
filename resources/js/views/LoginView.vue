@@ -103,10 +103,11 @@
 
 <script setup>
 import { computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 
 const auth = useAuthStore();
+const route = useRoute();
 const router = useRouter();
 
 const logoUrl = '/logo_Cofina.png';
@@ -126,6 +127,12 @@ async function submit() {
 
         if (auth.mustChangePassword) {
             router.push({ name: 'change-password' });
+            return;
+        }
+
+        const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : null;
+        if (redirect && redirect.startsWith('/')) {
+            router.push(redirect);
             return;
         }
 

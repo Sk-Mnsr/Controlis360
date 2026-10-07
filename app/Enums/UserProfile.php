@@ -15,6 +15,9 @@ enum UserProfile: string
     case ResponsableIt = 'responsable_it';
     case ResponsableRegional = 'responsable_regional';
     case Metier = 'metier';
+    case Client = 'client';
+    case Comite = 'comite';
+    case AdminEncheres = 'admin_encheres';
 
     public function label(): string
     {
@@ -30,6 +33,9 @@ enum UserProfile: string
             self::ResponsableIt => 'Responsable IT',
             self::ResponsableRegional => 'Responsable Régional',
             self::Metier => 'Métier',
+            self::Client => 'Client',
+            self::Comite => 'Comité',
+            self::AdminEncheres => 'Admin enchères',
         };
     }
 
@@ -45,6 +51,7 @@ enum UserProfile: string
             self::Conformite => 'conformite',
             self::AgentIt, self::ResponsableIt, self::ResponsableRegional => 'gouvernance_it',
             self::Metier => 'metier',
+            self::Client, self::Comite, self::AdminEncheres => 'vente_encheres',
         };
     }
 

@@ -32,4 +32,12 @@ return [
         'coming_soon' => false,
         'entry_route' => 'gouvernance-it.home',
     ],
+    'vente_encheres' => [
+        'slug' => 'vente-encheres',
+        'name' => 'Vente aux enchères',
+        'description' => 'Organisation et suivi des ventes aux enchères.',
+        'active' => true,
+        'coming_soon' => false,
+        'entry_route' => 'vente-encheres.home',
+    ],
 ];

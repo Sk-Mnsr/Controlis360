@@ -35,6 +35,15 @@ export const modules = [
         comingSoon: false,
         accent: '#1e3a5f',
     },
+    {
+        slug: 'vente-encheres',
+        name: 'Vente aux enchères',
+        description: 'Organisation et suivi des ventes aux enchères.',
+        entryRoute: 'vente-encheres.home',
+        active: true,
+        comingSoon: false,
+        accent: '#b45309',
+    },
 ];
 
 export function getModule(slug) {

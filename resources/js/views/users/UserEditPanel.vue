@@ -209,6 +209,7 @@ function enableAllModulesAsSuperAdmin() {
             audit: 'audit',
             conformite: 'conformite',
             'gouvernance-it': 'agent_it',
+            'vente-encheres': 'admin_encheres',
         })[module.slug] ?? 'metier',
     }));
 }
@@ -258,7 +259,9 @@ async function loadUser() {
                     cartographie: 'controle',
                     audit: 'audit',
                     conformite: 'conformite',
+                    'cartographie-applications': 'metier',
                     'gouvernance-it': 'agent_it',
+                    'vente-encheres': 'admin_encheres',
                 })[module.slug] ?? 'metier';
 
                 return {

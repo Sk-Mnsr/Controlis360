@@ -61,6 +61,9 @@ class User extends AuthenticatableBase
                 'responsable_it' => 'Responsable IT',
                 'responsable_regional' => 'Responsable Régional',
                 'metier' => 'Métier',
+                'client' => 'Client',
+                'comite' => 'Comité',
+                'admin_encheres' => 'Admin enchères',
             ],
         ],
         [
@@ -99,6 +102,15 @@ class User extends AuthenticatableBase
                 ],
                 'metier' => [
                     ['subject' => ['evaluation', 'report'], 'action' => ['read']],
+                ],
+                'client' => [
+                    ['subject' => ['vente_encheres'], 'action' => ['read']],
+                ],
+                'comite' => [
+                    ['subject' => ['vente_encheres'], 'action' => ['read', 'validate']],
+                ],
+                'admin_encheres' => [
+                    ['subject' => ['vente_encheres'], 'action' => ['create', 'read', 'update', 'delete', 'validate']],
                 ],
             ],
         ],
