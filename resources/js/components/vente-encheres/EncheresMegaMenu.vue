@@ -209,12 +209,12 @@ function selectCategory(categoryId, sub) {
 
 @media (max-width: 820px) {
     .ench-mega-backdrop {
-        padding-top: 9.5rem;
+        padding-top: 7.25rem;
     }
 
     .ench-mega-panel {
         flex-direction: column;
-        max-height: calc(100vh - 10rem);
+        max-height: calc(100vh - 8rem);
         margin: 0;
         border-radius: 0;
         width: 100%;
