@@ -97,7 +97,7 @@
                 <span class="ench-history-chevron" :class="{ open: historyOpen }" aria-hidden="true">⌃</span>
             </button>
 
-            <div v-show="historyOpen">
+            <div v-show="historyOpen" class="ench-history-scroll">
                 <table v-if="visibleBids.length" class="ench-history-table">
                     <thead>
                         <tr>
@@ -402,7 +402,7 @@ onMounted(load);
 
 .ench-detail-stats {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.75rem;
     margin: 1rem 0 0;
 }
@@ -472,13 +472,19 @@ onMounted(load);
 
 .ench-bid-btn {
     border: 0;
-    border-radius: 0.5rem;
-    background: #f59e0b;
-    color: #0f172a;
+    border-radius: 0.7rem;
+    background: #ffb000;
+    color: #071b41;
     font-weight: 800;
     font-size: 0.9375rem;
     padding: 0.75rem;
     cursor: pointer;
+    width: 100%;
+    min-height: 2.75rem;
+}
+
+.ench-history-scroll {
+    overflow-x: auto;
 }
 
 .ench-bid-btn:disabled {
@@ -634,5 +640,23 @@ onMounted(load);
     margin: 0;
     color: #64748b;
     font-size: 0.875rem;
+}
+
+@media (max-width: 680px) {
+    .ench-detail-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .ench-detail-panel h1 {
+        font-size: 1.35rem;
+    }
+
+    .ench-history-table {
+        min-width: 32rem;
+    }
+
+    .ench-history-heading p {
+        font-size: 0.75rem;
+    }
 }
 </style>

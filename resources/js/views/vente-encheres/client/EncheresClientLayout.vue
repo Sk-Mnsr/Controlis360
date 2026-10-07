@@ -1,6 +1,6 @@
 <template>
     <div class="ench-client-root">
-        <EncheresClientHeader @toggle-menu="menuOpen = !menuOpen" />
+        <EncheresClientHeader :menu-open="menuOpen" @toggle-menu="menuOpen = !menuOpen" />
         <EncheresMegaMenu :open="menuOpen" @close="menuOpen = false" />
         <main class="ench-client-main">
             <RouterView />
@@ -30,6 +30,7 @@ onMounted(() => {
     background: #f5f7fa;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
 }
 
 .ench-client-main {
@@ -45,5 +46,14 @@ onMounted(() => {
     margin-left: auto;
     margin-right: auto;
     padding: 1.25rem 1rem 2.5rem;
+}
+
+@media (max-width: 680px) {
+    .ench-client-main :deep(.ench-detail),
+    .ench-client-main :deep(.ench-account),
+    .ench-client-main :deep(.ench-loading),
+    .ench-client-main :deep(.ench-empty) {
+        padding: 0.85rem 0.75rem 2rem;
+    }
 }
 </style>

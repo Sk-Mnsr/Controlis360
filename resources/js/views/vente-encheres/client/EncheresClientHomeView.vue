@@ -262,5 +262,39 @@ onMounted(async () => {
     .ench-grid {
         grid-template-columns: 1fr;
     }
+
+    .ench-hero {
+        margin: 0.75rem 0.75rem 0;
+        min-height: 0;
+        border-radius: 0.9rem;
+    }
+
+    .ench-hero-inner {
+        padding: 1.35rem 1rem 1.2rem;
+        gap: 1.15rem;
+    }
+
+    .ench-hero h1 {
+        font-size: 1.65rem;
+    }
+
+    .ench-hero-btn {
+        width: 100%;
+        justify-content: center;
+        min-height: 2.75rem;
+    }
+
+    .ench-section {
+        padding: 1rem 0.75rem 2rem;
+    }
+
+    .ench-section-head {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .ench-section-head a {
+        white-space: normal;
+    }
 }
 </style>

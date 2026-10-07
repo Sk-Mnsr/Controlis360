@@ -312,6 +312,7 @@ const clockLabel = computed(() => {
 
 .ench-details-btn {
     margin-top: 0.2rem;
+    width: 100%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -323,6 +324,7 @@ const clockLabel = computed(() => {
     font-weight: 800;
     text-decoration: none;
     padding: 0.75rem 1rem;
+    min-height: 2.75rem;
 }
 
 .ench-details-btn svg {

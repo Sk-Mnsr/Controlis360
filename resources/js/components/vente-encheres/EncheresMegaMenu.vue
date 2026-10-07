@@ -207,10 +207,14 @@ function selectCategory(categoryId, sub) {
     font-weight: 600;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 820px) {
+    .ench-mega-backdrop {
+        padding-top: 9.5rem;
+    }
+
     .ench-mega-panel {
         flex-direction: column;
-        max-height: 85vh;
+        max-height: calc(100vh - 10rem);
         margin: 0;
         border-radius: 0;
         width: 100%;

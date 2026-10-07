@@ -21,6 +21,25 @@
                         <span class="ench-logo-tag">Ventes aux enchères au Sénégal</span>
                     </span>
                 </RouterLink>
+                <nav class="ench-nav" aria-label="Navigation principale">
+                    <RouterLink
+                        class="ench-nav-link"
+                        :class="{ 'is-active': route.name === 'vente-encheres.client.home' }"
+                        :to="{ name: 'vente-encheres.client.home' }"
+                    >
+                        Accueil
+                    </RouterLink>
+                    <button
+                        type="button"
+                        class="ench-nav-link ench-nav-drop"
+                        :class="{ 'is-active': menuOpen }"
+                        :aria-expanded="menuOpen"
+                        @click="emit('toggle-menu')"
+                    >
+                        Enchères
+                        <span aria-hidden="true">▾</span>
+                    </button>
+                </nav>
             </div>
 
             <form class="ench-search" @submit.prevent="submitSearch">
@@ -42,7 +61,7 @@
             <div class="ench-header-right">
                 <RouterLink class="ench-help" :to="{ name: 'vente-encheres.client.help' }">
                     <span class="ench-help-icon" aria-hidden="true">?</span>
-                    Aide
+                    <span>Aide</span>
                 </RouterLink>
                 <RouterLink
                     v-if="isLoggedIn"
@@ -67,6 +86,13 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ENCHERES_SN } from '../../config/encheres-sn';
 import { useEncheresClientAuthStore } from '../../stores/encheresClientAuth';
+
+defineProps({
+    menuOpen: {
+        type: Boolean,
+        default: false,
+    },
+});
 
 const emit = defineEmits(['toggle-menu']);
 
@@ -172,6 +198,36 @@ function submitSearch() {
     color: #cbd5e1;
 }
 
+.ench-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    margin-left: 0.35rem;
+}
+
+.ench-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 0.45rem 0.55rem;
+    border-radius: 0.45rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.ench-nav-link:hover,
+.ench-nav-link.is-active,
+.ench-nav-link.router-link-exact-active {
+    color: #ffb000;
+}
+
 .ench-search {
     flex: 1;
     display: flex;
@@ -272,13 +328,100 @@ function submitSearch() {
     background: #e59e00;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 1100px) {
     .ench-logo-tag {
         display: none;
     }
 
     .ench-header-inner {
-        gap: 0.55rem;
+        gap: 0.65rem;
+        padding: 0.55rem 0.85rem;
+    }
+
+    .ench-nav-link,
+    .ench-help,
+    .ench-login {
+        font-size: 0.84rem;
+    }
+}
+
+@media (max-width: 820px) {
+    .ench-header-inner {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+            "ham logo actions"
+            "nav nav nav"
+            "search search search";
+        align-items: center;
+        gap: 0.55rem 0.65rem;
+    }
+
+    .ench-header-left {
+        display: contents;
+    }
+
+    .ench-hamburger {
+        grid-area: ham;
+    }
+
+    .ench-logo {
+        grid-area: logo;
+        min-width: 0;
+    }
+
+    .ench-logo-copy {
+        min-width: 0;
+    }
+
+    .ench-logo-text {
+        font-size: 0.98rem;
+    }
+
+    .ench-nav {
+        grid-area: nav;
+        margin-left: 0;
+    }
+
+    .ench-nav-link {
+        min-height: 2.5rem;
+        padding: 0.4rem 0.7rem;
+    }
+
+    .ench-search {
+        grid-area: search;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .ench-header-right {
+        grid-area: actions;
+    }
+
+    .ench-help span:not(.ench-help-icon) {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+    }
+
+    .ench-help {
+        position: relative;
+        min-width: 2.5rem;
+        min-height: 2.5rem;
+        justify-content: center;
+    }
+
+    .ench-login {
+        min-height: 2.5rem;
+        padding: 0.45rem 0.7rem;
+    }
+
+    .ench-hamburger {
+        min-width: 2.5rem;
+        min-height: 2.5rem;
+        justify-content: center;
     }
 }
 </style>

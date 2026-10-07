@@ -142,4 +142,19 @@ function reset() {
     background: #2563eb;
     color: #fff;
 }
+
+@media (max-width: 680px) {
+    .ench-filters-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ench-filters-actions {
+        flex-direction: column;
+    }
+
+    .ench-filters-btn {
+        width: 100%;
+        min-height: 2.75rem;
+    }
+}
 </style>
