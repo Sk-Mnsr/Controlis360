@@ -28,8 +28,10 @@ class EncheresCommitteeController
             ->latest()
             ->get()
             ->filter(fn (EncheresCommitteeAccess $row) => $seesAll || $this->userIsAssigned($row, $user))
-            ->map(function (EncheresCommitteeAccess $row) use ($seesAll) {
+            ->map(function (EncheresCommitteeAccess $row) use ($seesAll, $user) {
                 $bids = array_values($row->bids ?? []);
+                $progress = $this->committeeProgress($row->committee ?? [], $user);
+                $ready = $seesAll || $progress['ready'];
 
                 return [
                     'auction_key' => $row->auction_key,
@@ -37,7 +39,13 @@ class EncheresCommitteeController
                     'title' => $row->title,
                     'bid_count' => count($bids),
                     'requires_code' => ! $seesAll,
-                    'bids' => $seesAll ? $bids : null,
+                    'ready' => $ready,
+                    'confirmed' => $seesAll ? $progress['total'] : $progress['confirmed'],
+                    'total' => $progress['total'],
+                    'self_confirmed' => $seesAll || $progress['self_confirmed'],
+                    'pending' => $seesAll ? [] : $progress['pending'],
+                    'members' => $progress['members'],
+                    'bids' => $ready ? $bids : null,
                 ];
             })
             ->values();
@@ -223,14 +231,27 @@ class EncheresCommitteeController
         }
 
         $committee[$memberIndex]['attempts'] = 0;
+        $committee[$memberIndex]['unlocked_at'] = now()->toIso8601String();
         $access->committee = $committee;
         $access->save();
+
+        $progress = $this->committeeProgress($committee, $user);
+        $pending = implode(', ', $progress['pending']);
 
         return response()->json([
             'auction_key' => $access->auction_key,
             'lot' => $access->lot,
             'title' => $access->title,
-            'bids' => $access->bids ?? [],
+            'ready' => $progress['ready'],
+            'confirmed' => $progress['confirmed'],
+            'total' => $progress['total'],
+            'self_confirmed' => true,
+            'pending' => $progress['pending'],
+            'members' => $progress['members'],
+            'bids' => $progress['ready'] ? ($access->bids ?? []) : [],
+            'message' => $progress['ready']
+                ? 'Tous les membres ont confirmé leur code. Les offres sont visibles.'
+                : 'Votre code est confirmé. En attente de : '.$pending.'.',
         ]);
     }
 
@@ -326,6 +347,12 @@ class EncheresCommitteeController
             return response()->json(['message' => 'Ce bien ne vous est pas assigné.'], 403);
         }
 
+        if (! $this->isAuctionAdmin($user) && ! $this->committeeProgress($access->committee ?? [], $user)['ready']) {
+            return response()->json([
+                'message' => 'Les offres restent masquées tant que chaque membre du comité n’a pas confirmé son code.',
+            ], 403);
+        }
+
         $bid = collect($access->bids ?? [])->first(function ($row) use ($data) {
             return (string) ($row['id'] ?? '') === (string) $data['bid_id'];
         });
@@ -413,6 +440,47 @@ class EncheresCommitteeController
             ->first();
 
         return $account?->email ? strtolower($account->email) : null;
+    }
+
+    private function committeeProgress(array $committee, ?User $user): array
+    {
+        $confirmed = 0;
+        $pending = [];
+        $members = [];
+        $selfConfirmed = false;
+
+        foreach ($committee as $member) {
+            $done = ! empty($member['unlocked_at']);
+            $isSelf = $user && (int) ($member['id'] ?? 0) === (int) $user->id;
+            $name = (string) ($member['name'] ?? 'Membre');
+
+            if ($done) {
+                $confirmed++;
+            } else {
+                $pending[] = $name;
+            }
+
+            if ($isSelf) {
+                $selfConfirmed = $done;
+            }
+
+            $members[] = [
+                'name' => $name,
+                'confirmed' => $done,
+                'self' => $isSelf,
+            ];
+        }
+
+        $total = count($committee);
+
+        return [
+            'confirmed' => $confirmed,
+            'total' => $total,
+            'ready' => $total > 0 && $confirmed === $total,
+            'self_confirmed' => $selfConfirmed,
+            'pending' => $pending,
+            'members' => $members,
+        ];
     }
 
     private function isCommitteeUser(User $user): bool
