@@ -51,8 +51,8 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { nextTick, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import { useAuthStore } from '../../stores/auth';
 import GovItWorkspaceHeader from '../../components/gouvernance-it/GovItWorkspaceHeader.vue';
@@ -74,6 +74,7 @@ const props = defineProps({
 });
 
 const auth = useAuthStore();
+const route = useRoute();
 const router = useRouter();
 
 const loading = ref(true);
@@ -93,6 +94,26 @@ function canAccessOperations() {
     return ['super_admin', 'admin', 'agent_it', 'responsable_it'].includes(auth.user?.profile);
 }
 
+function environmentIdFromRoute() {
+    const raw = Array.isArray(route.query.environment) ? route.query.environment[0] : route.query.environment;
+    const id = Number(raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+async function rememberEnvironment(environmentId) {
+    const id = Number(environmentId);
+    if (!Number.isInteger(id) || id <= 0 || environmentIdFromRoute() === id) {
+        return;
+    }
+
+    await router.replace({
+        query: {
+            ...route.query,
+            environment: String(id),
+        },
+    });
+}
+
 async function loadContext(environmentId = null) {
     loading.value = true;
     error.value = '';
@@ -109,6 +130,7 @@ async function loadContext(environmentId = null) {
         filialeCode.value = payload.filiale_code ?? '';
         filiales.value = payload.filiales ?? [];
         selectedEnvironmentId.value = payload.environment_id ?? null;
+        await rememberEnvironment(selectedEnvironmentId.value);
         canSelectFiliale.value = Boolean(payload.can_select_filiale);
         responsable.value = payload.responsable ?? '—';
         team.value = payload.team ?? '—';
@@ -141,6 +163,11 @@ onMounted(async () => {
     }
 
     canAccess.value = true;
-    await loadContext();
+    const restoreEnvironment = environmentIdFromRoute() !== null;
+    await loadContext(environmentIdFromRoute());
+    if (restoreEnvironment) {
+        await nextTick();
+        document.getElementById('govstrat-active-module')?.scrollIntoView({ block: 'start' });
+    }
 });
 </script>

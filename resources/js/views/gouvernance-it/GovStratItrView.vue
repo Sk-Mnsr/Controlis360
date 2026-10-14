@@ -48,7 +48,7 @@
                 </div>
             </div>
 
-            <div v-if="activeModule" class="mt-8 border-t border-slate-200 pt-6">
+            <div v-if="activeModule" id="govstrat-active-module" class="mt-8 border-t border-slate-200 pt-6">
                 <TaskActivityItView
                     v-if="activeModule === 'task-activity'"
                     :key="'task-activity'"
@@ -81,14 +81,16 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import TaskActivityItView from './TaskActivityItView.vue';
 import GovItOperationsSectionView from './GovItOperationsSectionView.vue';
 
 const auth = useAuthStore();
+const route = useRoute();
+const router = useRouter();
 const profile = computed(() => auth.user?.profile);
-const activeModule = ref(null);
 
 const isAdminViewer = computed(() =>
     ['super_admin', 'admin'].includes(profile.value),
@@ -141,6 +143,11 @@ const visibleModules = computed(() => {
     return items;
 });
 
+const activeModule = computed(() => {
+    const value = typeof route.query.module === 'string' ? route.query.module : '';
+    return visibleModules.value.some((mod) => mod.key === value) ? value : null;
+});
+
 /** SVG path d’un engrenage (dents + disque). */
 const gearPath = (() => {
     const teeth = 14;
@@ -188,7 +195,18 @@ const gearPath = (() => {
 })();
 
 function selectModule(moduleKey) {
-    activeModule.value = activeModule.value === moduleKey ? null : moduleKey;
+    const next = activeModule.value === moduleKey ? null : moduleKey;
+    const query = {};
+    if (next) {
+        query.module = next;
+        if (route.query.environment) {
+            query.environment = route.query.environment;
+        }
+    }
+    router.push({
+        name: 'gouvernance-it.govstrat-itr',
+        query,
+    });
 }
 </script>
 

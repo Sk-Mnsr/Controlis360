@@ -1243,6 +1243,24 @@ class GouvernanceItController extends APIController
         return $availableEnvironments->count() > 1;
     }
 
+    private function itUsersOfEnvironment(int $environmentId)
+    {
+        return User::query()
+            ->where('activated', true)
+            ->where(function ($query) use ($environmentId) {
+                $query->whereHas('environments', fn ($env) => $env->where('environments.id', $environmentId))
+                    ->orWhereHas('entities', fn ($entity) => $entity->where('entities.environment_id', $environmentId));
+            })
+            ->where(function ($query) {
+                $query->whereIn('profile', ['agent_it', 'responsable_it'])
+                    ->orWhere(function ($metierQuery) {
+                        $metierQuery
+                            ->where('profile', 'metier')
+                            ->whereIn('metier_role', ['responsable_entite', 'agent']);
+                    });
+            });
+    }
+
     /**
      * @return array{responsables: array<int, string>, agents: array<int, string>}
      */
@@ -1252,27 +1270,7 @@ class GouvernanceItController extends APIController
             return ['responsables' => [], 'agents' => []];
         }
 
-        $itEntity = Entity::query()
-            ->where('environment_id', $environmentId)
-            ->where('code', 'IT')
-            ->where('is_active', true)
-            ->first();
-
-        if (! $itEntity) {
-            return ['responsables' => [], 'agents' => []];
-        }
-
-        $users = User::query()
-            ->where('activated', true)
-            ->whereHas('entities', fn ($query) => $query->where('entities.id', $itEntity->id))
-            ->where(function ($query) {
-                $query->whereIn('profile', ['agent_it', 'responsable_it'])
-                    ->orWhere(function ($metierQuery) {
-                        $metierQuery
-                            ->where('profile', 'metier')
-                            ->whereIn('metier_role', ['responsable_entite', 'agent']);
-                    });
-            })
+        $users = $this->itUsersOfEnvironment($environmentId)
             ->orderBy('name')
             ->get(['id', 'name', 'profile', 'metier_role']);
 
@@ -1396,18 +1394,8 @@ class GouvernanceItController extends APIController
         }
 
         $owners = [];
-        if ($itEntity) {
-            $owners = User::query()
-                ->where('activated', true)
-                ->whereHas('entities', fn ($query) => $query->where('entities.id', $itEntity->id))
-                ->where(function ($query) {
-                    $query->whereIn('profile', ['agent_it', 'responsable_it'])
-                        ->orWhere(function ($metierQuery) {
-                            $metierQuery
-                                ->where('profile', 'metier')
-                                ->whereIn('metier_role', ['responsable_entite', 'agent']);
-                        });
-                })
+        if ($environment) {
+            $owners = $this->itUsersOfEnvironment($environment->id)
                 ->orderBy('name')
                 ->pluck('name')
                 ->unique()

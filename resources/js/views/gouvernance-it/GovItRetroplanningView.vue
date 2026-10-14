@@ -45,19 +45,7 @@
                     :key="ensemble.id"
                     class="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
                 >
-                    <div class="flex items-center justify-between gap-3">
-                        <h3 class="text-sm font-semibold text-slate-800">{{ ensemble.label }}</h3>
-                        <button
-                            v-if="canEdit"
-                            type="button"
-                            class="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
-                            title="Supprimer cet ensemble"
-                            :disabled="ensemble.deleting"
-                            @click="deleteEnsemble(ensemble)"
-                        >
-                            {{ ensemble.deleting ? 'Suppression…' : 'Supprimer l’ensemble ×' }}
-                        </button>
-                    </div>
+                    <h3 class="text-sm font-semibold text-slate-800">{{ ensemble.label }}</h3>
 
                     <div class="overflow-x-auto rounded-lg border border-slate-300 bg-white shadow-sm">
                         <table class="min-w-[1100px] w-full border-collapse text-sm">
@@ -225,11 +213,7 @@
                                                 @click="openCommentModal(row, 'comments1')"
                                             >
                                                 <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                    <path
-                                                        fill-rule="evenodd"
-                                                        d="M18 10c0 3.866-3.582 7-8 7a8.84 8.84 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z"
-                                                        clip-rule="evenodd"
-                                                    />
+                                                    <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.84 8.84 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" clip-rule="evenodd" />
                                                 </svg>
                                             </button>
                                             <div class="min-w-0 flex-1">
@@ -255,11 +239,7 @@
                                                 @click="openCommentModal(row, 'comments2')"
                                             >
                                                 <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                    <path
-                                                        fill-rule="evenodd"
-                                                        d="M18 10c0 3.866-3.582 7-8 7a8.84 8.84 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z"
-                                                        clip-rule="evenodd"
-                                                    />
+                                                    <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.84 8.84 0 01-4.083-.98L2 17l1.338-3.123C2.493 12.767 2 11.434 2 10c0-3.866 3.582-7 8-7s8 3.134 8 7z" clip-rule="evenodd" />
                                                 </svg>
                                             </button>
                                             <div class="min-w-0 flex-1">
@@ -277,7 +257,7 @@
                                     </td>
 
                                     <td v-if="canEdit" class="border border-slate-400 px-2 py-1.5">
-                                        <div class="flex flex-wrap items-center justify-end gap-1">
+                                        <div class="flex items-center justify-end gap-1">
                                             <button
                                                 v-if="rowIndex === 0"
                                                 type="button"
@@ -289,40 +269,16 @@
                                                 {{ isAdding(ensemble.id, section.key) ? '…' : '+' }}
                                             </button>
                                             <button
-                                                v-if="!row.editing"
                                                 type="button"
-                                                class="inline-flex h-7 w-7 items-center justify-center rounded border border-sky-300 text-sky-600 hover:bg-sky-50"
-                                                title="Modifier"
-                                                @click="row.editing = true"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-lg leading-none text-slate-600 hover:bg-slate-100"
+                                                :class="openMenuKey === row.localKey ? 'bg-slate-100 text-slate-900' : ''"
+                                                title="Actions"
+                                                aria-label="Actions"
+                                                aria-haspopup="menu"
+                                                :aria-expanded="openMenuKey === row.localKey"
+                                                @click.stop="toggleRowMenu(ensemble, row, $event)"
                                             >
-                                                <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                                                </svg>
-                                            </button>
-                                            <button
-                                                v-else
-                                                type="button"
-                                                class="inline-flex h-7 items-center justify-center rounded border border-emerald-400 bg-emerald-50 px-2 text-[10px] font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
-                                                title="Enregistrer"
-                                                :disabled="row.saving"
-                                                @click="saveRow(row)"
-                                            >
-                                                {{ row.saving ? '…' : 'Save' }}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                class="inline-flex h-7 w-7 items-center justify-center rounded border border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50"
-                                                title="Supprimer"
-                                                :disabled="row.saving || row.deleting"
-                                                @click="deleteRow(ensemble, row)"
-                                            >
-                                                <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                                    <path
-                                                        fill-rule="evenodd"
-                                                        d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                                                        clip-rule="evenodd"
-                                                    />
-                                                </svg>
+                                                ⋮
                                             </button>
                                         </div>
                                     </td>
@@ -333,6 +289,58 @@
                 </div>
             </div>
         </section>
+
+        <Teleport to="body">
+            <div
+                v-if="menuContext"
+                class="w-52 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 text-xs shadow-lg"
+                role="menu"
+                :style="menuStyle"
+                @click.stop
+            >
+                <button
+                    v-if="!menuContext.row.editing"
+                    type="button"
+                    class="flex w-full items-center gap-2 px-3 py-2 text-left text-slate-700 hover:bg-slate-50"
+                    role="menuitem"
+                    @click="runMenuAction(({ row }) => { row.editing = true; })"
+                >
+                    <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-sky-300 text-sky-600">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                    </span>
+                    Modifier
+                </button>
+                <button
+                    v-else
+                    type="button"
+                    class="flex w-full items-center gap-2 px-3 py-2 text-left text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
+                    role="menuitem"
+                    :disabled="menuContext.row.saving"
+                    @click="runMenuAction(({ row }) => saveRow(row))"
+                >
+                    <span class="inline-flex h-7 shrink-0 items-center rounded border border-emerald-400 bg-emerald-50 px-2 text-[10px] font-semibold">
+                        {{ menuContext.row.saving ? '…' : 'Save' }}
+                    </span>
+                    Enregistrer
+                </button>
+                <button
+                    type="button"
+                    class="flex w-full items-center gap-2 px-3 py-2 text-left text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    role="menuitem"
+                    :disabled="menuContext.row.saving || menuContext.row.deleting"
+                    @click="runMenuAction(({ ensemble, row }) => deleteRow(ensemble, row))"
+                >
+                    <span class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-red-300 text-red-600">
+                        <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </span>
+                    Supprimer
+                </button>
+            </div>
+        </Teleport>
 
         <div
             v-if="commentModal.open"
@@ -383,7 +391,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import { useAuthStore } from '../../stores/auth';
@@ -555,20 +563,6 @@ async function addEnsemble() {
     }
 }
 
-async function deleteEnsemble(ensemble) {
-    if (!confirm(`Supprimer « ${ensemble.label} » et toutes ses lignes ?`)) return;
-    ensemble.deleting = true;
-    error.value = '';
-
-    try {
-        await api.delete(`/gouvernance-it/activities/${activityId.value}/retroplanning/ensembles/${ensemble.id}`);
-        ensembles.value = ensembles.value.filter((item) => item.id !== ensemble.id);
-    } catch (err) {
-        error.value = err.response?.data?.message || 'Impossible de supprimer l’ensemble.';
-        ensemble.deleting = false;
-    }
-}
-
 async function addRow(ensemble, category) {
     if (!canEdit.value) return;
     const key = `${ensemble.id}:${category}`;
@@ -691,5 +685,53 @@ async function deleteRow(ensemble, row) {
     }
 }
 
-onMounted(load);
+const openMenuKey = ref(null);
+const menuContext = ref(null);
+const menuStyle = ref({});
+
+function toggleRowMenu(ensemble, row, event) {
+    if (openMenuKey.value === row.localKey) {
+        closeRowMenu();
+        return;
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const openUp = rect.bottom + 160 > window.innerHeight && rect.top > 120;
+
+    openMenuKey.value = row.localKey;
+    menuContext.value = { ensemble, row };
+    menuStyle.value = {
+        position: 'fixed',
+        top: openUp ? `${rect.top - 4}px` : `${rect.bottom + 4}px`,
+        left: `${Math.max(8, rect.right - 208)}px`,
+        transform: openUp ? 'translateY(-100%)' : 'none',
+        zIndex: 70,
+    };
+}
+
+function closeRowMenu() {
+    openMenuKey.value = null;
+    menuContext.value = null;
+}
+
+function runMenuAction(action) {
+    const context = menuContext.value;
+    closeRowMenu();
+    if (context) {
+        action(context);
+    }
+}
+
+onMounted(() => {
+    document.addEventListener('click', closeRowMenu);
+    window.addEventListener('scroll', closeRowMenu, true);
+    window.addEventListener('resize', closeRowMenu);
+    load();
+});
+
+onUnmounted(() => {
+    document.removeEventListener('click', closeRowMenu);
+    window.removeEventListener('scroll', closeRowMenu, true);
+    window.removeEventListener('resize', closeRowMenu);
+});
 </script>

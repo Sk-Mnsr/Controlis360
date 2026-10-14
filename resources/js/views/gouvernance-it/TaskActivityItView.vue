@@ -230,7 +230,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import { useAuthStore } from '../../stores/auth';
 import GovItWorkspaceHeader from '../../components/gouvernance-it/GovItWorkspaceHeader.vue';
@@ -253,6 +253,7 @@ const SECTION_DEFS = [
 ];
 
 const auth = useAuthStore();
+const route = useRoute();
 const router = useRouter();
 
 const loading = ref(true);
@@ -366,6 +367,7 @@ async function loadInbox(environmentId = null) {
         const payload = data.data ?? data ?? {};
         filiales.value = payload.filiales ?? [];
         selectedEnvironmentId.value = payload.environment_id ?? null;
+        await rememberEnvironment(selectedEnvironmentId.value);
         responsable.value = payload.responsable ?? '—';
         team.value = payload.team ?? '—';
         sections.value = payload.sections ?? {};
@@ -376,6 +378,26 @@ async function loadInbox(environmentId = null) {
     } finally {
         loading.value = false;
     }
+}
+
+function environmentIdFromRoute() {
+    const raw = Array.isArray(route.query.environment) ? route.query.environment[0] : route.query.environment;
+    const id = Number(raw);
+    return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+async function rememberEnvironment(environmentId) {
+    const id = Number(environmentId);
+    if (!Number.isInteger(id) || id <= 0 || environmentIdFromRoute() === id) {
+        return;
+    }
+
+    await router.replace({
+        query: {
+            ...route.query,
+            environment: String(id),
+        },
+    });
 }
 
 async function onFilialeChange(environmentId) {
@@ -392,6 +414,6 @@ onMounted(async () => {
         }
         return;
     }
-    await loadInbox();
+    await loadInbox(environmentIdFromRoute());
 });
 </script>
