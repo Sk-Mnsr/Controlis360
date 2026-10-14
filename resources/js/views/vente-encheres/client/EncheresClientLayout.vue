@@ -1,6 +1,6 @@
 <template>
     <div class="ench-client-root">
-        <EncheresClientHeader :menu-open="menuOpen" @toggle-menu="menuOpen = !menuOpen" />
+        <EncheresClientHeader @toggle-menu="menuOpen = !menuOpen" />
         <EncheresMegaMenu :open="menuOpen" @close="menuOpen = false" />
         <main class="ench-client-main">
             <RouterView />

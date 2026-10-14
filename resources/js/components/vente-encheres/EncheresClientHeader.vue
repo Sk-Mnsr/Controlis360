@@ -21,25 +21,6 @@
                         <span class="ench-logo-tag">Ventes aux enchères au Sénégal</span>
                     </span>
                 </RouterLink>
-                <nav class="ench-nav" aria-label="Navigation principale">
-                    <RouterLink
-                        class="ench-nav-link"
-                        :class="{ 'is-active': route.name === 'vente-encheres.client.home' }"
-                        :to="{ name: 'vente-encheres.client.home' }"
-                    >
-                        Accueil
-                    </RouterLink>
-                    <button
-                        type="button"
-                        class="ench-nav-link ench-nav-drop"
-                        :class="{ 'is-active': menuOpen }"
-                        :aria-expanded="menuOpen"
-                        @click="emit('toggle-menu')"
-                    >
-                        Enchères
-                        <span aria-hidden="true">▾</span>
-                    </button>
-                </nav>
             </div>
 
             <form class="ench-search" @submit.prevent="submitSearch">
@@ -86,13 +67,6 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { ENCHERES_SN } from '../../config/encheres-sn';
 import { useEncheresClientAuthStore } from '../../stores/encheresClientAuth';
-
-defineProps({
-    menuOpen: {
-        type: Boolean,
-        default: false,
-    },
-});
 
 const emit = defineEmits(['toggle-menu']);
 
@@ -196,36 +170,6 @@ function submitSearch() {
     margin-top: 0.12rem;
     font-size: 0.62rem;
     color: #cbd5e1;
-}
-
-.ench-nav {
-    display: flex;
-    align-items: center;
-    gap: 0.15rem;
-    margin-left: 0.35rem;
-}
-
-.ench-nav-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-    border: 0;
-    background: transparent;
-    color: #fff;
-    font-family: inherit;
-    font-size: 0.92rem;
-    font-weight: 700;
-    text-decoration: none;
-    padding: 0.45rem 0.55rem;
-    border-radius: 0.45rem;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.ench-nav-link:hover,
-.ench-nav-link.is-active,
-.ench-nav-link.router-link-exact-active {
-    color: #ffb000;
 }
 
 .ench-search {
@@ -338,7 +282,6 @@ function submitSearch() {
         padding: 0.55rem 0.85rem;
     }
 
-    .ench-nav-link,
     .ench-help,
     .ench-login {
         font-size: 0.84rem;
@@ -351,7 +294,6 @@ function submitSearch() {
         grid-template-columns: auto minmax(0, 1fr) auto;
         grid-template-areas:
             "ham logo actions"
-            "nav nav nav"
             "search search search";
         align-items: center;
         gap: 0.55rem 0.65rem;
@@ -376,16 +318,6 @@ function submitSearch() {
 
     .ench-logo-text {
         font-size: 0.98rem;
-    }
-
-    .ench-nav {
-        grid-area: nav;
-        margin-left: 0;
-    }
-
-    .ench-nav-link {
-        min-height: 2.5rem;
-        padding: 0.4rem 0.7rem;
     }
 
     .ench-search {
