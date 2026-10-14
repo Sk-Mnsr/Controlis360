@@ -1252,13 +1252,22 @@ class GouvernanceItController extends APIController
                     ->orWhereHas('entities', fn ($entity) => $entity->where('entities.environment_id', $environmentId));
             })
             ->where(function ($query) {
-                $query->whereIn('profile', ['agent_it', 'responsable_it'])
-                    ->orWhere(function ($metierQuery) {
-                        $metierQuery
-                            ->where('profile', 'metier')
-                            ->whereIn('metier_role', ['responsable_entite', 'agent']);
-                    });
+                $profiles = ['agent_it', 'responsable_it', 'responsable_regional'];
+                $query->whereIn('profile', $profiles)
+                    ->orWhereIn('module_profiles->gouvernance-it->profile', $profiles);
             });
+    }
+
+    private function gouvernanceItProfile(User $user): ?string
+    {
+        $profiles = ['agent_it', 'responsable_it', 'responsable_regional'];
+        $moduleProfile = $user->module_profiles['gouvernance-it']['profile'] ?? null;
+
+        if (in_array($moduleProfile, $profiles, true)) {
+            return $moduleProfile;
+        }
+
+        return in_array($user->profile, $profiles, true) ? $user->profile : null;
     }
 
     /**
@@ -1272,19 +1281,17 @@ class GouvernanceItController extends APIController
 
         $users = $this->itUsersOfEnvironment($environmentId)
             ->orderBy('name')
-            ->get(['id', 'name', 'profile', 'metier_role']);
+            ->get(['id', 'name', 'profile', 'module_profiles']);
 
         $responsables = $users
-            ->filter(fn (User $member) => $member->profile === 'responsable_it'
-                || ($member->profile === 'metier' && $member->metier_role === 'responsable_entite'))
+            ->filter(fn (User $member) => in_array($this->gouvernanceItProfile($member), ['responsable_it', 'responsable_regional'], true))
             ->pluck('name')
             ->unique()
             ->values()
             ->all();
 
         $agents = $users
-            ->filter(fn (User $member) => $member->profile === 'agent_it'
-                || ($member->profile === 'metier' && $member->metier_role === 'agent'))
+            ->filter(fn (User $member) => $this->gouvernanceItProfile($member) === 'agent_it')
             ->pluck('name')
             ->unique()
             ->values()
