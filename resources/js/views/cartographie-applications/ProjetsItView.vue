@@ -22,6 +22,15 @@
                 placeholder="Rechercher (projet, objectif, owner, statut…)"
                 @input="onSearchInput"
             />
+            <label class="itp-env">
+                <span>Filiale</span>
+                <select v-model="selectedEnvironmentId" class="itp-input" @change="onFilialeChange">
+                    <option value="">Toutes les filiales</option>
+                    <option v-for="env in environments" :key="env.id" :value="String(env.id)">
+                        {{ env.name || env.code }}
+                    </option>
+                </select>
+            </label>
         </div>
 
         <p v-if="error" class="itp-error">{{ error }}</p>
@@ -31,10 +40,11 @@
             <table class="itp-table">
                 <thead>
                     <tr>
-                        <th colspan="10" class="itp-banner">Projets IT</th>
+                        <th colspan="11" class="itp-banner">Projets IT</th>
                     </tr>
                     <tr>
                         <th>Priorité</th>
+                        <th>Filiale</th>
                         <th>Projet</th>
                         <th>Objectif</th>
                         <th>État actuel</th>
@@ -49,6 +59,7 @@
                 <tbody>
                     <tr v-for="row in rows" :key="row.id">
                         <td class="itp-prio">{{ row.priority ?? '—' }}</td>
+                        <td>{{ row.environment?.name || '—' }}</td>
                         <td class="itp-strong">{{ row.name }}</td>
                         <td class="itp-wide">{{ row.objective || '—' }}</td>
                         <td>
@@ -72,7 +83,7 @@
                         </td>
                     </tr>
                     <tr v-if="!rows.length">
-                        <td colspan="10" class="itp-empty-cell">Aucun projet enregistré.</td>
+                        <td colspan="11" class="itp-empty-cell">Aucun projet enregistré.</td>
                     </tr>
                 </tbody>
             </table>
@@ -82,6 +93,15 @@
             <form class="itp-modal" @submit.prevent="saveRow">
                 <h3>{{ editing ? 'Modifier le projet' : 'Nouveau projet' }}</h3>
                 <div class="itp-form-grid">
+                    <label>
+                        <span>Filiale</span>
+                        <select v-model="form.environment_id" class="itp-input">
+                            <option :value="null">—</option>
+                            <option v-for="env in environments" :key="env.id" :value="env.id">
+                                {{ env.name || env.code }}
+                            </option>
+                        </select>
+                    </label>
                     <label><span>Priorité</span><input v-model.number="form.priority" type="number" min="0" class="itp-input" /></label>
                     <label><span>Projet *</span><input v-model="form.name" required class="itp-input" /></label>
                     <label class="itp-span-2"><span>Objectif</span><textarea v-model="form.objective" rows="2" class="itp-input" /></label>
@@ -118,6 +138,14 @@
 <script setup>
 import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import api from '../../api/client';
+import { useFilialeSelection } from '../../composables/useFilialeSelection';
+
+const {
+    environments,
+    selectedEnvironmentId,
+    loadEnvironments,
+    onEnvironmentChange,
+} = useFilialeSelection();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -143,7 +171,12 @@ function emptyForm() {
         start_date: '',
         end_date: '',
         delivery_date: '',
+        environment_id: null,
     };
+}
+
+function selectedFilialeId() {
+    return selectedEnvironmentId.value ? Number(selectedEnvironmentId.value) : null;
 }
 
 function extractList(payload) {
@@ -168,6 +201,7 @@ async function loadRows() {
         const { data } = await api.get('/it-projects', {
             params: {
                 search: search.value.trim() || undefined,
+                environment_id: selectedEnvironmentId.value || undefined,
                 paginate: 'false',
             },
         });
@@ -186,9 +220,14 @@ function onSearchInput() {
     searchTimer = setTimeout(loadRows, 300);
 }
 
+async function onFilialeChange() {
+    await onEnvironmentChange();
+    await loadRows();
+}
+
 function openCreate() {
     editing.value = null;
-    Object.assign(form, emptyForm());
+    Object.assign(form, emptyForm(), { environment_id: selectedFilialeId() });
     formError.value = '';
     showForm.value = true;
 }
@@ -207,6 +246,7 @@ function openEdit(row) {
         start_date: row.start_date ?? '',
         end_date: row.end_date ?? '',
         delivery_date: row.delivery_date ?? '',
+        environment_id: row.environment_id ?? row.environment?.id ?? null,
     });
     formError.value = '';
     showForm.value = true;
@@ -247,7 +287,10 @@ async function removeRow(row) {
     }
 }
 
-onMounted(loadRows);
+onMounted(async () => {
+    await loadEnvironments();
+    await loadRows();
+});
 onUnmounted(() => clearTimeout(searchTimer));
 </script>
 
@@ -260,6 +303,8 @@ onUnmounted(() => clearTimeout(searchTimer));
 .itp-actions, .itp-toolbar { display: flex; flex-wrap: wrap; gap: 0.65rem; }
 .itp-input { width: 100%; border: 1px solid #cbd5e1; border-radius: 0.55rem; padding: 0.55rem 0.75rem; font-size: 0.875rem; background: #fff; }
 .itp-toolbar .itp-input { max-width: 28rem; }
+.itp-env { display: flex; align-items: center; gap: 0.45rem; font-size: 0.8rem; font-weight: 600; color: #334155; }
+.itp-env .itp-input { width: auto; min-width: 11rem; }
 .itp-btn-primary, .itp-btn-secondary { border-radius: 0.55rem; font-size: 0.8125rem; font-weight: 600; cursor: pointer; padding: 0.55rem 0.85rem; }
 .itp-btn-primary { border: 0; background: #0f4c81; color: #fff; }
 .itp-btn-secondary { border: 1px solid #cbd5e1; background: #fff; color: #334155; }

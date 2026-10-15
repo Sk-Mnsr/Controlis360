@@ -22,6 +22,15 @@
                 placeholder="Rechercher (fichier, prestataire, bénéficiaire, scope…)"
                 @input="onSearchInput"
             />
+            <label class="itc-env">
+                <span>Filiale</span>
+                <select v-model="selectedEnvironmentId" class="itc-input" @change="onFilialeChange">
+                    <option value="">Toutes les filiales</option>
+                    <option v-for="env in environments" :key="env.id" :value="String(env.id)">
+                        {{ env.name || env.code }}
+                    </option>
+                </select>
+            </label>
         </div>
 
         <p v-if="error" class="itc-error">{{ error }}</p>
@@ -31,10 +40,11 @@
             <table class="itc-table">
                 <thead>
                     <tr>
-                        <th colspan="19" class="itc-banner">Contrats IT</th>
+                        <th colspan="20" class="itc-banner">Contrats IT</th>
                     </tr>
                     <tr>
                         <th>#</th>
+                        <th>Filiale</th>
                         <th>Nom du fichier</th>
                         <th>Lien</th>
                         <th>Prestataire</th>
@@ -58,6 +68,7 @@
                 <tbody>
                     <tr v-for="(row, index) in rows" :key="row.id">
                         <td>{{ row.sort_order || index + 1 }}</td>
+                        <td>{{ row.environment?.name || '—' }}</td>
                         <td class="itc-strong">{{ row.file_name || '—' }}</td>
                         <td>{{ row.file_link || '—' }}</td>
                         <td>{{ row.provider || '—' }}</td>
@@ -81,7 +92,7 @@
                         </td>
                     </tr>
                     <tr v-if="!rows.length">
-                        <td colspan="19" class="itc-empty-cell">Aucun contrat enregistré.</td>
+                        <td colspan="20" class="itc-empty-cell">Aucun contrat enregistré.</td>
                     </tr>
                 </tbody>
             </table>
@@ -91,6 +102,15 @@
             <form class="itc-modal" @submit.prevent="saveRow">
                 <h3>{{ editing ? 'Modifier le contrat' : 'Nouveau contrat' }}</h3>
                 <div class="itc-form-grid">
+                    <label>
+                        <span>Filiale</span>
+                        <select v-model="form.environment_id" class="itc-input">
+                            <option :value="null">—</option>
+                            <option v-for="env in environments" :key="env.id" :value="env.id">
+                                {{ env.name || env.code }}
+                            </option>
+                        </select>
+                    </label>
                     <label><span>#</span><input v-model.number="form.sort_order" type="number" min="0" class="itc-input" /></label>
                     <label><span>Nom du fichier</span><input v-model="form.file_name" class="itc-input" /></label>
                     <label><span>Lien du fichier</span><input v-model="form.file_link" class="itc-input" /></label>
@@ -151,6 +171,14 @@
 <script setup>
 import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import api from '../../api/client';
+import { useFilialeSelection } from '../../composables/useFilialeSelection';
+
+const {
+    environments,
+    selectedEnvironmentId,
+    loadEnvironments,
+    onEnvironmentChange,
+} = useFilialeSelection();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -184,7 +212,12 @@ function emptyForm() {
         discount: '',
         purchase_owner: '',
         comments: '',
+        environment_id: null,
     };
+}
+
+function selectedFilialeId() {
+    return selectedEnvironmentId.value ? Number(selectedEnvironmentId.value) : null;
 }
 
 function extractList(payload) {
@@ -201,6 +234,7 @@ async function loadRows() {
         const { data } = await api.get('/it-contracts', {
             params: {
                 search: search.value.trim() || undefined,
+                environment_id: selectedEnvironmentId.value || undefined,
                 order_by_asc: 'sort_order',
                 paginate: 'false',
             },
@@ -220,9 +254,17 @@ function onSearchInput() {
     searchTimer = setTimeout(loadRows, 300);
 }
 
+async function onFilialeChange() {
+    await onEnvironmentChange();
+    await loadRows();
+}
+
 function openCreate() {
     editing.value = null;
-    Object.assign(form, emptyForm(), { sort_order: rows.value.length + 1 });
+    Object.assign(form, emptyForm(), {
+        sort_order: rows.value.length + 1,
+        environment_id: selectedFilialeId(),
+    });
     formError.value = '';
     showForm.value = true;
 }
@@ -249,6 +291,7 @@ function openEdit(row) {
         discount: row.discount ?? '',
         purchase_owner: row.purchase_owner ?? '',
         comments: row.comments ?? '',
+        environment_id: row.environment_id ?? row.environment?.id ?? null,
     });
     formError.value = '';
     showForm.value = true;
@@ -289,7 +332,10 @@ async function removeRow(row) {
     }
 }
 
-onMounted(loadRows);
+onMounted(async () => {
+    await loadEnvironments();
+    await loadRows();
+});
 onUnmounted(() => clearTimeout(searchTimer));
 </script>
 
@@ -302,6 +348,8 @@ onUnmounted(() => clearTimeout(searchTimer));
 .itc-actions, .itc-toolbar { display: flex; flex-wrap: wrap; gap: 0.65rem; }
 .itc-input { width: 100%; border: 1px solid #cbd5e1; border-radius: 0.55rem; padding: 0.55rem 0.75rem; font-size: 0.875rem; background: #fff; }
 .itc-toolbar .itc-input { max-width: 28rem; }
+.itc-env { display: flex; align-items: center; gap: 0.45rem; font-size: 0.8rem; font-weight: 600; color: #334155; }
+.itc-env .itc-input { width: auto; min-width: 11rem; }
 .itc-btn-primary, .itc-btn-secondary { border-radius: 0.55rem; font-size: 0.8125rem; font-weight: 600; cursor: pointer; padding: 0.55rem 0.85rem; }
 .itc-btn-primary { border: 0; background: #0f4c81; color: #fff; }
 .itc-btn-secondary { border: 1px solid #cbd5e1; background: #fff; color: #334155; }

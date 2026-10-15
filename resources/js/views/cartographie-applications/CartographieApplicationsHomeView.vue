@@ -44,7 +44,7 @@
             </button>
 
             <RouterLink
-                :to="{ name: 'gouvernance-it.cartographie-applications.contrats' }"
+                :to="routeWithFiliale('gouvernance-it.cartographie-applications.contrats')"
                 class="sit-metric sit-metric-link sit-metric-contrats"
             >
                 <div class="sit-metric-top">
@@ -55,7 +55,7 @@
             </RouterLink>
 
             <RouterLink
-                :to="{ name: 'gouvernance-it.cartographie-applications.projets' }"
+                :to="routeWithFiliale('gouvernance-it.cartographie-applications.projets')"
                 class="sit-metric sit-metric-link sit-metric-projets"
             >
                 <div class="sit-metric-top">
@@ -73,6 +73,15 @@
                 class="sit-search"
                 placeholder="Rechercher (code, nom, solution, éditeur…)"
             />
+            <label class="sit-env">
+                <span>Environnement</span>
+                <select v-model="selectedEnvironmentId" class="sit-select" @change="onEnvironmentChange">
+                    <option value="">Toutes les filiales</option>
+                    <option v-for="env in environments" :key="env.id" :value="String(env.id)">
+                        {{ env.name || env.code }}
+                    </option>
+                </select>
+            </label>
             <select v-model="filterExists" class="sit-select">
                 <option value="all">Tous les statuts</option>
                 <option value="oui">Existants</option>
@@ -357,6 +366,15 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import api from '../../api/client';
+import { useFilialeSelection } from '../../composables/useFilialeSelection';
+
+const {
+    environments,
+    selectedEnvironmentId,
+    loadEnvironments,
+    onEnvironmentChange,
+    routeWithFiliale,
+} = useFilialeSelection();
 
 const loading = ref(true);
 const error = ref('');
@@ -387,6 +405,8 @@ const filteredServices = computed(() => {
     const existsFilter = filterExists.value;
 
     return services.value.filter((row) => {
+        if (!matchesEnvironment(row)) return false;
+
         const yn = displayYn(field(row, 'exists_flag'));
         if (existsFilter === 'oui' && yn !== 'oui') return false;
         if (existsFilter === 'non' && yn !== 'non') return false;
@@ -489,6 +509,15 @@ const visibleQuestions = computed(() => {
         return haystack.includes(q);
     });
 });
+
+function matchesEnvironment(row) {
+    const selected = selectedEnvironmentId.value;
+    if (!selected) return true;
+    if (!row?.inventory_application_id) return true;
+
+    const rowEnv = row.environment_id ?? row.service?.environment_id ?? null;
+    return Number(rowEnv) === Number(selected);
+}
 
 function cell(value) {
     return value && String(value).trim() !== '' ? value : '';
@@ -684,7 +713,9 @@ async function saveQuestions() {
     }
 }
 
-onMounted(loadDashboard);
+onMounted(async () => {
+    await Promise.all([loadDashboard(), loadEnvironments()]);
+});
 </script>
 
 <style scoped>
@@ -859,6 +890,15 @@ onMounted(loadDashboard);
 
 .sit-select {
     min-width: 11rem;
+}
+
+.sit-env {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
 }
 
 .sit-table-wrap {

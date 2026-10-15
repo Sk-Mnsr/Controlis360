@@ -338,10 +338,6 @@ class GouvernanceItController extends APIController
             return $this->responseError(['module_slug' => ['Module incompatible avec cet ensemble']], 422);
         }
 
-        if (! $this->userCanManageSection($user, $data['section'])) {
-            return $this->responseError(['section' => ['L\'Agent IT ne peut créer que des Points d\'Attention']], 403);
-        }
-
         $maxSort = GouvernanceItActivity::query()
             ->where('ensemble_id', $ensemble->id)
             ->where('section', $data['section'])
@@ -1322,11 +1318,7 @@ class GouvernanceItController extends APIController
 
     private function userCanManageSection(User $user, string $section): bool
     {
-        if ($user->profile !== 'agent_it') {
-            return true;
-        }
-
-        return $section === 'points_attention';
+        return true;
     }
 
     private function userIsOwnerOfActivity(User $user, GouvernanceItActivity $activity): bool

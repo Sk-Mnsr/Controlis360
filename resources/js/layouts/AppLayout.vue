@@ -325,7 +325,7 @@
                         <RouterLink
                             class="nav-link"
                             :class="{ 'nav-link-active': route.name === 'gouvernance-it.cartographie-applications' }"
-                            :to="{ name: 'gouvernance-it.cartographie-applications' }"
+                            :to="cartographieTo('gouvernance-it.cartographie-applications')"
                             title="Services IT"
                         >
                             <span class="nav-ico" aria-hidden="true">▤</span>
@@ -334,7 +334,7 @@
                         <RouterLink
                             class="nav-link"
                             :class="{ 'nav-link-active': route.name === 'gouvernance-it.cartographie-applications.applications' }"
-                            :to="{ name: 'gouvernance-it.cartographie-applications.applications' }"
+                            :to="cartographieTo('gouvernance-it.cartographie-applications.applications')"
                             title="Inventaire applications"
                         >
                             <span class="nav-ico" aria-hidden="true">☰</span>
@@ -343,7 +343,7 @@
                         <RouterLink
                             class="nav-link"
                             :class="{ 'nav-link-active': route.name === 'gouvernance-it.cartographie-applications.contrats' }"
-                            :to="{ name: 'gouvernance-it.cartographie-applications.contrats' }"
+                            :to="cartographieTo('gouvernance-it.cartographie-applications.contrats')"
                             title="Contrats IT"
                         >
                             <span class="nav-ico" aria-hidden="true">◎</span>
@@ -352,7 +352,7 @@
                         <RouterLink
                             class="nav-link"
                             :class="{ 'nav-link-active': route.name === 'gouvernance-it.cartographie-applications.projets' }"
-                            :to="{ name: 'gouvernance-it.cartographie-applications.projets' }"
+                            :to="cartographieTo('gouvernance-it.cartographie-applications.projets')"
                             title="Projets IT"
                         >
                             <span class="nav-ico" aria-hidden="true">▦</span>
@@ -719,6 +719,14 @@ const isGovStratSection = computed(() =>
     || route.name === 'gouvernance-it.systemes-reseaux'
     || route.name === 'gouvernance-it.base-donnees',
 );
+function cartographieTo(name) {
+    const environment = Array.isArray(route.query.environment)
+        ? route.query.environment[0]
+        : route.query.environment;
+
+    return environment ? { name, query: { environment } } : { name };
+}
+
 const isCartographieApplicationsSection = computed(() =>
     route.name === 'gouvernance-it.cartographie-applications'
     || route.name === 'gouvernance-it.cartographie-applications.applications'

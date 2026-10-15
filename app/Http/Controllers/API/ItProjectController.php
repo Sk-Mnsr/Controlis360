@@ -46,6 +46,11 @@ class ItProjectController extends APIController
         $this->showWithArray = ['environment', 'createdBy'];
 
         $this->indexManualFilter = function ($query, User $user) {
+            $requestedEnvironment = request()->input('environment_id');
+            if ($requestedEnvironment !== null && $requestedEnvironment !== '' && $requestedEnvironment !== 'all') {
+                $query->where('environment_id', (int) $requestedEnvironment);
+            }
+
             if (! $user->isSuperAdmin() && $user->isEnvironmentAdmin()) {
                 $environmentIds = $user->environment_ids;
                 if (! empty($environmentIds)) {

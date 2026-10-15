@@ -540,10 +540,7 @@ const attachmentsModal = reactive({
 
 const owners = computed(() => props.owners);
 
-function canManageSection(sectionKey) {
-    if (isAgentIt.value) {
-        return sectionKey === 'points_attention';
-    }
+function canManageSection() {
     return true;
 }
 
@@ -841,11 +838,6 @@ async function addEnsemble() {
 }
 
 async function addRow(ensemble, sectionKey) {
-    if (!canManageSection(sectionKey)) {
-        error.value = 'L’Agent IT ne peut créer que des Points d’Attention.';
-        return;
-    }
-
     error.value = '';
     success.value = '';
     try {

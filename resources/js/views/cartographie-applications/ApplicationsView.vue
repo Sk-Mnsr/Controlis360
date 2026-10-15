@@ -21,6 +21,15 @@
                 placeholder="Rechercher (ID, nom, domaine, technologie…)"
                 @input="onSearchInput"
             />
+            <label class="apps-env">
+                <span>Filiale</span>
+                <select v-model="selectedEnvironmentId" class="apps-input" @change="onFilialeChange">
+                    <option value="">Toutes les filiales</option>
+                    <option v-for="env in environments" :key="env.id" :value="String(env.id)">
+                        {{ env.name || env.code }}
+                    </option>
+                </select>
+            </label>
             <button type="button" class="apps-btn-secondary" @click="loadApplications">
                 Actualiser
             </button>
@@ -33,7 +42,7 @@
             <table class="apps-table">
                 <thead>
                     <tr class="apps-group-row">
-                        <th colspan="11" class="apps-group-main">Informations générales</th>
+                        <th colspan="12" class="apps-group-main">Informations générales</th>
                         <th colspan="3" class="apps-group-license">Licences</th>
                         <th colspan="2" class="apps-group-renewal">Renouvellement licence</th>
                         <th colspan="5" class="apps-group-main">Infrastructure</th>
@@ -42,6 +51,7 @@
                     </tr>
                     <tr class="apps-col-row">
                         <th>ID</th>
+                        <th>Filiale</th>
                         <th>Nom de l'application</th>
                         <th>Domaine métier</th>
                         <th>Fonction principale</th>
@@ -71,13 +81,14 @@
                 <tbody>
                     <tr v-for="app in applications" :key="app.id">
                         <td class="apps-code">{{ app.code || '—' }}</td>
+                        <td>{{ app.environment?.name || '—' }}</td>
                         <td class="apps-name">
                             {{ app.name || '—' }}
                             <span v-if="app.application_type" class="apps-type-link">
                                 {{ app.application_type.code }}
                             </span>
                         </td>
-                        <td>{{ app.business_domain || '—' }}</td>
+                        <td>{{ app.business_domain || app.application_type?.name || app.applicationType?.name || '—' }}</td>
                         <td class="apps-cell-function">
                             <div class="apps-function-text" :title="app.main_function || ''">
                                 {{ app.main_function || '—' }}
@@ -141,7 +152,7 @@
                         </td>
                     </tr>
                     <tr v-if="!applications.length">
-                        <td colspan="26" class="apps-empty-cell">Aucune application enregistrée.</td>
+                        <td colspan="27" class="apps-empty-cell">Aucune application enregistrée.</td>
                     </tr>
                 </tbody>
             </table>
@@ -211,7 +222,7 @@
                         </label>
                         <label>
                             <span>Type applicatif (Services IT)</span>
-                            <select v-model="form.application_type_id" class="apps-input">
+                            <select v-model="form.application_type_id" class="apps-input" @change="onApplicationTypeChange">
                                 <option :value="null">— Non lié —</option>
                                 <option
                                     v-for="type in applicationTypes"
@@ -344,9 +355,16 @@ import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import OperationalRiskConfirmModal from '../../components/cartographie/OperationalRiskConfirmModal.vue';
+import { useFilialeSelection } from '../../composables/useFilialeSelection';
 
 const route = useRoute();
 const router = useRouter();
+const {
+    environments,
+    selectedEnvironmentId,
+    loadEnvironments,
+    onEnvironmentChange,
+} = useFilialeSelection();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -354,7 +372,6 @@ const deleting = ref(false);
 const error = ref('');
 const formError = ref('');
 const applications = ref([]);
-const environments = ref([]);
 const applicationTypes = ref([]);
 const search = ref('');
 const showForm = ref(false);
@@ -421,25 +438,24 @@ function extractList(payload) {
     return [];
 }
 
-async function loadEnvironments() {
-    try {
-        const { data } = await api.get('/environments', { params: { paginate: 'false', order_by_asc: 'name' } });
-        environments.value = extractList(data);
-    } catch {
-        environments.value = [];
-    }
-}
-
 async function loadApplicationTypes() {
     try {
         const { data } = await api.get('/it-services/dashboard');
         const root = data?.data ?? data;
         const services = root?.services ?? [];
-        applicationTypes.value = (Array.isArray(services) ? services : []).map((row) => ({
-            id: row.application_type_id,
-            code: row.code,
-            name: row.name,
-        }));
+        const seen = new Set();
+        applicationTypes.value = (Array.isArray(services) ? services : []).flatMap((row) => {
+            const id = row.application_type_id;
+            if (!id || seen.has(id)) {
+                return [];
+            }
+            seen.add(id);
+            return [{
+                id,
+                code: row.code,
+                name: row.name,
+            }];
+        });
     } catch {
         applicationTypes.value = [];
     }
@@ -453,6 +469,7 @@ async function loadApplications() {
         const { data } = await api.get('/applications', {
             params: {
                 search: search.value.trim() || undefined,
+                environment_id: selectedEnvironmentId.value || undefined,
                 order_by_asc: 'code',
                 paginate: 'false',
             },
@@ -490,9 +507,23 @@ function onSearchInput() {
     searchTimer = setTimeout(loadApplications, 300);
 }
 
+function onApplicationTypeChange() {
+    const type = applicationTypes.value.find((item) => Number(item.id) === Number(form.application_type_id));
+    form.business_domain = type?.name ?? '';
+}
+
+function selectedFilialeId() {
+    return selectedEnvironmentId.value ? Number(selectedEnvironmentId.value) : null;
+}
+
+async function onFilialeChange() {
+    await onEnvironmentChange();
+    await loadApplications();
+}
+
 function openCreate() {
     editing.value = null;
-    Object.assign(form, emptyForm());
+    Object.assign(form, emptyForm(), { environment_id: selectedFilialeId() });
     formError.value = '';
     showForm.value = true;
 }
@@ -717,6 +748,20 @@ onUnmounted(() => clearTimeout(searchTimer));
 
 .apps-toolbar .apps-input {
     max-width: 28rem;
+}
+
+.apps-env {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.apps-env .apps-input {
+    width: auto;
+    min-width: 11rem;
 }
 
 .apps-btn-primary,
