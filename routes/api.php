@@ -264,8 +264,11 @@ Route::controller(AuthController::class)->group(function () {
 
             Route::post('vente-encheres/auctions/sync', [EncheresAuctionController::class, 'sync']);
             Route::delete('vente-encheres/auctions/{key}', [EncheresAuctionController::class, 'destroy']);
+            Route::get('vente-encheres/depots', [EncheresAuctionController::class, 'deposits']);
+            Route::post('vente-encheres/depots', [EncheresAuctionController::class, 'deposit']);
 
             Route::prefix('vente-encheres/comite')->controller(EncheresCommitteeController::class)->group(function () {
+                Route::get('/membres', 'members');
                 Route::get('/biens', 'index');
                 Route::post('/biens', 'syncLot');
                 Route::post('/codes', 'issue');

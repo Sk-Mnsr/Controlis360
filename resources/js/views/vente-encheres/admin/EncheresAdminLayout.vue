@@ -46,9 +46,12 @@
 import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../../../stores/auth';
+import { useEncheresAdminStore } from '../../../stores/encheresAdmin';
 import { canAccessVenteEncheresAdmin } from '../../../config/vente-encheres-access';
+import { fetchDeposits } from '../../../services/encheresApi';
 
 const auth = useAuthStore();
+const store = useEncheresAdminStore();
 const route = useRoute();
 const router = useRouter();
 
@@ -80,9 +83,16 @@ function isMenuActive(name) {
     return false;
 }
 
-onMounted(() => {
+onMounted(async () => {
     if (!canAccessVenteEncheresAdmin(auth.baseUser ?? auth.user)) {
         router.replace({ name: 'vente-encheres.home' });
+        return;
+    }
+
+    try {
+        store.mergePublished(await fetchDeposits());
+    } catch {
+        // Le catalogue local reste affiché si le serveur ne répond pas.
     }
 });
 </script>

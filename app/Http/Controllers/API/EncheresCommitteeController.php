@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Mail\EncheresCommitteeCodeMail;
 use App\Mail\EncheresWinnerMail;
+use App\Models\EncheresAuction;
 use App\Models\EncheresClient;
 use App\Models\EncheresCommitteeAccess;
 use App\Models\EncheresSetting;
@@ -53,12 +54,30 @@ class EncheresCommitteeController
         return response()->json(['data' => $items]);
     }
 
+    public function members(Request $request)
+    {
+        if (! $this->isCommitteeUser($request->user())) {
+            return response()->json(['message' => 'Accès réservé au comité.'], 403);
+        }
+
+        $members = User::query()
+            ->where('activated', true)
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (User $member) => $member->profile === 'comite'
+                || ($member->module_profiles['vente-encheres']['profile'] ?? null) === 'comite')
+            ->map(fn (User $member) => [
+                'id' => $member->id,
+                'name' => $member->name ?: $member->email,
+            ])
+            ->values();
+
+        return response()->json(['data' => $members]);
+    }
+
     public function syncLot(Request $request)
     {
         $user = $request->user();
-        if (! $this->isAuctionAdmin($user)) {
-            return response()->json(['message' => 'Seul un administrateur enchères peut enregistrer un bien.'], 403);
-        }
 
         $data = $request->validate([
             'auction_key' => 'required|string|max:100',
@@ -66,6 +85,10 @@ class EncheresCommitteeController
             'title' => 'required|string|max:255',
             'bids' => 'nullable|array',
         ]);
+
+        if (! $this->canManageLot($user, $data['auction_key'])) {
+            return response()->json(['message' => 'Seul un administrateur enchères ou le déposant peut enregistrer ce bien.'], 403);
+        }
 
         $access = EncheresCommitteeAccess::query()->firstOrNew([
             'auction_key' => $data['auction_key'],
@@ -89,9 +112,6 @@ class EncheresCommitteeController
     public function issue(Request $request)
     {
         $user = $request->user();
-        if (! $this->isAuctionAdmin($user)) {
-            return response()->json(['message' => 'Seul un administrateur enchères peut envoyer le code comité.'], 403);
-        }
 
         $data = $request->validate([
             'auction_key' => 'required|string|max:100',
@@ -101,6 +121,10 @@ class EncheresCommitteeController
             'committee_ids.*' => 'integer',
             'bids' => 'nullable|array',
         ]);
+
+        if (! $this->canManageLot($user, $data['auction_key'])) {
+            return response()->json(['message' => 'Seul un administrateur enchères ou le déposant peut envoyer le code comité.'], 403);
+        }
 
         $members = User::query()
             ->whereIn('id', $data['committee_ids'])
@@ -481,6 +505,24 @@ class EncheresCommitteeController
             'pending' => $pending,
             'members' => $members,
         ];
+    }
+
+    private function canManageLot(User $user, string $auctionKey): bool
+    {
+        if ($this->isAuctionAdmin($user)) {
+            return true;
+        }
+
+        if (! $this->isCommitteeUser($user)) {
+            return false;
+        }
+
+        $payload = EncheresAuction::query()->where('auction_key', $auctionKey)->value('payload');
+        if (is_string($payload)) {
+            $payload = json_decode($payload, true);
+        }
+
+        return is_array($payload) && (int) ($payload['deposited_by'] ?? 0) === (int) $user->id;
     }
 
     private function isCommitteeUser(User $user): bool

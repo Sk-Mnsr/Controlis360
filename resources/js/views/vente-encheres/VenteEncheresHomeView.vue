@@ -31,7 +31,7 @@
                     <p class="text-xs font-semibold uppercase tracking-wide text-violet-800">Espace</p>
                     <p class="mt-2 text-lg font-semibold text-violet-950">Comité</p>
                     <p class="mt-1 text-sm text-violet-900">
-                        Espace client et consultation des offres avec votre code personnel.
+                        Consultation des offres avec votre code personnel et dépôt de biens.
                     </p>
                 </RouterLink>
 

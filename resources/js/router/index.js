@@ -472,6 +472,11 @@ const routes = [
                         component: () => import('../views/vente-encheres/VenteEncheresComiteView.vue'),
                     },
                     {
+                        path: 'comite/deposer/:id?',
+                        name: 'vente-encheres.comite.deposit',
+                        component: () => import('../views/vente-encheres/admin/EncheresAdminDepositView.vue'),
+                    },
+                    {
                         path: 'admin',
                         component: () => import('../views/vente-encheres/admin/EncheresAdminLayout.vue'),
                         redirect: { name: 'vente-encheres.admin.dashboard' },
@@ -637,7 +642,7 @@ router.beforeEach(async (to, from, next) => {
     }
 
     const routeName = typeof to.name === 'string' ? to.name : '';
-    if (auth.baseUser && routeName === 'vente-encheres.comite' && !canAccessVenteEncheresComite(auth.baseUser)) {
+    if (auth.baseUser && routeName.startsWith('vente-encheres.comite') && !canAccessVenteEncheresComite(auth.baseUser)) {
         return next({ name: 'vente-encheres.home' });
     }
     if (auth.baseUser && routeName.startsWith('vente-encheres.admin') && !canAccessVenteEncheresAdmin(auth.baseUser)) {

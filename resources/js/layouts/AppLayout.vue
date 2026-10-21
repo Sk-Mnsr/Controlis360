@@ -460,6 +460,15 @@
                     </RouterLink>
 
                     <RouterLink
+                        v-if="canAccessVenteComite && !canAccessVenteAdmin"
+                        class="nav-link"
+                        :class="{ 'nav-link-active': route.name === 'vente-encheres.comite.deposit' }"
+                        :to="{ name: 'vente-encheres.comite.deposit' }"
+                    >
+                        Déposer un bien
+                    </RouterLink>
+
+                    <RouterLink
                         v-if="canAccessVenteAdmin"
                         class="nav-link"
                         :class="{ 'nav-link-active': isVenteAdminSection }"

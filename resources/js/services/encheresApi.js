@@ -43,6 +43,21 @@ export async function fetchAuctionById(id) {
     return store.getAuctionById(id);
 }
 
+export async function fetchCommitteeMembers() {
+    const { data } = await api.get('/vente-encheres/comite/membres');
+    return data?.data ?? [];
+}
+
+export async function depositAuction(auction) {
+    const { data } = await api.post('/vente-encheres/depots', { auction });
+    return data?.data ?? data;
+}
+
+export async function fetchDeposits() {
+    const { data } = await api.get('/vente-encheres/depots');
+    return data?.data ?? [];
+}
+
 export async function issueCommitteeCode(payload) {
     const { data } = await api.post('/vente-encheres/comite/codes', payload);
     return data?.data ?? data;

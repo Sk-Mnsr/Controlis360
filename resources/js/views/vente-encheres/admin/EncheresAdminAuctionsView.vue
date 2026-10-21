@@ -38,6 +38,7 @@
                         <td>
                             <strong>{{ item.title }}</strong>
                             <p>{{ item.location }}</p>
+                            <p v-if="item.deposited_by_name">Déposé par {{ item.deposited_by_name }}</p>
                         </td>
                         <td>{{ item.category_label }}</td>
                         <td>{{ formatDate(item.ends_at) }}</td>

@@ -3,7 +3,10 @@
     <div v-else-if="!auction" class="ench-empty">Enchère introuvable.</div>
     <div v-else class="ench-detail">
         <div class="ench-detail-gallery">
-            <EncheresImage :src="activeImage" :alt="auction.title" class="ench-detail-main-img" />
+            <div class="ench-detail-frame">
+                <span v-if="activeImage" class="ench-detail-backdrop" :style="backdropStyle" aria-hidden="true"></span>
+                <EncheresImage :src="activeImage" :alt="auction.title" class="ench-detail-main-img" />
+            </div>
             <div v-if="auction.images?.length > 1" class="ench-detail-thumbs">
                 <button
                     v-for="(img, idx) in auction.images"
@@ -151,6 +154,9 @@ const platformAuth = useAuthStore();
 const loading = ref(true);
 const auction = ref(null);
 const activeImage = ref('');
+const backdropStyle = computed(() => ({
+    backgroundImage: `url("${String(activeImage.value || '').replace(/"/g, '%22')}")`,
+}));
 const bidAmount = ref(0);
 const bidError = ref('');
 const bidSuccess = ref('');
@@ -298,12 +304,19 @@ onMounted(load);
 .ench-video-list {
     display: grid;
     gap: 0.85rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}
+
+.ench-video-item {
+    min-width: 0;
 }
 
 .ench-video-item iframe,
 .ench-video-item video {
     width: 100%;
+    max-width: 100%;
     aspect-ratio: 16 / 9;
+    object-fit: contain;
     border: 0;
     border-radius: 0.65rem;
     background: #0f172a;
@@ -317,6 +330,10 @@ onMounted(load);
     padding: 1rem;
 }
 
+.ench-detail > * {
+    min-width: 0;
+}
+
 .ench-detail-gallery {
     background: #fff;
     border-radius: 0.75rem;
@@ -324,12 +341,29 @@ onMounted(load);
     overflow: hidden;
 }
 
+.ench-detail-frame {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 16 / 10;
+    background: #e2e8f0;
+}
+
+.ench-detail-backdrop {
+    position: absolute;
+    inset: -12%;
+    background-position: center;
+    background-size: cover;
+    filter: blur(22px) saturate(1.1);
+    opacity: 0.55;
+}
+
 .ench-detail-main-img,
-.ench-detail-gallery :deep(img.ench-detail-main-img),
-.ench-detail-gallery :deep(> img) {
+.ench-detail-gallery :deep(img.ench-detail-main-img) {
+    position: relative;
+    z-index: 1;
     width: 100%;
-    aspect-ratio: 16/10;
-    object-fit: cover;
+    height: 100%;
+    object-fit: contain;
     display: block;
 }
 

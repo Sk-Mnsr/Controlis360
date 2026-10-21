@@ -1,6 +1,7 @@
 <template>
     <article class="ench-card">
         <RouterLink :to="detailTo" class="ench-card-image-wrap">
+            <span v-if="backdropStyle" class="ench-card-backdrop" :style="backdropStyle" aria-hidden="true"></span>
             <EncheresImage :src="auction.image" :alt="auction.title" class="ench-card-image" />
             <span class="ench-card-badge">{{ statusLabel }}</span>
             <button
@@ -117,6 +118,11 @@ const lotLabel = computed(() => {
     return /^lot\b/i.test(lot) ? lot : `LOT #${lot}`;
 });
 
+const backdropStyle = computed(() => {
+    const src = String(props.auction.image || '').replace(/"/g, '%22');
+    return src ? { backgroundImage: `url("${src}")` } : null;
+});
+
 const detailTo = computed(() => ({
     name: 'vente-encheres.client.detail',
     params: { id: props.auction.id },
@@ -135,6 +141,7 @@ const clockLabel = computed(() => {
 
 <style scoped>
 .ench-card {
+    min-width: 0;
     display: flex;
     flex-direction: column;
     border-radius: 1rem;
@@ -153,12 +160,25 @@ const clockLabel = computed(() => {
 }
 
 .ench-card-image-wrap :deep(img) {
+    position: relative;
+    z-index: 1;
+    display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+}
+
+.ench-card-backdrop {
+    position: absolute;
+    inset: -12%;
+    background-position: center;
+    background-size: cover;
+    filter: blur(18px) saturate(1.1);
+    opacity: 0.55;
 }
 
 .ench-card-badge {
+    z-index: 2;
     position: absolute;
     top: 0.75rem;
     left: 0.75rem;
@@ -173,6 +193,7 @@ const clockLabel = computed(() => {
 }
 
 .ench-card-heart {
+    z-index: 2;
     position: absolute;
     top: 0.65rem;
     right: 0.65rem;

@@ -90,6 +90,69 @@ class EncheresAuctionController
         return response()->json(['ok' => true]);
     }
 
+    public function deposits(Request $request)
+    {
+        $user = $request->user();
+        if (! $user || ! $this->isCommitteeUser($user)) {
+            return response()->json(['message' => 'Accès réservé au comité.'], 403);
+        }
+
+        $seesAll = $this->isAuctionAdmin($user);
+
+        $items = EncheresAuction::query()
+            ->latest()
+            ->get()
+            ->map(fn (EncheresAuction $row) => is_array($row->payload) ? $row->payload : [])
+            ->filter(fn (array $item) => isset($item['id']))
+            ->filter(fn (array $item) => $seesAll || (int) ($item['deposited_by'] ?? 0) === (int) $user->id)
+            ->values()
+            ->all();
+
+        return response()->json(['data' => $items]);
+    }
+
+    public function deposit(Request $request)
+    {
+        $user = $request->user();
+        if (! $user || ! $this->isCommitteeUser($user)) {
+            return response()->json(['message' => 'Seuls le comité et l’administrateur enchères peuvent déposer un bien.'], 403);
+        }
+
+        $item = $request->input('auction');
+        if (! is_array($item) || empty($item['id'])) {
+            return response()->json(['message' => 'Bien invalide.'], 422);
+        }
+
+        $key = (string) $item['id'];
+        $isAdmin = $this->isAuctionAdmin($user);
+        $existing = EncheresAuction::query()->where('auction_key', $key)->first();
+        $existingPayload = is_array($existing?->payload) ? $existing->payload : [];
+        $depositedBy = (int) ($existingPayload['deposited_by'] ?? 0);
+
+        if ($existing && ! $isAdmin && $depositedBy !== (int) $user->id) {
+            return response()->json(['message' => 'Vous ne pouvez modifier que les biens que vous avez déposés.'], 403);
+        }
+
+        if (! $isAdmin) {
+            $item['admin_status'] = 'draft';
+            $item['published'] = false;
+            $item['status'] = 'pending';
+        }
+
+        $item['deposited_by'] = $existing && $depositedBy ? $depositedBy : $user->id;
+        $item['deposited_by_name'] = $existingPayload['deposited_by_name'] ?? $user->name;
+
+        EncheresAuction::query()->updateOrCreate(
+            ['auction_key' => $key],
+            [
+                'published' => $this->isPublished($item),
+                'payload' => $item,
+            ],
+        );
+
+        return response()->json(['ok' => true, 'data' => $item]);
+    }
+
     public function destroy(Request $request, string $key)
     {
         $user = $request->user();
@@ -127,5 +190,14 @@ class EncheresAuctionController
         }
 
         return ($user->module_profiles['vente-encheres']['profile'] ?? null) === 'admin_encheres';
+    }
+
+    private function isCommitteeUser(User $user): bool
+    {
+        if (in_array($user->profile, ['super_admin', 'admin', 'comite', 'admin_encheres'], true)) {
+            return true;
+        }
+
+        return in_array($user->module_profiles['vente-encheres']['profile'] ?? null, ['comite', 'admin_encheres'], true);
     }
 }

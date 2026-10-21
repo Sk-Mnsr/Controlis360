@@ -3,8 +3,30 @@
         <header class="dep-head">
             <h3>{{ isEdit ? 'Modifier un bien' : 'Déposer un bien' }}</h3>
             <p v-if="isEdit">Mettez à jour les informations, les photos et les vidéos de ce lot.</p>
+            <p v-else-if="isCommitteeMode">
+                Le bien est transmis à l’administrateur enchères, qui le vérifie puis le publie sur le front Client.
+            </p>
             <p v-else>Création côté Admin — le bien pourra ensuite être mis en enchère et publié sur le front Client.</p>
         </header>
+
+        <section v-if="isCommitteeMode && myDeposits.length" class="dep-mine">
+            <h4>Mes biens déposés</h4>
+            <ul>
+                <li v-for="item in myDeposits" :key="item.id">
+                    <span class="dep-mine-title">{{ item.lot }} — {{ item.title }}</span>
+                    <span class="dep-mine-status" :class="isLive(item) ? 'is-live' : 'is-pending'">
+                        {{ isLive(item) ? 'Publié' : 'En attente de publication' }}
+                    </span>
+                    <RouterLink
+                        v-if="!isLive(item)"
+                        class="dep-mini"
+                        :to="{ name: 'vente-encheres.comite.deposit', params: { id: item.id } }"
+                    >
+                        Modifier
+                    </RouterLink>
+                </li>
+            </ul>
+        </section>
 
         <form class="dep-form" @submit.prevent="onSubmit">
             <fieldset>
@@ -35,7 +57,7 @@
                             </option>
                             <option v-for="sub in subcategoryOptions" :key="sub" :value="sub">{{ sub }}</option>
                         </select>
-                        <span v-if="form.category_id && !subcategoryOptions.length" class="dep-hint">
+                        <span v-if="form.category_id && !subcategoryOptions.length && !isCommitteeMode" class="dep-hint">
                             Ajoutez des sous-catégories dans le menu
                             <RouterLink :to="{ name: 'vente-encheres.admin.categories' }">Catégories</RouterLink>.
                         </span>
@@ -231,7 +253,7 @@
                 </div>
             </fieldset>
 
-            <label class="dep-check">
+            <label v-if="!isCommitteeMode" class="dep-check">
                 <input v-model="form.publish_now" type="checkbox" />
                 Publier immédiatement sur le front Client
             </label>
@@ -240,10 +262,13 @@
             <p v-if="error" class="dep-err">{{ error }}</p>
 
             <div class="dep-actions">
-                <button type="submit" class="dep-btn dep-btn--primary">
-                    {{ submitLabel }}
+                <button type="submit" class="dep-btn dep-btn--primary" :disabled="submitting">
+                    {{ submitting ? 'Envoi…' : submitLabel }}
                 </button>
-                <RouterLink :to="{ name: 'vente-encheres.admin.auctions' }" class="dep-btn">
+                <RouterLink v-if="isCommitteeMode" :to="{ name: 'vente-encheres.comite' }" class="dep-btn">
+                    Espace Comité
+                </RouterLink>
+                <RouterLink v-else :to="{ name: 'vente-encheres.admin.auctions' }" class="dep-btn">
                     Voir les enchères
                 </RouterLink>
             </div>
@@ -254,10 +279,15 @@
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import api from '../../../api/client';
 import MultiSelectDropdown from '../../../components/MultiSelectDropdown.vue';
 import EncheresImage from '../../../components/vente-encheres/EncheresImage.vue';
-import { issueCommitteeCode, syncCommitteeLot } from '../../../services/encheresApi';
+import {
+    depositAuction,
+    fetchCommitteeMembers,
+    fetchDeposits,
+    issueCommitteeCode,
+    syncCommitteeLot,
+} from '../../../services/encheresApi';
 import { useEncheresAdminStore } from '../../../stores/encheresAdmin';
 
 const store = useEncheresAdminStore();
@@ -266,14 +296,36 @@ const router = useRouter();
 const message = ref('');
 const error = ref('');
 const hydrating = ref(false);
+const submitting = ref(false);
+const myDeposits = ref([]);
+const isCommitteeMode = computed(() => route.name === 'vente-encheres.comite.deposit');
 const editingId = computed(() => (route.params.id ? String(route.params.id) : ''));
 const isEdit = computed(() => Boolean(editingId.value));
 const submitLabel = computed(() => {
     if (isEdit.value) {
         return 'Enregistrer les modifications';
     }
+    if (isCommitteeMode.value) {
+        return 'Déposer le bien';
+    }
     return form.publish_now ? 'Créer et publier' : 'Enregistrer en brouillon';
 });
+
+function isLive(item) {
+    return item?.published !== false && item?.admin_status !== 'draft';
+}
+
+async function loadMyDeposits() {
+    if (!isCommitteeMode.value) {
+        return;
+    }
+    try {
+        myDeposits.value = await fetchDeposits();
+        store.mergePublished(myDeposits.value);
+    } catch {
+        myDeposits.value = [];
+    }
+}
 
 const categories = computed(() => store.categories);
 const regions = computed(() => store.regions);
@@ -366,45 +418,53 @@ async function hydrateForm() {
     hydrating.value = false;
 }
 
-function unwrapUsers(payload) {
-    const root = payload?.data ?? payload;
-    if (Array.isArray(root)) return root;
-    if (Array.isArray(root?.data)) return root.data;
-    return [];
-}
-
-function isEncheresComite(user) {
-    const moduleProfile = user?.module_profiles?.['vente-encheres']?.profile;
-    return moduleProfile === 'comite' || user?.profile === 'comite';
-}
-
 async function loadCommitteeMembers() {
     try {
-        const { data } = await api.get('/users', {
-            params: {
-                paginate: 'false',
-                order_by_asc: 'name',
-                activated: 1,
-            },
-        });
-        committeeMembers.value = unwrapUsers(data)
-            .filter(isEncheresComite)
-            .map((user) => ({
-                id: Number(user.id),
-                name: user.name || user.email,
-            }));
+        committeeMembers.value = (await fetchCommitteeMembers()).map((member) => ({
+            id: Number(member.id),
+            name: member.name,
+        }));
     } catch {
         committeeMembers.value = [];
     }
 }
 
+function resetForm() {
+    Object.assign(form, {
+        category_id: '',
+        subcategory: '',
+        title: '',
+        description: '',
+        starting_price: '',
+        reserve_price: '',
+        min_increment: 100000,
+        seller_type: 'Admin',
+        starts_at: '',
+        ends_at: '',
+        region: '',
+        address: '',
+        brand: '',
+        model: '',
+        year: '',
+        condition: '',
+        images: [''],
+        videos: [''],
+        committee_ids: [],
+        publish_now: false,
+    });
+}
+
 onMounted(async () => {
-    await loadCommitteeMembers();
+    await Promise.all([loadCommitteeMembers(), loadMyDeposits()]);
     await hydrateForm();
 });
 
-watch(editingId, () => {
-    hydrateForm();
+watch(editingId, (id) => {
+    if (id) {
+        hydrateForm();
+    } else {
+        resetForm();
+    }
 });
 
 function addImageSlot() {
@@ -522,6 +582,16 @@ async function onSubmit() {
         city: form.address,
     };
 
+    if (isCommitteeMode.value) {
+        submitting.value = true;
+        try {
+            await submitCommitteeDeposit(payload, committeeIds);
+        } finally {
+            submitting.value = false;
+        }
+        return;
+    }
+
     if (isEdit.value) {
         const existing = store.getAuctionById(editingId.value);
         if (!existing) {
@@ -617,6 +687,74 @@ async function onSubmit() {
         setTimeout(() => router.push({ name: 'vente-encheres.admin.auctions' }), 800);
     }
 }
+
+async function submitCommitteeDeposit(payload, committeeIds) {
+    const draft = { ...payload, publish_now: false };
+    const existing = isEdit.value ? store.getAuctionById(editingId.value) : null;
+    if (isEdit.value && !existing) {
+        error.value = 'Bien introuvable.';
+        return;
+    }
+
+    const saved = existing
+        ? store.updateAuction(existing.id, {
+            ...draft,
+            starting_price: Number(form.starting_price) || 0,
+            reserve_price: form.reserve_price === '' || form.reserve_price == null ? null : Number(form.reserve_price),
+            min_increment: Number(form.min_increment) || 100000,
+            current_price: Number(form.starting_price) || 0,
+            admin_status: 'draft',
+            published: false,
+            status: 'pending',
+        })
+        : store.createAuction(draft);
+
+    try {
+        await depositAuction(saved);
+    } catch (err) {
+        error.value = err.response?.data?.message || 'Le bien n’a pas pu être transmis à l’administrateur.';
+        return;
+    }
+
+    message.value = existing
+        ? `Modifications enregistrées : ${saved.lot}.`
+        : `Bien déposé : ${saved.lot}. L’administrateur enchères le publiera après vérification.`;
+
+    const previousIds = existing?.committee_ids || [];
+    const committeeChanged = committeeIds.length && (!existing || !sameIds(previousIds, committeeIds));
+
+    try {
+        if (committeeChanged) {
+            const result = await issueCommitteeCode({
+                auction_key: saved.id,
+                lot: saved.lot,
+                title: saved.title,
+                committee_ids: committeeIds,
+                bids: saved.bids || [],
+            });
+            const failed = result.failed?.length ? ` Échec pour : ${result.failed.join(', ')}.` : '';
+            message.value += ` Un code personnel a été envoyé à ${result.sent} membre(s) du comité.${failed}`;
+        } else {
+            await syncCommitteeLot({
+                auction_key: saved.id,
+                lot: saved.lot,
+                title: saved.title,
+                bids: saved.bids || [],
+            });
+        }
+    } catch (err) {
+        error.value = err.response?.data?.message
+            || 'Le bien est déposé, mais l’e-mail du code comité n’a pas pu être envoyé.';
+    }
+
+    await loadMyDeposits();
+
+    if (existing) {
+        router.replace({ name: 'vente-encheres.comite.deposit' });
+    } else {
+        resetForm();
+    }
+}
 </script>
 
 <style scoped>
@@ -630,6 +768,65 @@ async function onSubmit() {
     margin: 0.35rem 0 1rem;
     color: #64748b;
     font-size: 0.875rem;
+}
+
+.dep-mine {
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #fff;
+    padding: 1rem 1.1rem;
+    margin: 0 0 1rem;
+}
+
+.dep-mine h4 {
+    margin: 0 0 0.6rem;
+    font-size: 0.875rem;
+    font-weight: 800;
+}
+
+.dep-mine ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.dep-mine li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8125rem;
+}
+
+.dep-mine-title {
+    flex: 1 1 14rem;
+    min-width: 0;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.dep-mine-status {
+    border-radius: 999px;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.dep-mine-status.is-live {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.dep-mine-status.is-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.dep-mine .dep-mini {
+    text-decoration: none;
 }
 
 .dep-form fieldset {
