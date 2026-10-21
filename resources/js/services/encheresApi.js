@@ -45,7 +45,10 @@ export async function fetchAuctionById(id) {
 
 export async function fetchCommitteeMembers() {
     const { data } = await api.get('/vente-encheres/comite/membres');
-    return data?.data ?? [];
+    if (!Array.isArray(data?.data)) {
+        throw new Error('Réponse inattendue du serveur pour les membres du comité.');
+    }
+    return data.data;
 }
 
 export async function depositAuction(auction) {

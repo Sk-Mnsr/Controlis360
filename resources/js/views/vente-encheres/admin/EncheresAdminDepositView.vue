@@ -75,7 +75,8 @@
                             empty-text="Aucun utilisateur avec le profil Comité"
                             trigger-class="dep-select-trigger"
                         />
-                        <span class="dep-hint">
+                        <span v-if="membersError" class="dep-hint dep-hint--error">{{ membersError }}</span>
+                        <span v-else class="dep-hint">
                             Plusieurs personnes du profil Comité (module Vente aux enchères).
                         </span>
                     </label>
@@ -330,6 +331,7 @@ async function loadMyDeposits() {
 const categories = computed(() => store.categories);
 const regions = computed(() => store.regions);
 const committeeMembers = ref([]);
+const membersError = ref('');
 
 const form = reactive({
     category_id: '',
@@ -424,8 +426,10 @@ async function loadCommitteeMembers() {
             id: Number(member.id),
             name: member.name,
         }));
+        membersError.value = '';
     } catch {
         committeeMembers.value = [];
+        membersError.value = 'La liste du comité n’a pas pu être chargée. Rechargez la page ; si le problème persiste, le serveur doit être mis à jour.';
     }
 }
 
@@ -866,6 +870,10 @@ async function submitCommitteeDeposit(payload, committeeIds) {
     font-size: 0.75rem;
     font-weight: 500;
     color: #b45309;
+}
+
+.dep-hint--error {
+    color: #b91c1c;
 }
 
 .dep-hint a {
