@@ -73,8 +73,26 @@ class EncheresAuctionController
             return response()->json(['message' => 'Catalogue invalide.'], 422);
         }
 
+        $deletedKeys = [];
+        $deleted = $request->input('deleted', []);
+        if (is_array($deleted)) {
+            $deletedKeys = array_values(array_unique(array_filter(array_map(
+                fn ($key) => is_scalar($key) ? (string) $key : '',
+                $deleted,
+            ))));
+
+            if ($deletedKeys !== []) {
+                EncheresAuction::query()->whereIn('auction_key', $deletedKeys)->delete();
+            }
+        }
+
         foreach ($auctions as $item) {
             if (! is_array($item) || ! isset($item['id'])) {
+                continue;
+            }
+
+            $key = (string) $item['id'];
+            if (in_array($key, $deletedKeys, true)) {
                 continue;
             }
 
@@ -185,19 +203,11 @@ class EncheresAuctionController
 
     private function isAuctionAdmin(User $user): bool
     {
-        if (in_array($user->profile, ['super_admin', 'admin', 'admin_encheres'], true)) {
-            return true;
-        }
-
-        return ($user->module_profiles['vente-encheres']['profile'] ?? null) === 'admin_encheres';
+        return $user->hasEncheresProfile('admin_encheres');
     }
 
     private function isCommitteeUser(User $user): bool
     {
-        if (in_array($user->profile, ['super_admin', 'admin', 'comite', 'admin_encheres'], true)) {
-            return true;
-        }
-
-        return in_array($user->module_profiles['vente-encheres']['profile'] ?? null, ['comite', 'admin_encheres'], true);
+        return $user->hasEncheresProfile('comite') || $user->hasEncheresProfile('admin_encheres');
     }
 }

@@ -231,6 +231,54 @@ class User extends AuthenticatableBase
         return $this->profileForModule($slug)['controle_role'] ?? null;
     }
 
+    /**
+     * Profils Vente aux enchères explicitement attribués (plusieurs possibles).
+     *
+     * @return list<string>
+     */
+    public function assignedEncheresProfiles(): array
+    {
+        $allowed = ['client', 'comite', 'admin_encheres'];
+        $profiles = [];
+        $assignment = $this->module_profiles['vente-encheres'] ?? null;
+
+        if (is_array($assignment)) {
+            $listed = $assignment['profiles'] ?? null;
+            if (is_array($listed)) {
+                foreach ($listed as $profile) {
+                    if (in_array($profile, $allowed, true)) {
+                        $profiles[] = $profile;
+                    }
+                }
+            }
+
+            $single = $assignment['profile'] ?? null;
+            if (in_array($single, $allowed, true)) {
+                $profiles[] = $single;
+            }
+        }
+
+        if (in_array($this->profile, $allowed, true)) {
+            $profiles[] = $this->profile;
+        }
+
+        return array_values(array_unique($profiles));
+    }
+
+    public function hasEncheresProfile(string $profile): bool
+    {
+        if (in_array($this->profile, ['super_admin', 'admin'], true)) {
+            return true;
+        }
+
+        return in_array($profile, $this->assignedEncheresProfiles(), true);
+    }
+
+    public function isAssignedEncheresProfile(string $profile): bool
+    {
+        return in_array($profile, $this->assignedEncheresProfiles(), true);
+    }
+
     /** Profil contrôle ou audit sur le module Suivi des recommandations. */
     public function isAuditStaff(): bool
     {

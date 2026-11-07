@@ -64,8 +64,7 @@ class EncheresCommitteeController
             ->where('activated', true)
             ->orderBy('name')
             ->get()
-            ->filter(fn (User $member) => $member->profile === 'comite'
-                || ($member->module_profiles['vente-encheres']['profile'] ?? null) === 'comite')
+            ->filter(fn (User $member) => $member->isAssignedEncheresProfile('comite'))
             ->map(fn (User $member) => [
                 'id' => $member->id,
                 'name' => $member->name ?: $member->email,
@@ -527,22 +526,12 @@ class EncheresCommitteeController
 
     private function isCommitteeUser(User $user): bool
     {
-        if (in_array($user->profile, ['super_admin', 'admin', 'comite', 'admin_encheres'], true)) {
-            return true;
-        }
-
-        $role = $user->module_profiles['vente-encheres']['profile'] ?? null;
-
-        return in_array($role, ['comite', 'admin_encheres'], true);
+        return $user->hasEncheresProfile('comite') || $user->hasEncheresProfile('admin_encheres');
     }
 
     private function isAuctionAdmin(User $user): bool
     {
-        if (in_array($user->profile, ['super_admin', 'admin', 'admin_encheres'], true)) {
-            return true;
-        }
-
-        return ($user->module_profiles['vente-encheres']['profile'] ?? null) === 'admin_encheres';
+        return $user->hasEncheresProfile('admin_encheres');
     }
 
     private function userIsAssigned(EncheresCommitteeAccess $access, User $user): bool

@@ -6,7 +6,10 @@
             <p v-else-if="isCommitteeMode">
                 Le bien est transmis à l’administrateur enchères, qui le vérifie puis le publie sur le front Client.
             </p>
-            <p v-else>Création côté Admin — le bien pourra ensuite être mis en enchère et publié sur le front Client.</p>
+            <p v-else>
+                Cochez « Publier immédiatement » pour afficher le bien sur le front Client.
+                Sinon il reste en brouillon.
+            </p>
         </header>
 
         <section v-if="isCommitteeMode && myDeposits.length" class="dep-mine">
@@ -152,16 +155,16 @@
                 </p>
 
                 <div class="dep-images-list">
-                    <div v-for="(url, index) in form.images" :key="index" class="dep-image-row">
+                    <div v-for="(image, index) in form.images" :key="image.uid" class="dep-image-row">
                         <div class="dep-image-preview">
-                            <EncheresImage v-if="url" :src="url" :alt="`Image ${index + 1}`" />
+                            <EncheresImage v-if="image.url" :src="image.url" :alt="`Image ${index + 1}`" />
                             <span v-else class="dep-image-empty">{{ index === 0 ? 'Principale' : `Photo ${index + 1}` }}</span>
                         </div>
                         <div class="dep-image-fields">
                             <label>
                                 {{ index === 0 ? 'URL image principale' : `URL image ${index + 1}` }}
                                 <input
-                                    v-model="form.images[index]"
+                                    v-model="image.url"
                                     class="dep-input"
                                     placeholder="https://… ou /images/…"
                                 />
@@ -178,7 +181,7 @@
                                 <button
                                     type="button"
                                     class="dep-mini dep-mini--danger"
-                                    :disabled="form.images.length === 1 && !form.images[0]"
+                                    :disabled="form.images.length === 1 && !image.url"
                                     @click="removeImage(index)"
                                 >
                                     Retirer
@@ -211,16 +214,16 @@
                 </p>
 
                 <div class="dep-images-list">
-                    <div v-for="(url, index) in form.videos" :key="`video-${index}`" class="dep-image-row">
+                    <div v-for="(video, index) in form.videos" :key="video.uid" class="dep-image-row">
                         <div class="dep-image-preview dep-video-preview">
-                            <span v-if="!url" class="dep-image-empty">Vidéo {{ index + 1 }}</span>
-                            <span v-else class="dep-video-badge">{{ videoKind(url) }}</span>
+                            <span v-if="!video.url" class="dep-image-empty">Vidéo {{ index + 1 }}</span>
+                            <span v-else class="dep-video-badge">{{ videoKind(video.url) }}</span>
                         </div>
                         <div class="dep-image-fields">
                             <label>
                                 URL vidéo {{ index + 1 }}
                                 <input
-                                    v-model="form.videos[index]"
+                                    v-model="video.url"
                                     class="dep-input"
                                     placeholder="https://youtube.com/… ou https://…/video.mp4"
                                 />
@@ -229,7 +232,7 @@
                                 <button
                                     type="button"
                                     class="dep-mini dep-mini--danger"
-                                    :disabled="form.videos.length === 1 && !form.videos[0]"
+                                    :disabled="form.videos.length === 1 && !video.url"
                                     @click="removeVideo(index)"
                                 >
                                     Retirer
@@ -350,8 +353,8 @@ const form = reactive({
     model: '',
     year: '',
     condition: '',
-    images: [''],
-    videos: [''],
+    images: [mediaSlot()],
+    videos: [mediaSlot()],
     committee_ids: [],
     publish_now: false,
 });
@@ -412,8 +415,8 @@ async function hydrateForm() {
     form.model = auction.model || '';
     form.year = auction.year || '';
     form.condition = auction.condition || '';
-    form.images = auction.images?.length ? [...auction.images] : [auction.image || ''];
-    form.videos = auction.videos?.length ? [...auction.videos] : [''];
+    form.images = (auction.images?.length ? auction.images : [auction.image || '']).map((url) => mediaSlot(url));
+    form.videos = (auction.videos?.length ? auction.videos : ['']).map((url) => mediaSlot(url));
     form.committee_ids = (auction.committee_ids || []).map((id) => Number(id));
     form.publish_now = auction.admin_status === 'published';
     await nextTick();
@@ -451,8 +454,8 @@ function resetForm() {
         model: '',
         year: '',
         condition: '',
-        images: [''],
-        videos: [''],
+        images: [mediaSlot()],
+        videos: [mediaSlot()],
         committee_ids: [],
         publish_now: false,
     });
@@ -471,16 +474,22 @@ watch(editingId, (id) => {
     }
 });
 
+function mediaSlot(url = '') {
+    return {
+        uid: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        url: String(url || ''),
+    };
+}
+
 function addImageSlot() {
-    form.images.push('');
+    form.images.push(mediaSlot());
 }
 
 function removeImage(index) {
-    if (form.images.length === 1) {
-        form.images[0] = '';
-        return;
-    }
     form.images.splice(index, 1);
+    if (!form.images.length) {
+        form.images.push(mediaSlot());
+    }
 }
 
 function makePrimary(index) {
@@ -500,11 +509,11 @@ function onFilesSelected(event) {
         reader.onload = () => {
             const dataUrl = String(reader.result || '');
             if (!dataUrl) return;
-            const emptyIndex = form.images.findIndex((item) => !String(item || '').trim());
+            const emptyIndex = form.images.findIndex((item) => !String(item.url || '').trim());
             if (emptyIndex >= 0) {
-                form.images[emptyIndex] = dataUrl;
+                form.images[emptyIndex].url = dataUrl;
             } else {
-                form.images.push(dataUrl);
+                form.images.push(mediaSlot(dataUrl));
             }
         };
         reader.readAsDataURL(file);
@@ -514,15 +523,14 @@ function onFilesSelected(event) {
 const MAX_VIDEO_BYTES = 8 * 1024 * 1024;
 
 function addVideoSlot() {
-    form.videos.push('');
+    form.videos.push(mediaSlot());
 }
 
 function removeVideo(index) {
-    if (form.videos.length === 1) {
-        form.videos[0] = '';
-        return;
-    }
     form.videos.splice(index, 1);
+    if (!form.videos.length) {
+        form.videos.push(mediaSlot());
+    }
 }
 
 function videoKind(url) {
@@ -548,11 +556,11 @@ function onVideoFilesSelected(event) {
         reader.onload = () => {
             const dataUrl = String(reader.result || '');
             if (!dataUrl) return;
-            const emptyIndex = form.videos.findIndex((item) => !String(item || '').trim());
+            const emptyIndex = form.videos.findIndex((item) => !String(item.url || '').trim());
             if (emptyIndex >= 0) {
-                form.videos[emptyIndex] = dataUrl;
+                form.videos[emptyIndex].url = dataUrl;
             } else {
-                form.videos.push(dataUrl);
+                form.videos.push(mediaSlot(dataUrl));
             }
         };
         reader.readAsDataURL(file);
@@ -568,8 +576,8 @@ async function onSubmit() {
         return;
     }
 
-    const images = form.images.map((item) => String(item || '').trim()).filter(Boolean);
-    const videos = form.videos.map((item) => String(item || '').trim()).filter(Boolean);
+    const images = form.images.map((item) => String(item.url || '').trim()).filter(Boolean);
+    const videos = form.videos.map((item) => String(item.url || '').trim()).filter(Boolean);
     const committeeIds = form.committee_ids.map((id) => Number(id));
     const committee = committeeMembers.value
         .filter((member) => committeeIds.includes(member.id))
@@ -603,6 +611,7 @@ async function onSubmit() {
             return;
         }
 
+        submitting.value = true;
         const updated = store.updateAuction(editingId.value, {
             ...payload,
             starting_price: Number(form.starting_price) || 0,
@@ -614,7 +623,20 @@ async function onSubmit() {
             status: form.publish_now ? 'live' : 'pending',
         });
 
-        message.value = `Modifications enregistrées : ${updated?.lot || existing.lot}.`;
+        try {
+            await persistAuctionOnServer(updated, form.publish_now);
+        } catch (err) {
+            error.value = err.response?.data?.message
+                || err.message
+                || 'Le bien n’a pas été publié sur le serveur.';
+            message.value = `Le bien ${updated?.lot || existing.lot} reste en brouillon.`;
+            submitting.value = false;
+            return;
+        }
+
+        message.value = form.publish_now
+            ? `Bien publié sur le front Client : ${updated?.lot || existing.lot}.`
+            : `Brouillon enregistré : ${updated?.lot || existing.lot}. Il n’est pas visible sur le front Client.`;
 
         const previousIds = existing.committee_ids || [];
         if (committeeIds.length && !sameIds(previousIds, committeeIds)) {
@@ -646,17 +668,29 @@ async function onSubmit() {
             }
         }
 
+        submitting.value = false;
         if (!error.value) {
             router.push({ name: 'vente-encheres.admin.auctions.show', params: { id: existing.id } });
         }
         return;
     }
 
+    submitting.value = true;
     const created = store.createAuction(payload);
+    let publishedOnServer = false;
 
-    message.value = form.publish_now
-        ? `Bien publié : ${created.lot}`
-        : `Brouillon créé : ${created.lot}. Publiez-le dans « Mettre en enchère ».`;
+    try {
+        await persistAuctionOnServer(created, form.publish_now);
+        publishedOnServer = Boolean(form.publish_now);
+    } catch (err) {
+        error.value = err.response?.data?.message
+            || err.message
+            || 'Le bien n’a pas été publié sur le serveur.';
+    }
+
+    message.value = publishedOnServer
+        ? `Bien publié sur le front Client : ${created.lot}.`
+        : `Brouillon enregistré : ${created.lot}. Il n’apparaît pas sur le front Client tant qu’il n’est pas publié.`;
 
     if (committeeIds.length) {
         try {
@@ -687,8 +721,34 @@ async function onSubmit() {
         }
     }
 
-    if (form.publish_now && !error.value) {
+    submitting.value = false;
+    if (publishedOnServer && !error.value) {
         setTimeout(() => router.push({ name: 'vente-encheres.admin.auctions' }), 800);
+    }
+}
+
+async function persistAuctionOnServer(auction, publishNow) {
+    const body = {
+        ...auction,
+        publish_now: Boolean(publishNow),
+        published: Boolean(publishNow),
+        admin_status: publishNow ? 'published' : 'draft',
+        status: publishNow ? 'live' : 'pending',
+    };
+
+    try {
+        const saved = await depositAuction(body);
+        const isPublished = saved?.published === true && saved?.admin_status !== 'draft';
+        if (publishNow && !isPublished) {
+            store.unpublishAuction(auction.id);
+            throw new Error('Le serveur n’a pas publié ce bien.');
+        }
+        return saved;
+    } catch (err) {
+        if (publishNow) {
+            store.unpublishAuction(auction.id);
+        }
+        throw err;
     }
 }
 

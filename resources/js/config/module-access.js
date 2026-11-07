@@ -57,6 +57,43 @@ const MODULE_PROFILES = {
 
 const ALL_MODULE_SLUGS = modules.map((module) => module.slug);
 
+const ENCHERES_PROFILE_RANK = {
+    client: 1,
+    comite: 2,
+    admin_encheres: 3,
+};
+
+export function normalizeEncheresProfiles(profiles, fallback = null) {
+    const allowed = Object.keys(ENCHERES_PROFILE_RANK);
+    const raw = Array.isArray(profiles) ? profiles : [];
+    const values = raw.map((value) => String(value)).filter((value) => allowed.includes(value));
+
+    if (!values.length && allowed.includes(fallback)) {
+        values.push(fallback);
+    }
+
+    if (!values.length) {
+        values.push('client');
+    }
+
+    return [...new Set(values)].sort((left, right) => ENCHERES_PROFILE_RANK[left] - ENCHERES_PROFILE_RANK[right]);
+}
+
+export function highestEncheresProfile(profiles) {
+    const normalized = normalizeEncheresProfiles(profiles);
+
+    return normalized[normalized.length - 1];
+}
+
+function encheresFields(profile, profiles = null) {
+    const normalized = normalizeEncheresProfiles(profiles, profile);
+
+    return {
+        profile: highestEncheresProfile(normalized),
+        profiles: normalized,
+    };
+}
+
 export function emptyModuleAssignment(slug) {
     const defaultProfile = MODULE_PROFILE_OPTIONS[slug]?.[0]?.value ?? 'metier';
 
@@ -64,6 +101,7 @@ export function emptyModuleAssignment(slug) {
         slug,
         enabled: false,
         profile: defaultProfile,
+        profiles: slug === 'vente-encheres' ? [defaultProfile] : undefined,
         controle_role: 'agent_controle_interne',
         audit_role: 'agent_audit',
         metier_role: 'visiteur',
@@ -96,11 +134,15 @@ export function defaultModuleAssignments(user = {}) {
             const savedProfile = saved.profile === 'super_admin' || saved.profile === 'admin'
                 ? (MODULE_PROFILE_OPTIONS[slug]?.[0]?.value ?? base.profile)
                 : (saved.profile ?? base.profile);
+            const encheres = slug === 'vente-encheres'
+                ? encheresFields(saved.profile, saved.profiles)
+                : null;
 
             return {
                 ...base,
                 enabled: true,
-                profile: savedProfile,
+                profile: encheres?.profile ?? savedProfile,
+                profiles: encheres?.profiles,
                 controle_role: saved.controle_role ?? base.controle_role,
                 audit_role: saved.audit_role ?? base.audit_role,
                 metier_role: saved.metier_role ?? base.metier_role,
@@ -112,12 +154,16 @@ export function defaultModuleAssignments(user = {}) {
             : [];
 
         if (assignedModules.includes(slug)) {
+            const profile = user.profile && MODULE_PROFILES[slug]?.includes(user.profile)
+                ? user.profile
+                : base.profile;
+            const encheres = slug === 'vente-encheres' ? encheresFields(profile) : null;
+
             return {
                 ...base,
                 enabled: true,
-                profile: user.profile && MODULE_PROFILES[slug]?.includes(user.profile)
-                    ? user.profile
-                    : base.profile,
+                profile: encheres?.profile ?? profile,
+                profiles: encheres?.profiles,
                 controle_role: user.controle_role ?? base.controle_role,
                 audit_role: user.audit_role ?? base.audit_role,
                 metier_role: user.metier_role ?? base.metier_role,
@@ -125,10 +171,14 @@ export function defaultModuleAssignments(user = {}) {
         }
 
         if (user?.profile && canAccessModuleByProfile(user.profile, slug, user) && !fromProfiles && !user?.modules?.length) {
+            const profile = user.profile === 'super_admin' ? (MODULE_PROFILE_OPTIONS[slug]?.[0]?.value ?? 'metier') : user.profile;
+            const encheres = slug === 'vente-encheres' ? encheresFields(profile) : null;
+
             return {
                 ...base,
                 enabled: true,
-                profile: user.profile === 'super_admin' ? (MODULE_PROFILE_OPTIONS[slug]?.[0]?.value ?? 'metier') : user.profile,
+                profile: encheres?.profile ?? profile,
+                profiles: encheres?.profiles,
                 controle_role: user.controle_role ?? base.controle_role,
                 audit_role: user.audit_role ?? base.audit_role,
                 metier_role: user.metier_role ?? base.metier_role,
@@ -149,12 +199,21 @@ export function assignmentsToPayload(assignments = []) {
         }
 
         moduleSlugs.push(item.slug);
+        const encheres = item.slug === 'vente-encheres'
+            ? encheresFields(item.profile, item.profiles)
+            : null;
+        const profile = encheres?.profile ?? item.profile;
+
         moduleProfiles[item.slug] = {
-            profile: item.profile,
-            controle_role: item.profile === 'controle' ? item.controle_role : null,
-            audit_role: item.profile === 'audit' ? item.audit_role : null,
-            metier_role: item.profile === 'metier' ? item.metier_role : null,
+            profile,
+            controle_role: profile === 'controle' ? item.controle_role : null,
+            audit_role: profile === 'audit' ? item.audit_role : null,
+            metier_role: profile === 'metier' ? item.metier_role : null,
         };
+
+        if (encheres) {
+            moduleProfiles[item.slug].profiles = encheres.profiles;
+        }
     }
 
     return { modules: moduleSlugs, module_profiles: moduleProfiles };
@@ -179,8 +238,12 @@ export function assignmentsToSuperAdminPayload(assignments = []) {
             ? assignment.profile
             : (MODULE_PROFILE_OPTIONS[slug]?.[0]?.value ?? 'metier');
 
+        const encheres = slug === 'vente-encheres'
+            ? encheresFields(profile, assignment?.profiles)
+            : null;
+
         moduleProfiles[slug] = {
-            profile,
+            profile: encheres?.profile ?? profile,
             controle_role: profile === 'controle'
                 ? (assignment?.controle_role ?? 'agent_controle_interne')
                 : null,
@@ -191,6 +254,11 @@ export function assignmentsToSuperAdminPayload(assignments = []) {
                 ? (assignment?.metier_role ?? 'visiteur')
                 : null,
         };
+
+        if (encheres) {
+            moduleProfiles[slug].profiles = encheres.profiles;
+            moduleProfiles[slug].profile = encheres.profile;
+        }
     }
 
     return { modules: [...ALL_MODULE_SLUGS], module_profiles: moduleProfiles };

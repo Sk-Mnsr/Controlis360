@@ -433,6 +433,33 @@ class UserController extends APIController
             }
 
             $profile = (string) ($assignment['profile'] ?? '');
+            $encheresProfiles = null;
+
+            if ($slug === 'vente-encheres') {
+                $allowedEncheres = ['client', 'comite', 'admin_encheres'];
+                $encheresProfiles = [];
+
+                if (is_array($assignment['profiles'] ?? null)) {
+                    foreach ($assignment['profiles'] as $candidate) {
+                        if (in_array($candidate, $allowedEncheres, true)) {
+                            $encheresProfiles[] = $candidate;
+                        }
+                    }
+                }
+
+                if ($encheresProfiles === [] && in_array($profile, $allowedEncheres, true)) {
+                    $encheresProfiles = [$profile];
+                }
+
+                $encheresProfiles = array_values(array_unique($encheresProfiles));
+                $rank = ['client' => 1, 'comite' => 2, 'admin_encheres' => 3];
+                usort($encheresProfiles, fn ($left, $right) => ($rank[$left] ?? 0) <=> ($rank[$right] ?? 0));
+
+                if ($encheresProfiles !== []) {
+                    $profile = $encheresProfiles[array_key_last($encheresProfiles)];
+                }
+            }
+
             if (! in_array($profile, $allowedProfiles, true)) {
                 continue;
             }
@@ -449,6 +476,10 @@ class UserController extends APIController
                     ? ($assignment['metier_role'] ?? 'visiteur')
                     : null,
             ];
+
+            if ($slug === 'vente-encheres') {
+                $normalized[$slug]['profiles'] = $encheresProfiles ?? [$profile];
+            }
         }
 
         return $normalized;

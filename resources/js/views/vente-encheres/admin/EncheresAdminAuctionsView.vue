@@ -19,6 +19,8 @@
             <input v-model="search" type="search" class="auc-input" placeholder="Rechercher un lot ou titre…" />
         </div>
 
+        <p v-if="removeError" class="auc-error">{{ removeError }}</p>
+
         <div class="auc-table-wrap">
             <table class="auc-table">
                 <thead>
@@ -75,8 +77,13 @@
                             >
                                 Modifier
                             </RouterLink>
-                            <button type="button" class="auc-mini auc-mini--danger" @click="remove(item)">
-                                Suppr.
+                            <button
+                                type="button"
+                                class="auc-mini auc-mini--danger"
+                                :disabled="removingId === String(item.id)"
+                                @click="remove(item)"
+                            >
+                                {{ removingId === String(item.id) ? '…' : 'Suppr.' }}
                             </button>
                         </td>
                     </tr>
@@ -95,6 +102,8 @@ import { useEncheresAdminStore } from '../../../stores/encheresAdmin';
 const store = useEncheresAdminStore();
 const statusFilter = ref('');
 const search = ref('');
+const removeError = ref('');
+const removingId = ref('');
 
 const filtered = computed(() => {
     let list = [...store.auctions];
@@ -125,9 +134,17 @@ function unpublish(id) {
     store.unpublishAuction(id);
 }
 
-function remove(item) {
-    if (!window.confirm(`Supprimer ${item.lot} ?`)) return;
-    store.deleteAuction(item.id);
+async function remove(item) {
+    if (!window.confirm(`Supprimer ${item.lot} ? Le bien disparaît du catalogue et du front Client.`)) return;
+    removingId.value = String(item.id);
+    removeError.value = '';
+    try {
+        await store.deleteAuction(item.id);
+    } catch (err) {
+        removeError.value = err.message || 'Suppression impossible.';
+    } finally {
+        removingId.value = '';
+    }
 }
 </script>
 
@@ -265,5 +282,11 @@ function remove(item) {
     padding: 1.5rem;
     text-align: center;
     color: #64748b;
+}
+
+.auc-error {
+    margin: 0 0 0.75rem;
+    color: #b91c1c;
+    font-size: 0.875rem;
 }
 </style>

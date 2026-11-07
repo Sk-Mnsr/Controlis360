@@ -51,15 +51,27 @@ function persistState(state) {
         categories: state.categories,
         auctions: state.auctions,
         regions: state.regions,
+        deletedAuctionIds: state.deletedAuctionIds || [],
     }));
 }
 
 export const useEncheresAdminStore = defineStore('encheresAdmin', () => {
     const saved = loadState();
+    const hasSavedCatalog = Boolean(saved && (Array.isArray(saved.auctions) || Array.isArray(saved.categories)));
 
-    const categories = ref(cloneCategories(saved?.categories?.length ? saved.categories : ENCHERES_CATEGORIES));
-    const auctions = ref(cloneAuctions(saved?.auctions?.length ? saved.auctions : MOCK_AUCTIONS));
+    const categories = ref(cloneCategories(
+        hasSavedCatalog && Array.isArray(saved.categories) ? saved.categories : ENCHERES_CATEGORIES,
+    ));
+    const auctions = ref(cloneAuctions(
+        hasSavedCatalog && Array.isArray(saved.auctions) ? saved.auctions : MOCK_AUCTIONS,
+    ));
     const regions = ref(Array.isArray(saved?.regions) && saved.regions.length ? [...saved.regions] : [...ENCHERES_REGIONS]);
+    const deletedAuctionIds = ref(Array.isArray(saved?.deletedAuctionIds) ? saved.deletedAuctionIds.map(String) : []);
+
+    if (deletedAuctionIds.value.length) {
+        const removed = new Set(deletedAuctionIds.value);
+        auctions.value = auctions.value.filter((item) => !removed.has(String(item.id)));
+    }
 
     const activeCategories = computed(() =>
         categories.value
@@ -89,29 +101,50 @@ export const useEncheresAdminStore = defineStore('encheresAdmin', () => {
         };
     });
 
-    function save() {
-        persistState({
+    function catalogSnapshot() {
+        return {
             categories: categories.value,
             auctions: auctions.value,
             regions: regions.value,
-        });
+            deletedAuctionIds: deletedAuctionIds.value,
+        };
+    }
+
+    function save() {
+        persistState(catalogSnapshot());
         ensureSynced();
     }
 
     let syncPromise = null;
+    let syncQueued = false;
 
     function ensureSynced() {
         if (typeof localStorage === 'undefined' || !localStorage.getItem('userToken')) {
-            return Promise.resolve();
+            return Promise.resolve(null);
         }
 
-        if (!syncPromise) {
-            syncPromise = api.post('/vente-encheres/auctions/sync', {
-                auctions: auctions.value,
-            }).catch(() => null).finally(() => {
-                syncPromise = null;
+        if (syncPromise) {
+            syncQueued = true;
+            return syncPromise.then(() => {
+                if (!syncQueued) {
+                    return null;
+                }
+                syncQueued = false;
+                return ensureSynced();
             });
         }
+
+        const payload = {
+            auctions: auctions.value,
+            deleted: [...deletedAuctionIds.value],
+        };
+
+        syncPromise = api.post('/vente-encheres/auctions/sync', payload)
+            .then((response) => response)
+            .catch((error) => ({ error }))
+            .finally(() => {
+                syncPromise = null;
+            });
 
         return syncPromise;
     }
@@ -121,18 +154,17 @@ export const useEncheresAdminStore = defineStore('encheresAdmin', () => {
             return;
         }
 
+        const removed = new Set(deletedAuctionIds.value.map(String));
         const byId = new Map(auctions.value.map((item) => [String(item.id), item]));
         incoming.forEach((item) => {
-            if (item?.id) {
-                byId.set(String(item.id), item);
+            const id = String(item?.id ?? '');
+            if (!id || removed.has(id)) {
+                return;
             }
+            byId.set(id, item);
         });
         auctions.value = [...byId.values()];
-        persistState({
-            categories: categories.value,
-            auctions: auctions.value,
-            regions: regions.value,
-        });
+        persistState(catalogSnapshot());
     }
 
     function upsertCategory(payload) {
@@ -245,16 +277,28 @@ export const useEncheresAdminStore = defineStore('encheresAdmin', () => {
         return updateAuction(id, { admin_status: 'draft', published: false, status: 'pending', publish_now: false });
     }
 
-    function deleteAuction(id) {
+    async function deleteAuction(id) {
         const auctionId = String(id);
+        if (!deletedAuctionIds.value.includes(auctionId)) {
+            deletedAuctionIds.value = [...deletedAuctionIds.value, auctionId];
+        }
         auctions.value = auctions.value.filter((item) => String(item.id) !== auctionId);
-        persistState({
-            categories: categories.value,
-            auctions: auctions.value,
-            regions: regions.value,
-        });
-        if (typeof localStorage !== 'undefined' && localStorage.getItem('userToken')) {
-            api.delete(`/vente-encheres/auctions/${auctionId}`).catch(() => null);
+        persistState(catalogSnapshot());
+
+        if (typeof localStorage === 'undefined' || !localStorage.getItem('userToken')) {
+            return;
+        }
+
+        let deleteError = null;
+        try {
+            await api.delete(`/vente-encheres/auctions/${auctionId}`);
+        } catch (error) {
+            deleteError = error;
+        }
+
+        const syncResult = await ensureSynced();
+        if (deleteError && syncResult?.error) {
+            throw new Error(deleteError.response?.data?.message || 'La suppression n’a pas été enregistrée sur le serveur.');
         }
     }
 
@@ -300,6 +344,7 @@ export const useEncheresAdminStore = defineStore('encheresAdmin', () => {
         categories.value = cloneCategories(ENCHERES_CATEGORIES);
         auctions.value = cloneAuctions(MOCK_AUCTIONS);
         regions.value = [...ENCHERES_REGIONS];
+        deletedAuctionIds.value = [];
         save();
     }
 

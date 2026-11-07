@@ -159,11 +159,16 @@ const form = reactive({
 });
 
 function enableAllModulesAsSuperAdmin() {
-    form.assignments = modules.map((module) => ({
-        ...emptyModuleAssignment(module.slug),
-        enabled: true,
-        profile: MODULE_PROFILE_FALLBACK[module.slug] ?? 'metier',
-    }));
+    form.assignments = modules.map((module) => {
+        const profile = MODULE_PROFILE_FALLBACK[module.slug] ?? 'metier';
+
+        return {
+            ...emptyModuleAssignment(module.slug),
+            enabled: true,
+            profile,
+            profiles: module.slug === 'vente-encheres' ? [profile] : undefined,
+        };
+    });
 }
 
 const MODULE_PROFILE_FALLBACK = {

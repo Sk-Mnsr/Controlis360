@@ -9,10 +9,13 @@ const SPACES_BY_ROLE = {
     admin_encheres: ['client', 'comite', 'admin'],
 };
 
-function explicitModuleProfile(user) {
-    return user?.module_profiles?.['vente-encheres']?.profile
-        ?? profileForModule(user, 'vente-encheres')?.profile
-        ?? null;
+function assignedProfiles(user) {
+    const assignment = user?.module_profiles?.['vente-encheres'];
+    const listed = Array.isArray(assignment?.profiles) ? assignment.profiles : [];
+    const single = assignment?.profile ?? profileForModule(user, 'vente-encheres')?.profile;
+    const own = ENCHERES_ROLES.includes(user?.profile) ? [user.profile] : [];
+
+    return [...new Set([...listed, single, ...own].filter((role) => ENCHERES_ROLES.includes(role)))];
 }
 
 function isPlatformAdmin(user) {
@@ -29,17 +32,18 @@ export function venteEncheresRole(user) {
         return 'admin_encheres';
     }
 
-    const assigned = user?.module_profiles?.['vente-encheres']?.profile;
-    if (ENCHERES_ROLES.includes(assigned)) {
-        return assigned;
+    const profiles = assignedProfiles(user);
+    if (profiles.includes('admin_encheres')) {
+        return 'admin_encheres';
+    }
+    if (profiles.includes('comite')) {
+        return 'comite';
+    }
+    if (profiles.includes('client')) {
+        return 'client';
     }
 
-    if (ENCHERES_ROLES.includes(user.profile)) {
-        return user.profile;
-    }
-
-    const fallback = explicitModuleProfile(user);
-    return ENCHERES_ROLES.includes(fallback) ? fallback : null;
+    return null;
 }
 
 function canSpace(user, space) {

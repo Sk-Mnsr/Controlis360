@@ -201,17 +201,22 @@ function extractScopeIds(user, relationKey, legacyKey) {
 }
 
 function enableAllModulesAsSuperAdmin() {
-    form.assignments = modules.map((module) => ({
-        ...emptyModuleAssignment(module.slug),
-        enabled: true,
-        profile: ({
+    form.assignments = modules.map((module) => {
+        const profile = ({
             cartographie: 'controle',
             audit: 'audit',
             conformite: 'conformite',
             'gouvernance-it': 'agent_it',
             'vente-encheres': 'admin_encheres',
-        })[module.slug] ?? 'metier',
-    }));
+        })[module.slug] ?? 'metier';
+
+        return {
+            ...emptyModuleAssignment(module.slug),
+            enabled: true,
+            profile,
+            profiles: module.slug === 'vente-encheres' ? [profile] : undefined,
+        };
+    });
 }
 
 async function loadEnvironments() {
@@ -264,13 +269,19 @@ async function loadUser() {
                     'vente-encheres': 'admin_encheres',
                 })[module.slug] ?? 'metier';
 
+                const keepExisting = existing?.enabled && existing?.profile && !['super_admin', 'admin'].includes(existing.profile);
+                const profile = keepExisting ? existing.profile : fallback;
+
                 return {
                     ...emptyModuleAssignment(module.slug),
                     ...existing,
                     enabled: true,
-                    profile: existing?.enabled && existing?.profile && !['super_admin', 'admin'].includes(existing.profile)
-                        ? existing.profile
-                        : fallback,
+                    profile,
+                    profiles: module.slug === 'vente-encheres'
+                        ? (keepExisting && Array.isArray(existing?.profiles) && existing.profiles.length
+                            ? existing.profiles
+                            : [profile])
+                        : existing?.profiles,
                 };
             });
         }

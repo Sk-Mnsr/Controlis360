@@ -27,7 +27,29 @@
             </label>
 
             <div v-if="assignment.enabled" class="mt-3 grid gap-3 md:grid-cols-2">
-                <div>
+                <div v-if="assignment.slug === 'vente-encheres'" class="md:col-span-2">
+                    <p class="mb-2 text-xs font-medium text-slate-500">Profils du module</p>
+                    <div class="flex flex-wrap gap-3">
+                        <label
+                            v-for="option in profileOptions(assignment.slug)"
+                            :key="option.value"
+                            class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                        >
+                            <input
+                                type="checkbox"
+                                class="rounded border-slate-300"
+                                :checked="selectedEncheresProfiles(assignment).includes(option.value)"
+                                :disabled="disabled"
+                                @change="toggleEncheresProfile(assignment, option.value, $event.target.checked)"
+                            />
+                            {{ option.label }}
+                        </label>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-500">
+                        Plusieurs profils peuvent être cochés : client et comité, ou comité et admin.
+                    </p>
+                </div>
+                <div v-else>
                     <label class="mb-1 block text-xs font-medium text-slate-500">Profil du module</label>
                     <select
                         class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
@@ -106,6 +128,8 @@ import {
     GOUVERNANCE_IT_PROFILES,
     GOUVERNANCE_IT_ROLE_BY_PROFILE,
     MODULE_PROFILE_OPTIONS,
+    highestEncheresProfile,
+    normalizeEncheresProfiles,
 } from '../../config/module-access';
 
 const props = defineProps({
@@ -146,5 +170,26 @@ function updateAssignment(slug, patch) {
         'update:modelValue',
         props.modelValue.map((item) => (item.slug === slug ? { ...item, ...patch } : item)),
     );
+}
+
+function selectedEncheresProfiles(assignment) {
+    return normalizeEncheresProfiles(assignment.profiles, assignment.profile);
+}
+
+function toggleEncheresProfile(assignment, value, checked) {
+    const current = selectedEncheresProfiles(assignment);
+    const next = checked
+        ? [...current, value]
+        : current.filter((item) => item !== value);
+    const profiles = normalizeEncheresProfiles(next);
+
+    if (!checked && profiles.length === current.length) {
+        return;
+    }
+
+    updateAssignment(assignment.slug, {
+        profiles,
+        profile: highestEncheresProfile(profiles),
+    });
 }
 </script>
