@@ -68,10 +68,15 @@ class RecommendationStatusService
             return;
         }
 
-        $mission->recommendations()
+        $query = $mission->recommendations()
             ->whereIn('status', ['emise', 'en_cours'])
-            ->whereHas('entities', fn ($query) => $query->whereIn('entities.id', $entityIds))
-            ->update(['status' => 'traitee']);
+            ->whereHas('entities', fn ($query) => $query->whereIn('entities.id', $entityIds));
+
+        if ($response->response_type !== 'passivite') {
+            $this->onlyWithActionPlanOf($query, (int) $response->responsable_id);
+        }
+
+        $query->update(['status' => 'traitee']);
 
         $this->syncMissionStatus($mission->fresh('recommendations'));
     }
@@ -80,11 +85,33 @@ class RecommendationStatusService
     {
         $status = $this->treatmentStatusFromResponse($response);
 
-        $mission->recommendations()
-            ->whereIn('status', ['emise', 'en_cours', 'traitee'])
-            ->update(['status' => $status]);
+        $query = $mission->recommendations()
+            ->whereIn('status', ['emise', 'en_cours', 'traitee']);
+
+        if ($response->response_type !== 'passivite' && $response->responsable_id) {
+            $this->onlyWithActionPlanOf($query, (int) $response->responsable_id);
+        }
+
+        $query->update(['status' => $status]);
 
         $this->syncMissionStatus($mission);
+    }
+
+    public function markRecommendationTreated(Recommendation $recommendation): void
+    {
+        if (! in_array($recommendation->status, ['emise', 'en_cours'], true)) {
+            return;
+        }
+
+        $recommendation->update(['status' => 'traitee']);
+        $this->syncMissionStatus($recommendation->mission->fresh('recommendations'));
+    }
+
+    private function onlyWithActionPlanOf($query, int $ownerId): void
+    {
+        $query->whereHas('actionPlans', fn ($plans) => $plans
+            ->where('user_id', $ownerId)
+            ->where('status', '!=', 'annule'));
     }
 
     public function markMissionClosed(Mission $mission): void

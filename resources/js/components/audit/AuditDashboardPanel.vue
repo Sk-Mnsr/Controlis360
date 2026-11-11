@@ -188,116 +188,11 @@
                 </div>
             </div>
         </article>
-
-        <div class="grid grid-cols-1 gap-4">
-            <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div class="border-b border-slate-100 px-4 py-3">
-                    <h3 class="text-sm font-semibold text-slate-800">Alertes & échéances prochaines</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                            <tr>
-                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Référence</th>
-                                <th class="min-w-[18rem] px-4 py-2 font-semibold">Recommandation</th>
-                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Owner</th>
-                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Échéance</th>
-                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Jours</th>
-                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Statut</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-if="!stats.alerts.length">
-                                <td colspan="6" class="px-4 py-8 text-center text-slate-500">Aucune alerte.</td>
-                            </tr>
-                            <tr
-                                v-for="reco in stats.alerts"
-                                :key="reco.id"
-                                class="border-t border-slate-100 hover:bg-slate-50"
-                            >
-                                <td class="whitespace-nowrap px-4 py-2.5 align-top font-medium text-slate-900">
-                                    <button type="button" class="hover:text-emerald-700 hover:underline" @click="openReco(reco)">
-                                        {{ reco.reference }}
-                                    </button>
-                                </td>
-                                <td class="min-w-[18rem] px-4 py-2.5 align-top text-slate-700 whitespace-normal break-words">
-                                    {{ recoLabel(reco) }}
-                                </td>
-                                <td class="min-w-[8rem] px-4 py-2.5 align-top text-slate-700 whitespace-normal break-words">
-                                    {{ reco.responsible_name || '—' }}
-                                </td>
-                                <td class="whitespace-nowrap px-4 py-2.5 align-top text-slate-700">{{ formatDate(reco.due_date) }}</td>
-                                <td class="whitespace-nowrap px-4 py-2.5 align-top font-semibold" :style="remainingDaysTextStyle(reco._remaining)">
-                                    {{ reco._remaining ?? '—' }}
-                                </td>
-                                <td class="whitespace-nowrap px-4 py-2.5 align-top">
-                                    <span
-                                        class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                                        :style="deadlineToneStyle(reco._deadline.tone)"
-                                    >
-                                        {{ reco._deadline.label }}
-                                    </span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </article>
-
-            <article class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div class="border-b border-slate-100 px-4 py-3">
-                    <h3 class="text-sm font-semibold text-slate-800">Top recommandations critiques ouvertes</h3>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-                            <tr>
-                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Référence</th>
-                                <th class="min-w-[18rem] px-4 py-2 font-semibold">Recommandation</th>
-                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Risque</th>
-                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Échéance</th>
-                                <th class="whitespace-nowrap px-4 py-2 font-semibold">Statut</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr v-if="!stats.top_critical.length">
-                                <td colspan="5" class="px-4 py-8 text-center text-slate-500">Aucune reco critique ouverte.</td>
-                            </tr>
-                            <tr
-                                v-for="reco in stats.top_critical"
-                                :key="`crit-${reco.id}`"
-                                class="border-t border-slate-100 hover:bg-slate-50"
-                            >
-                                <td class="whitespace-nowrap px-4 py-2.5 align-top font-medium text-slate-900">
-                                    <button type="button" class="hover:text-emerald-700 hover:underline" @click="openReco(reco)">
-                                        {{ reco.reference }}
-                                    </button>
-                                </td>
-                                <td class="min-w-[18rem] px-4 py-2.5 align-top text-slate-700 whitespace-normal break-words">
-                                    {{ recoLabel(reco) }}
-                                </td>
-                                <td class="whitespace-nowrap px-4 py-2.5 align-top text-slate-700">{{ reco.risk_level_fr || reco.risk_level || '—' }}</td>
-                                <td class="whitespace-nowrap px-4 py-2.5 align-top text-slate-700">{{ formatDate(reco.due_date) }}</td>
-                                <td class="whitespace-nowrap px-4 py-2.5 align-top">
-                                    <span
-                                        class="inline-flex rounded-full px-2.5 py-1 text-xs font-semibold"
-                                        :style="deadlineToneStyle(reco._deadline.tone)"
-                                    >
-                                        {{ reco._deadline.label }}
-                                    </span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </article>
-        </div>
     </div>
 </template>
 
 <script setup>
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
 import DashboardDonut from './DashboardDonut.vue';
 import { useMissionParametrage } from '../../composables/useMissionParametrage';
 import { buildAuditDashboardStats, flattenMissionRecommendations } from '../../utils/audit-dashboard';
@@ -309,12 +204,7 @@ const props = defineProps({
     typeQuery: { type: String, default: '' },
 });
 
-const router = useRouter();
-const {
-    remainingDaysTextStyle,
-    deadlineToneStyle,
-    resolveDeadlineStatus,
-} = useMissionParametrage();
+const { resolveDeadlineStatus } = useMissionParametrage();
 
 const recommendations = computed(() => flattenMissionRecommendations(props.missions));
 const stats = computed(() => buildAuditDashboardStats(recommendations.value, resolveDeadlineStatus));
@@ -442,26 +332,4 @@ function formatMonth(value) {
     return `${labels[Number(month) - 1] ?? month} ${String(year).slice(2)}`;
 }
 
-function formatDate(value) {
-    if (!value) return '—';
-    const [year, month, day] = String(value).split('-');
-    if (!year || !month || !day) return value;
-    return `${day}/${month}/${year}`;
-}
-
-function recoLabel(reco) {
-    return reco.recommendation_label || reco.name || '—';
-}
-
-function openReco(reco) {
-    if (!reco?.mission_id) return;
-    router.push({
-        name: 'audit.missions.show',
-        params: { id: reco.mission_id },
-        query: {
-            from: props.fromQuery,
-            ...(props.typeQuery ? { type: props.typeQuery } : {}),
-        },
-    });
-}
 </script>

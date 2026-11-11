@@ -66,16 +66,21 @@ class ActionPlanStatusService
             ->firstWhere('value', $status)['color'] ?? 'slate';
     }
 
-    public function markTransmittedForOwner(int $missionId, int $userId, array $entityIds): void
+    public function markTransmittedForOwner(int $missionId, int $userId, array $entityIds, ?int $recommendationId = null): void
     {
-        if ($entityIds === []) {
+        if ($entityIds === [] && $recommendationId === null) {
             return;
         }
 
         RecommendationActionPlan::query()
-            ->whereHas('recommendation', function ($query) use ($missionId, $entityIds) {
-                $query->where('mission_id', $missionId)
-                    ->whereHas('entities', fn ($entityQuery) => $entityQuery->whereIn('entities.id', $entityIds));
+            ->whereHas('recommendation', function ($query) use ($missionId, $entityIds, $recommendationId) {
+                $query->where('mission_id', $missionId);
+
+                if ($recommendationId !== null) {
+                    $query->where('id', $recommendationId);
+                } else {
+                    $query->whereHas('entities', fn ($entityQuery) => $entityQuery->whereIn('entities.id', $entityIds));
+                }
             })
             ->where('user_id', $userId)
             ->whereNull('transmission_date')

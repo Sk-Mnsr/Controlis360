@@ -40,7 +40,7 @@
                     Soumettre au responsable
                 </button>
                 <button
-                    v-if="response?.can_forward"
+                    v-if="canForwardReco"
                     type="button"
                     class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 disabled:opacity-60"
                     :disabled="saving"
@@ -180,6 +180,18 @@ const canEdit = computed(() => Boolean(props.response?.can_edit));
 const planOwnerId = computed(() => {
     if (isResponsable.value) return auth.user?.id;
     return props.response?.responsable_id ?? props.response?.responsable?.id ?? null;
+});
+
+const canForwardReco = computed(() => {
+    if (props.response?.can_forward) return true;
+
+    return Boolean(
+        props.response?.handling_mode === 'self'
+        && props.response?.workflow_status === 'transmis'
+        && Number(props.response?.responsable_id) === Number(auth.user?.id)
+        && ['emise', 'en_cours'].includes(props.reco?.status ?? 'emise')
+        && displayPlans.value.length,
+    );
 });
 
 const forwardLabel = computed(() => (
@@ -348,7 +360,7 @@ async function submitToResponsable() {
 }
 
 async function transmit() {
-    if (!props.response?.id || !props.response?.can_forward) return;
+    if (!props.response?.id || !canForwardReco.value) return;
 
     if (!displayPlans.value.length) {
         error.value = 'Ajoutez au moins une ligne de plan d\'action.';
@@ -361,6 +373,7 @@ async function transmit() {
     try {
         const { data } = await api.post(
             `/missions/${props.mission.id}/responses/${props.response.id}/forward`,
+            { recommendation_id: props.reco.id },
         );
         emit('updated', data?.data ?? data);
     } catch (err) {

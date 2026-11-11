@@ -6,6 +6,7 @@ use App\Mail\MissionAssignedToAgentMail;
 use App\Mail\MissionResponseForwardedMail;
 use App\Models\Mission;
 use App\Models\MissionResponse;
+use App\Models\Recommendation;
 use App\Models\User;
 use App\Services\ActionPlanStatusService;
 use App\Services\RecommendationStatusService;
@@ -283,32 +284,67 @@ class MissionResponseController extends APIController
             return $this->responseError(['message' => ['Seul le responsable peut transmettre cette réponse.']], 403);
         }
 
-        if ($response->workflow_status === 'transmis') {
-            return $this->responseError(['message' => ['Cette réponse a déjà été transmise.']], 422);
+        $recommendation = null;
+        if ($response->handling_mode === 'self' && $request->filled('recommendation_id')) {
+            $recommendation = Recommendation::query()
+                ->where('mission_id', $missionId)
+                ->find((int) $request->input('recommendation_id'));
+
+            if (! $recommendation) {
+                return $this->responseError(['message' => ['Recommandation introuvable pour cette mission.']], 404);
+            }
+
+            $hasPlan = $recommendation->actionPlans()
+                ->where('user_id', $user->id)
+                ->where('status', '!=', 'annule')
+                ->exists();
+
+            if (! $hasPlan) {
+                return $this->responseError(['message' => ['Ajoutez au moins une ligne de plan d\'action.']], 422);
+            }
         }
 
-        if ($response->handling_mode === 'agent' && $response->workflow_status !== 'a_valider') {
+        $alreadyTransmitted = $response->workflow_status === 'transmis';
+
+        if ($alreadyTransmitted) {
+            if (! $recommendation) {
+                return $this->responseError(['message' => ['Cette réponse a déjà été transmise.']], 422);
+            }
+
+            if (! in_array($recommendation->status, ['emise', 'en_cours'], true)) {
+                return $this->responseError(['message' => ['Cette recommandation a déjà été transmise.']], 422);
+            }
+        } elseif ($response->handling_mode === 'agent' && $response->workflow_status !== 'a_valider') {
             return $this->responseError(['message' => ['Attendez la soumission de l\'agent avant de transmettre.']], 422);
         }
 
-        $response->update([
-            'workflow_status' => 'transmis',
-            'validated_by' => $user->id,
-            'validated_at' => now(),
-            'forwarded_at' => now(),
-        ]);
+        if (! $alreadyTransmitted) {
+            $response->update([
+                'workflow_status' => 'transmis',
+                'validated_by' => $user->id,
+                'validated_at' => now(),
+                'forwarded_at' => now(),
+            ]);
 
-        $response->mission->recipients()->updateExistingPivot($user->id, [
-            'response' => 'action',
-            'responded_at' => now(),
-        ]);
+            $response->mission->recipients()->updateExistingPivot($user->id, [
+                'response' => 'action',
+                'responded_at' => now(),
+            ]);
+        }
 
         $response->refresh();
-        $this->recommendationStatusService->markOwnerRecommendationsTreatedFromResponse($response->mission, $response);
+
+        if ($recommendation) {
+            $this->recommendationStatusService->markRecommendationTreated($recommendation);
+        } else {
+            $this->recommendationStatusService->markOwnerRecommendationsTreatedFromResponse($response->mission, $response);
+        }
+
         $this->actionPlanStatusService->markTransmittedForOwner(
             $response->mission_id,
             $user->id,
             $user->entity_ids ?? [],
+            $recommendation?->id,
         );
 
         $mission = $response->mission->load(['creator', 'recommendations', 'entities']);
