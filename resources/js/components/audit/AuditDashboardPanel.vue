@@ -94,100 +94,6 @@
                 />
             </article>
         </div>
-
-        <article class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-            <div class="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <h3 class="text-sm font-semibold text-slate-800">Évolution mensuelle des recommandations</h3>
-                    <p class="mt-0.5 text-xs text-slate-500">Répartition par échéance — 6 derniers mois</p>
-                </div>
-                <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-slate-600">
-                    <span class="inline-flex items-center gap-1.5">
-                        <span class="h-2.5 w-2.5 rounded-sm bg-slate-400" /> Total
-                    </span>
-                    <span class="inline-flex items-center gap-1.5">
-                        <span class="h-2.5 w-2.5 rounded-sm bg-emerald-600" /> Implémentées
-                    </span>
-                    <span class="inline-flex items-center gap-1.5">
-                        <span class="h-2.5 w-2.5 rounded-sm bg-amber-500" /> En cours
-                    </span>
-                    <span class="inline-flex items-center gap-1.5">
-                        <span class="h-2.5 w-2.5 rounded-sm bg-red-500" /> En retard
-                    </span>
-                </div>
-            </div>
-
-            <div v-if="!stats.monthly.length" class="py-10 text-center text-sm text-slate-500">
-                Pas assez de données d’échéances pour tracer l’évolution.
-            </div>
-
-            <div v-else class="mt-5">
-                <div class="grid grid-cols-[2.25rem_1fr] gap-2">
-                    <div class="relative h-44 text-[10px] font-medium text-slate-400">
-                        <span
-                            v-for="tick in monthAxisTicks"
-                            :key="tick.value"
-                            class="absolute right-0 -translate-y-1/2"
-                            :style="{ top: `${tick.top}%` }"
-                        >
-                            {{ tick.value }}
-                        </span>
-                    </div>
-
-                    <div class="relative h-44 min-w-0">
-                        <div class="pointer-events-none absolute inset-0 flex flex-col justify-between">
-                            <div
-                                v-for="tick in monthAxisTicks"
-                                :key="`grid-${tick.value}`"
-                                class="border-t border-dashed border-slate-200"
-                            />
-                        </div>
-
-                        <div class="relative flex h-full items-end gap-2 px-1 sm:gap-3">
-                            <div
-                                v-for="month in stats.monthly"
-                                :key="month.month"
-                                class="group flex h-full min-w-0 flex-1 items-end justify-center"
-                            >
-                                <div class="flex h-full w-full max-w-[8rem] items-end justify-center gap-1 sm:gap-1.5">
-                                    <div
-                                        v-for="serie in monthSeries"
-                                        :key="serie.key"
-                                        class="relative flex h-full w-3.5 flex-col items-center justify-end sm:w-4"
-                                        :title="`${serie.label} : ${month[serie.key]}`"
-                                    >
-                                        <span
-                                            v-if="month[serie.key] > 0"
-                                            class="mb-1 text-[9px] font-semibold tabular-nums text-slate-600 opacity-0 transition group-hover:opacity-100 sm:opacity-100"
-                                        >
-                                            {{ month[serie.key] }}
-                                        </span>
-                                        <div
-                                            class="w-full rounded-t-md transition-all duration-300"
-                                            :class="serie.barClass"
-                                            :style="{ height: `${monthBarHeight(month[serie.key])}%` }"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="mt-2 grid grid-cols-[2.25rem_1fr] gap-2">
-                    <div />
-                    <div class="flex gap-2 px-1 sm:gap-3">
-                        <div
-                            v-for="month in stats.monthly"
-                            :key="`label-${month.month}`"
-                            class="min-w-0 flex-1 text-center text-[11px] font-semibold text-slate-600"
-                        >
-                            {{ formatMonth(month.month) }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </article>
     </div>
 </template>
 
@@ -285,33 +191,6 @@ const gaugeStyle = computed(() => {
 });
 
 const maxEntityCount = computed(() => Math.max(...stats.value.by_entity.map((row) => row.count), 1));
-const maxMonthTotal = computed(() => Math.max(
-    ...stats.value.monthly.flatMap((row) => [row.total, row.implemented, row.in_progress, row.late]),
-    1,
-));
-
-const monthAxisTicks = computed(() => {
-    const max = Math.max(maxMonthTotal.value, 1);
-    const steps = Math.min(4, max);
-    const values = new Set();
-    for (let i = steps; i >= 0; i -= 1) {
-        values.add(Math.round((max * i) / steps));
-    }
-    return [...values]
-        .sort((a, b) => b - a)
-        .map((value) => ({
-            value,
-            top: ((max - value) / max) * 100,
-        }));
-});
-
-const monthSeries = [
-    { key: 'total', label: 'Total', barClass: 'bg-slate-400' },
-    { key: 'implemented', label: 'Implémentées', barClass: 'bg-emerald-600' },
-    { key: 'in_progress', label: 'En cours', barClass: 'bg-amber-500' },
-    { key: 'late', label: 'En retard', barClass: 'bg-red-500' },
-];
-
 function percentOf(value) {
     if (!stats.value.total) return '0 %';
     return `${Math.round((value / stats.value.total) * 1000) / 10} %`;
@@ -319,17 +198,6 @@ function percentOf(value) {
 
 function entityBarWidth(count) {
     return Math.round((count / maxEntityCount.value) * 100);
-}
-
-function monthBarHeight(value) {
-    if (!value) return 0;
-    return Math.max(8, Math.round((value / maxMonthTotal.value) * 100));
-}
-
-function formatMonth(value) {
-    const [year, month] = String(value).split('-');
-    const labels = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
-    return `${labels[Number(month) - 1] ?? month} ${String(year).slice(2)}`;
 }
 
 </script>
