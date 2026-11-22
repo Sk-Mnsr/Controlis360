@@ -281,7 +281,11 @@ const selectedMissionType = computed(() => route.params.missionType ?? '');
 
 const selectedTypeLabel = computed(() => {
     const match = findType(selectedMissionType.value);
-    return match?.label ?? selectedMissionType.value;
+    if (match?.label) return match.label;
+
+    const sample = missions.value.find((mission) => mission.mission_type === selectedMissionType.value);
+
+    return sample?.mission_type_fr || selectedMissionType.value;
 });
 
 const responsibleColumnLabel = computed(() => {
@@ -554,17 +558,19 @@ async function loadMissions() {
     }
 }
 
+function typeIsKnown(missionType) {
+    if (!missionType) return false;
+    if (findType(missionType)) return true;
+
+    return missions.value.some((mission) => mission.mission_type === missionType);
+}
+
 watch(
     () => route.params.missionType,
     (missionType) => {
         resetFilters();
 
-        if (!missionType) {
-            router.replace({ name: 'audit.missions.history' });
-            return;
-        }
-
-        if (!findType(missionType)) {
+        if (!missionType || !typeIsKnown(missionType)) {
             router.replace({ name: 'audit.missions.history' });
         }
     },
@@ -573,13 +579,11 @@ watch(
 onMounted(async () => {
     await loadMissionParametrage();
     await loadMissionTypes();
+    await loadMissions();
 
     const missionType = route.params.missionType;
-    if (missionType && !findType(missionType)) {
+    if (missionType && !typeIsKnown(missionType)) {
         router.replace({ name: 'audit.missions.history' });
-        return;
     }
-
-    await loadMissions();
 });
 </script>
