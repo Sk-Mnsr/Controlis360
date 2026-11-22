@@ -15,6 +15,7 @@ use App\Services\RecommendationStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Maravel\Http\Controllers\APIController;
 
@@ -174,6 +175,8 @@ class MissionController extends APIController
             ->with([
                 'recommendations.entities.environment',
                 'recommendations.followUps.user',
+                'recommendations.returns.user',
+                'recommendations.returns.entity',
                 'recommendations.actionPlans.user',
                 'recommendations.actionPlans.comments.user',
                 'entities.environment',
@@ -194,6 +197,32 @@ class MissionController extends APIController
     public function takeCharge(Request $request, int $id)
     {
         $user = $request->user();
+
+        if ($user->isSuperAdmin()) {
+            $mission = Mission::query()
+                ->with(['recommendations'])
+                ->find($id);
+
+            if (! $mission) {
+                return $this->responseError(['message' => ['Mission introuvable.']], 404);
+            }
+
+            $updated = $mission->recommendations()
+                ->where('status', 'emise')
+                ->update(['status' => 'en_cours']);
+
+            if ($updated > 0) {
+                $this->recommendationStatusService->syncMissionStatus($mission->fresh('recommendations'));
+            }
+
+            return $this->responseOk([
+                'mission_id' => $mission->id,
+                'updated_count' => $updated,
+                'message' => [$updated > 0
+                    ? 'Recommandations prises en charge.'
+                    : 'Mission déjà prise en charge.'],
+            ]);
+        }
 
         if (! $user->isAuditMetierResponsable()) {
             return $this->responseError(['message' => ['Seul un responsable d\'entité peut prendre en charge.']], 403);
@@ -498,12 +527,12 @@ class MissionController extends APIController
 
     private function canManageMission(User $user, Mission $mission): bool
     {
-        if ($mission->responses->isNotEmpty()) {
-            return false;
-        }
-
         if ($user->isSuperAdmin()) {
             return true;
+        }
+
+        if ($mission->responses->isNotEmpty()) {
+            return false;
         }
 
         if ($user->isEnvironmentAdmin()) {
@@ -910,6 +939,7 @@ class MissionController extends APIController
             'can_delete' => $canManage,
             'can_close' => $viewer && $mission ? $this->canCloseRecommendation($viewer, $recommendation, $mission) : false,
             'follow_ups' => $this->formatRecommendationFollowUps($recommendation, $viewer),
+            'returns' => $this->formatRecommendationReturns($recommendation),
             'action_plans' => $this->formatRecommendationActionPlans($recommendation, $viewer),
         ], $this->formatRecommendationEntities($recommendation));
     }
@@ -924,7 +954,8 @@ class MissionController extends APIController
             $status = $this->actionPlanStatusService->resolveStatus($plan);
             $canSync = $viewer && $this->canSyncRecommendationActionPlans($viewer, $recommendation);
             $ownerId = $viewer ? $this->resolveRecommendationActionPlanOwnerId($viewer, $recommendation) : null;
-            $isOwnerPlan = $ownerId && (int) $plan->user_id === (int) $ownerId;
+            $isOwnerPlan = ($viewer && $viewer->isSuperAdmin())
+                || ($ownerId && (int) $plan->user_id === (int) $ownerId);
 
             return [
                 'id' => $plan->id,
@@ -955,6 +986,14 @@ class MissionController extends APIController
 
     private function resolveRecommendationActionPlanOwnerId(User $user, Recommendation $recommendation): ?int
     {
+        if ($user->isSuperAdmin()) {
+            $response = $recommendation->mission->responses
+                ->first(fn ($item) => (int) ($item->recommendation_id ?? 0) === (int) $recommendation->id
+                    && $item->response_type === 'action');
+
+            return $response ? (int) $response->responsable_id : (int) $user->id;
+        }
+
         if ($user->isAuditMetierResponsable()) {
             $entityIds = $user->entity_ids ?? [];
             $primaryEntityId = $recommendation->primary_entity_id
@@ -990,6 +1029,10 @@ class MissionController extends APIController
 
     private function canSyncRecommendationActionPlans(User $user, Recommendation $recommendation): bool
     {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
         if ($this->resolveRecommendationActionPlanOwnerId($user, $recommendation) === null) {
             return false;
         }
@@ -1008,6 +1051,10 @@ class MissionController extends APIController
     {
         if (! $this->canSyncRecommendationActionPlans($user, $recommendation)) {
             return false;
+        }
+
+        if ($user->isSuperAdmin()) {
+            return $this->canSyncRecommendationActionPlans($user, $recommendation);
         }
 
         $ownerId = $this->resolveRecommendationActionPlanOwnerId($user, $recommendation);
@@ -1057,6 +1104,30 @@ class MissionController extends APIController
                 'comment' => $item->comment,
                 'author_name' => $item->author_name ?: $item->user?->name,
             ])->values()->all();
+    }
+
+    private function formatRecommendationReturns(Recommendation $recommendation): array
+    {
+        if (! Schema::hasTable('recommendation_returns')) {
+            return [];
+        }
+
+        $returns = $recommendation->relationLoaded('returns')
+            ? $recommendation->returns
+            : $recommendation->returns()->with(['user', 'entity'])->get();
+
+        return $returns
+            ->sortByDesc('id')
+            ->map(fn ($item) => [
+                'id' => $item->id,
+                'avis' => $item->avis,
+                'author_name' => $item->author_name ?: $item->user?->name,
+                'entity_id' => $item->entity_id ? (int) $item->entity_id : null,
+                'entity_name' => $item->entity?->name,
+                'created_at' => $item->created_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
     }
 
     private function syncMissionStatusFromRecommendations(Mission $mission): void

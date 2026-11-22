@@ -5,74 +5,62 @@
         </p>
 
         <template v-else>
-            <div v-if="existingAttachments.length" class="overflow-x-auto rounded-lg border border-slate-200">
-                <table class="min-w-full text-sm">
-                    <thead>
-                        <tr class="bg-slate-50 text-left text-slate-700">
-                            <th class="w-12 px-3 py-2 font-semibold">N°</th>
-                            <th class="px-3 py-2 font-semibold">Nom du fichier</th>
-                            <th class="px-3 py-2 font-semibold">Date de jointure</th>
-                            <th class="px-3 py-2 font-semibold">Fichier</th>
-                            <th class="px-3 py-2 text-center font-semibold">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr
-                            v-for="item in existingAttachments"
-                            :key="item.path"
-                            class="border-t border-slate-200"
+            <ul v-if="existingAttachments.length" class="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <li
+                    v-for="item in existingAttachments"
+                    :key="item.path"
+                    class="flex flex-wrap items-center gap-3 px-4 py-3"
+                >
+                    <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-[10px] font-bold uppercase text-red-700">
+                        {{ fileExtension(item) }}
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-semibold text-slate-900">{{ item.name || storageFileName(item.path) }}</p>
+                        <p class="text-xs text-slate-500">{{ formatDisplayDate(item.attached_at) }}</p>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button
+                            v-if="canPreview(item)"
+                            type="button"
+                            class="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-60"
+                            :disabled="previewingPath === item.path"
+                            @click="preview(item)"
                         >
-                            <td class="px-3 py-3 align-top font-medium text-slate-900">{{ item.line_number }}</td>
-                            <td class="px-3 py-3 align-top text-slate-800">{{ item.name || '—' }}</td>
-                            <td class="px-3 py-3 align-top text-slate-800">{{ formatDisplayDate(item.attached_at) }}</td>
-                            <td class="px-3 py-3 align-top text-slate-600">{{ storageFileName(item.path) }}</td>
-                            <td class="px-3 py-3 align-top">
-                                <div class="flex flex-wrap items-center justify-center gap-2">
-                                    <button
-                                        v-if="canPreview(item)"
-                                        type="button"
-                                        class="text-xs font-medium text-blue-700 hover:text-blue-900 disabled:opacity-60"
-                                        :disabled="previewingPath === item.path"
-                                        @click="preview(item)"
-                                    >
-                                        {{ previewingPath === item.path ? 'Ouverture…' : 'Visualiser' }}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="text-xs font-medium text-emerald-700 hover:text-emerald-900 disabled:opacity-60"
-                                        :disabled="downloadingPath === item.path"
-                                        @click="download(item)"
-                                    >
-                                        {{ downloadingPath === item.path ? 'Téléchargement…' : 'Télécharger' }}
-                                    </button>
-                                    <button
-                                        v-if="canEdit"
-                                        type="button"
-                                        class="text-xs text-red-600 hover:text-red-800"
-                                        @click="markForRemoval(item.path)"
-                                    >
-                                        Retirer
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+                            {{ previewingPath === item.path ? '…' : 'Voir' }}
+                        </button>
+                        <button
+                            type="button"
+                            class="rounded-lg px-2 py-1 text-xs font-medium text-emerald-800 hover:bg-emerald-50 disabled:opacity-60"
+                            :disabled="downloadingPath === item.path"
+                            @click="download(item)"
+                        >
+                            {{ downloadingPath === item.path ? '…' : 'Télécharger' }}
+                        </button>
+                        <button
+                            v-if="canEdit"
+                            type="button"
+                            class="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                            @click="markForRemoval(item.path)"
+                        >
+                            Retirer
+                        </button>
+                    </div>
+                </li>
+            </ul>
+
+            <p v-if="pendingRemoval.length" class="text-xs text-amber-800">
+                {{ pendingRemoval.length }} pièce{{ pendingRemoval.length > 1 ? 's seront retirées' : ' sera retirée' }} à l'enregistrement.
+            </p>
 
             <div v-if="canEdit" class="space-y-3">
-                <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {{ existingAttachments.length ? 'Ajouter des pièces' : 'Pièces justificatives' }}
-                </h4>
-
                 <div
                     v-for="(slot, index) in attachmentSlots"
                     :key="slot.key"
-                    class="rounded-lg border border-slate-200 bg-white p-4"
+                    class="rounded-xl border border-slate-200 bg-white p-3"
                 >
                     <div class="mb-2 flex items-center justify-between gap-2">
                         <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                            Pièce {{ existingAttachments.length + index + 1 }}
+                            Nouvelle pièce {{ index + 1 }}
                         </span>
                         <button
                             v-if="attachmentSlots.length > 1"
@@ -80,41 +68,34 @@
                             class="text-xs text-slate-500 hover:text-red-600"
                             @click="removeSlot(index)"
                         >
-                            Retirer la ligne
+                            Retirer
                         </button>
                     </div>
-
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        <div>
-                            <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Nom du fichier</label>
-                            <input
-                                v-model="slot.name"
-                                type="text"
-                                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                                placeholder="Ex. Rapport de clôture"
-                            />
-                        </div>
-                        <div>
-                            <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Date de jointure</label>
-                            <input
-                                v-model="slot.attached_at"
-                                type="date"
-                                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                            />
-                        </div>
-                        <div class="sm:col-span-2">
-                            <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Fichier</label>
-                            <input type="file" class="w-full text-sm" @change="onFileSelected(index, $event)" />
-                            <p v-if="slot.file" class="mt-1 text-xs text-slate-500">{{ slot.file.name }}</p>
-                        </div>
+                    <div class="grid gap-2 sm:grid-cols-[minmax(0,1.4fr)_10rem_auto] sm:items-center">
+                        <input
+                            v-model="slot.name"
+                            type="text"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            placeholder="Nom de la pièce"
+                            :aria-label="`Nom de la pièce ${index + 1}`"
+                        />
+                        <input
+                            v-model="slot.attached_at"
+                            type="date"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            :aria-label="`Date de la pièce ${index + 1}`"
+                        />
+                        <label class="inline-flex cursor-pointer items-center justify-center rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+                            <span class="max-w-[12rem] truncate">{{ slot.file?.name || 'Choisir un fichier' }}</span>
+                            <input type="file" class="sr-only" @change="onFileSelected(index, $event)" />
+                        </label>
                     </div>
                 </div>
 
-                <button type="button" class="text-sm text-emerald-700 hover:text-emerald-900" @click="addSlot">
-                    + Ajouter une pièce jointe
-                </button>
-
-                <div class="flex justify-end">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <button type="button" class="text-sm font-medium text-emerald-800 hover:text-emerald-950" @click="addSlot">
+                        + Ajouter une pièce
+                    </button>
                     <button
                         type="button"
                         class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
@@ -193,6 +174,13 @@ function formatDisplayDate(value) {
 
 function storageFileName(path) {
     return attachmentFileName(path);
+}
+
+function fileExtension(item) {
+    const name = item.name || storageFileName(item.path) || '';
+    const extension = String(name).split('.').pop()?.slice(0, 4).toUpperCase();
+
+    return extension && extension !== String(name).toUpperCase() ? extension : 'DOC';
 }
 
 function canPreview(item) {

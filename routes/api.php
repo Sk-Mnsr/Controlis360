@@ -173,6 +173,7 @@ Route::controller(AuthController::class)->group(function () {
                 Route::get('/{id}', 'show')->name('show');
                 Route::put('/{id}', 'update')->name('update');
                 Route::post('/{id}/follow-ups', 'syncFollowUps')->name('follow-ups.sync');
+                Route::post('/{id}/return', 'returnAssignment')->name('return');
                 Route::post('/{id}/close', 'close')->name('close');
                 Route::post('/{id}/transmit-regulator', 'transmitToRegulator')->name('transmit-regulator');
                 Route::post('/{id}/regulator-comments', 'appendRegulatorComments')->name('regulator-comments');

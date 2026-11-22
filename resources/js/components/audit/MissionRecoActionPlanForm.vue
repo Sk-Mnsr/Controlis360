@@ -175,11 +175,14 @@ const detailPlan = ref(null);
 const detailPlanId = computed(() => detailPlan.value?.id ?? null);
 
 const isResponsable = computed(() => isMissionResponsible(auth.user));
+const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
 const canEdit = computed(() => Boolean(props.response?.can_edit));
 
 const planOwnerId = computed(() => {
     if (isResponsable.value) return auth.user?.id;
-    return props.response?.responsable_id ?? props.response?.responsable?.id ?? null;
+    return props.response?.responsable_id
+        ?? props.response?.responsable?.id
+        ?? (isSuperAdmin.value ? auth.user?.id : null);
 });
 
 const canForwardReco = computed(() => {

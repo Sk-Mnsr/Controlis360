@@ -6,13 +6,24 @@
     >
         <div class="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
             <div class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
-                <div>
+                <div class="min-w-0">
                     <p v-if="missionReference" class="text-xs font-medium uppercase tracking-wide text-slate-500">
                         {{ missionReference }}
                     </p>
-                    <h3 class="text-lg font-bold text-slate-900">
-                        Détail — {{ recommendation?.reference ?? '…' }}
+                    <h3 class="truncate text-lg font-bold text-slate-900">
+                        {{ recommendation?.reference ?? 'Recommandation' }}
                     </h3>
+                    <div v-if="recommendation" class="mt-2 flex flex-wrap gap-2">
+                        <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                            {{ displayValue(recommendation.status_fr ?? recommendation.status) }}
+                        </span>
+                        <span class="inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                            Priorité {{ displayValue(recommendation.priority_fr) }}
+                        </span>
+                        <span class="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-800">
+                            Risque {{ displayValue(recommendation.risk_level_fr) }}
+                        </span>
+                    </div>
                 </div>
                 <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
                     <button
@@ -53,77 +64,43 @@
             </div>
 
             <div v-else-if="recommendation" class="flex-1 overflow-y-auto p-6">
-                <div class="rounded-xl border border-emerald-100 bg-white p-5 shadow-sm">
-                    <h4 class="text-sm font-semibold uppercase tracking-wide text-emerald-800">Informations</h4>
-                    <ul class="mt-4 space-y-2.5 text-sm">
-                        <li>
-                            <span class="text-slate-600">Référence :</span>
-                            <span class="font-bold text-slate-900">{{ displayValue(recommendation.reference) }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">Département(s) :</span>
-                            <span class="font-bold text-slate-900">{{ displayValue(recommendation.entity_name) }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">Priorité :</span>
-                            <span class="font-bold text-slate-900">{{ displayValue(recommendation.priority_fr) }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">Niveau de risque :</span>
-                            <span class="font-bold text-slate-900">{{ displayValue(recommendation.risk_level_fr) }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">Statut :</span>
-                            <span class="font-bold text-slate-900">{{ displayValue(recommendation.status_fr ?? recommendation.status) }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">Conserne :</span>
-                            <span class="font-bold text-slate-900">{{ displayValue(recommendation.concerned_names) }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">OWNERS :</span>
-                            <span class="font-bold text-slate-900">{{ displayValue(recommendation.responsible_name) }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">Date recommandation :</span>
-                            <span class="font-bold text-slate-900">{{ formatDate(recommendation.recommendation_date) }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">Échéance :</span>
-                            <span class="font-bold text-slate-900">{{ formatDate(recommendation.due_date) }}</span>
-                        </li>
-                        <li v-if="recommendation.regulator_transmitted_at">
-                            <span class="text-slate-600">Transmis au régulateur :</span>
-                            <span class="font-bold text-slate-900">
-                                {{ formatDateTime(recommendation.regulator_transmitted_at) }}
-                                <template v-if="recommendation.regulator_transmitted_by_name">
-                                    — {{ recommendation.regulator_transmitted_by_name }}
-                                </template>
-                            </span>
-                        </li>
-                    </ul>
+                <dl class="grid gap-3 sm:grid-cols-2">
+                    <div v-for="fact in facts" :key="fact.label" class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">{{ fact.label }}</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ fact.value }}</dd>
+                    </div>
+                </dl>
+
+                <MissionRecoReturnsNotice
+                    class="mt-4"
+                    :returns="recommendation.returns ?? []"
+                    :show-reassign-hint="recommendation.status === 'retournee' && recommendation.can_edit"
+                />
+                <RouterLink
+                    v-if="recommendation.status === 'retournee' && recommendation.can_edit"
+                    :to="{
+                        name: 'audit.missions.recommendation.edit',
+                        params: { id: recommendation.mission_id, recoId: recommendation.id },
+                    }"
+                    class="mt-3 inline-flex rounded-lg bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800"
+                    @click="$emit('close')"
+                >
+                    Réaffecter le département
+                </RouterLink>
+
+                <div v-if="contentBlocks.length" class="mt-5 grid gap-3 sm:grid-cols-2">
+                    <article
+                        v-for="block in contentBlocks"
+                        :key="block.label"
+                        class="rounded-xl border border-slate-200 bg-white px-4 py-3"
+                        :class="block.wide ? 'sm:col-span-2' : ''"
+                    >
+                        <h4 class="text-xs font-medium uppercase tracking-wide text-slate-500">{{ block.label }}</h4>
+                        <p class="mt-1 whitespace-pre-wrap text-sm text-slate-900">{{ block.value }}</p>
+                    </article>
                 </div>
 
-                <div class="mt-6 space-y-5">
-                    <div v-if="recommendation.theme" class="rounded-xl border border-slate-200 bg-slate-50/60 p-5">
-                        <h4 class="text-sm font-semibold text-slate-700">Thème</h4>
-                        <p class="mt-2 whitespace-pre-wrap text-sm font-bold text-slate-900">{{ recommendation.theme }}</p>
-                    </div>
-
-                    <div v-if="recommendation.risk_type" class="rounded-xl border border-slate-200 bg-slate-50/60 p-5">
-                        <h4 class="text-sm font-semibold text-slate-700">Risque</h4>
-                        <p class="mt-2 whitespace-pre-wrap text-sm font-bold text-slate-900">{{ recommendation.risk_type }}</p>
-                    </div>
-
-                    <div v-if="recommendation.recommendation_label" class="rounded-xl border border-slate-200 bg-slate-50/60 p-5">
-                        <h4 class="text-sm font-semibold text-slate-700">Recommandation</h4>
-                        <p class="mt-2 whitespace-pre-wrap text-sm font-bold text-slate-900">{{ recommendation.recommendation_label }}</p>
-                    </div>
-
-                    <div v-if="recommendation.comments" class="rounded-xl border border-slate-200 bg-slate-50/60 p-5">
-                        <h4 class="text-sm font-semibold text-slate-700">Commentaires</h4>
-                        <p class="mt-2 whitespace-pre-wrap text-sm text-slate-800">{{ recommendation.comments }}</p>
-                    </div>
+                <div class="mt-5 space-y-5">
 
                     <MissionRecoTransmitRegulatorForm
                         v-if="transmitFormOpen && recommendation"
@@ -164,9 +141,11 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue';
+import { RouterLink } from 'vue-router';
 import api from '../../api/client';
 import { useAuthStore } from '../../stores/auth';
 import MissionRecoRegulatorCommentsPanel from './MissionRecoRegulatorCommentsPanel.vue';
+import MissionRecoReturnsNotice from './MissionRecoReturnsNotice.vue';
 import MissionRecoTransmitRegulatorForm from './MissionRecoTransmitRegulatorForm.vue';
 
 const props = defineProps({
@@ -184,6 +163,46 @@ const transmitFormOpen = ref(false);
 const loadError = ref('');
 const error = ref('');
 const recommendation = ref(null);
+
+const facts = computed(() => {
+    const reco = recommendation.value;
+    if (!reco) return [];
+
+    const items = [
+        { label: 'Département', value: displayValue(reco.entity_name) },
+        { label: 'Concerne', value: displayValue(reco.concerned_names) },
+        { label: 'Owners', value: displayValue(reco.responsible_name) },
+        { label: 'Date de recommandation', value: formatDate(reco.recommendation_date) },
+        { label: 'Échéance', value: formatDate(reco.due_date) },
+    ];
+
+    if (reco.regulator_transmitted_at) {
+        const author = reco.regulator_transmitted_by_name ? ` — ${reco.regulator_transmitted_by_name}` : '';
+        items.push({
+            label: 'Transmis au régulateur',
+            value: `${formatDateTime(reco.regulator_transmitted_at)}${author}`,
+        });
+    }
+
+    return items;
+});
+
+const contentBlocks = computed(() => {
+    const reco = recommendation.value;
+    if (!reco) return [];
+
+    return [
+        { label: 'Thème', value: reco.theme },
+        { label: 'Risque', value: reco.risk_type },
+        { label: 'Recommandation', value: reco.recommendation_label },
+        { label: 'Commentaires', value: reco.comments },
+    ]
+        .filter((block) => String(block.value ?? '').trim() !== '')
+        .map((block) => ({
+            ...block,
+            wide: String(block.value).length > 80 || String(block.value).includes('\n'),
+        }));
+});
 
 const closableStatuses = ['traitee', 'transmis'];
 

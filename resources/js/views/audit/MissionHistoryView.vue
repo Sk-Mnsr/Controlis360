@@ -122,13 +122,6 @@
                 Aucun résultat pour ces critères — le tableau de bord est masqué. Élargissez la recherche ou réinitialisez les filtres.
             </div>
 
-            <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h3 class="text-sm font-semibold text-slate-800">Historique des missions</h3>
-                <p class="mt-0.5 text-xs text-slate-500">
-                    {{ filteredMissions.length }} mission{{ filteredMissions.length > 1 ? 's' : '' }}
-                </p>
-            </div>
-
             <div v-if="!missionsForType.length" class="rounded-2xl border border-slate-200 bg-white p-12 text-center">
                 <p class="text-sm text-slate-500">{{ emptyMessage }}</p>
             </div>
@@ -155,7 +148,11 @@
                             <th class="px-4 py-3 font-semibold">Avancement</th>
                             <th class="px-4 py-3 font-semibold">Durée</th>
                             <th class="px-4 py-3 font-semibold">Status</th>
-                            <th class="w-14 px-2 py-3 font-semibold text-center" aria-label="Actions" />
+                            <th
+                                v-if="canTakeCharge"
+                                class="w-14 px-2 py-3 font-semibold text-center"
+                                aria-label="Prendre en charge"
+                            />
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
@@ -164,7 +161,15 @@
                             :key="mission.id"
                             class="transition hover:bg-slate-50/80"
                         >
-                            <td class="px-4 py-3 font-medium text-slate-900">{{ mission.reference }}</td>
+                            <td class="px-4 py-3">
+                                <button
+                                    type="button"
+                                    class="font-medium text-emerald-800 hover:underline"
+                                    @click="openDetail(mission)"
+                                >
+                                    {{ mission.reference }}
+                                </button>
+                            </td>
                             <td class="px-4 py-3 text-slate-800">{{ mission.auditor || '—' }}</td>
                             <td v-if="!isResponsible" class="px-4 py-3 text-slate-800">{{ recommendationsLabel(mission) }}</td>
                             <td class="px-4 py-3 whitespace-nowrap text-slate-800">{{ formatDate(mission.start_date) }}</td>
@@ -201,25 +206,22 @@
                                     {{ missionStatusLabel(mission.status) || mission.status_fr || mission.status }}
                                 </span>
                             </td>
-                            <td class="px-2 py-3 text-center">
+                            <td v-if="canTakeCharge" class="px-2 py-3 text-center">
                                 <button
-                                    v-if="isResponsible"
                                     type="button"
-                                    class="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                    :class="takingChargeId === mission.id ? 'animate-pulse' : ''"
+                                    title="Prendre en charge"
+                                    aria-label="Prendre en charge"
                                     :disabled="takingChargeId === mission.id"
                                     @click="takeCharge(mission)"
                                 >
-                                    {{ takingChargeId === mission.id ? 'Chargement…' : 'Prendre en charge' }}
-                                </button>
-                                <button
-                                    v-else
-                                    type="button"
-                                    class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-lg font-bold text-slate-500 hover:bg-slate-100 hover:text-slate-800"
-                                    title="Voir"
-                                    aria-label="Voir la mission"
-                                    @click="openDetail(mission)"
-                                >
-                                    ⋯
+                                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V6.5a1.5 1.5 0 0 1 3 0V11" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M11 10.5V5.5a1.5 1.5 0 0 1 3 0V11" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14 11V7.5a1.5 1.5 0 0 1 3 0V13" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 11.5v-1a1.5 1.5 0 0 0-3 0V14a6 6 0 0 0 6 6h1.2a4.8 4.8 0 0 0 3.4-1.4l1.7-1.7a4.2 4.2 0 0 0 1.2-3V12.2a1.4 1.4 0 0 0-2.4-1 2.6 2.6 0 0 0-.6 1.7" />
+                                    </svg>
                                 </button>
                             </td>
                         </tr>
@@ -272,6 +274,8 @@ const filters = reactive({
 
 const isResponsible = computed(() => isMissionResponsible(auth.user));
 const isAgent = computed(() => isMissionAgent(auth.user));
+const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
+const canTakeCharge = computed(() => isResponsible.value || isSuperAdmin.value);
 
 const selectedMissionType = computed(() => route.params.missionType ?? '');
 

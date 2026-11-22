@@ -8,6 +8,7 @@ class MissionResponse extends BaseModel
 {
     protected $fillable = [
         'mission_id',
+        'recommendation_id',
         'responsable_id',
         'response_type',
         'handling_mode',
@@ -75,6 +76,11 @@ class MissionResponse extends BaseModel
     public function mission(): BelongsTo
     {
         return $this->belongsTo(Mission::class);
+    }
+
+    public function recommendation(): BelongsTo
+    {
+        return $this->belongsTo(Recommendation::class);
     }
 
     public function responsable(): BelongsTo

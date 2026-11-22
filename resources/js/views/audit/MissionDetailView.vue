@@ -345,8 +345,8 @@
                                                             :reco="reco"
                                                             :mission="mission"
                                                             :response="actionResponseForReco(reco)"
-                                                            :can-edit-action="canEditRecoAction"
-                                                            :can-assign-action="isOwner"
+                                                            :can-edit-action="canEditReco(reco) || isSuperAdmin"
+                                                            :can-assign-action="isOwner || isSuperAdmin"
                                                             @updated="refreshMissionData"
                                                         />
                                                     </td>
@@ -445,6 +445,7 @@ const recoTableColspan = computed(() => (isOwner.value ? 6 : 7));
 
 const isOwner = computed(() => isMissionResponsible(auth.user));
 const isAgent = computed(() => isMissionAgent(auth.user));
+const isSuperAdmin = computed(() => auth.user?.profile === 'super_admin');
 const auditorLabel = computed(() => auditorFieldLabel(auth.user));
 
 const ownerEntityIds = computed(() => (
@@ -558,35 +559,6 @@ const displayedResponses = computed(() => {
     }
 
     return responses;
-});
-
-const ownerActionResponse = computed(() => {
-    const response = mission.value?.mission_response;
-    if (response?.response_type === 'action') return response;
-
-    return displayedResponses.value.find((item) => item.response_type === 'action') ?? null;
-});
-
-const activeActionResponse = computed(() => {
-    if (isOwner.value || isAgent.value) {
-        return ownerActionResponse.value;
-    }
-
-    return null;
-});
-
-const canEditRecoAction = computed(() => {
-    const response = activeActionResponse.value;
-
-    if (isAgent.value) {
-        return Boolean(response?.can_edit);
-    }
-
-    if (isOwner.value) {
-        return true;
-    }
-
-    return false;
 });
 
 const selectedListDepartment = computed(() => (
@@ -736,11 +708,24 @@ function responsesForReco(reco) {
 }
 
 function actionResponseForReco(reco) {
-    if (activeActionResponse.value) {
-        return activeActionResponse.value;
+    return displayedResponses.value.find((response) => (
+        response.response_type === 'action'
+        && String(response.recommendation_id ?? '') === String(reco.id)
+    )) ?? null;
+}
+
+function canEditReco(reco) {
+    const response = actionResponseForReco(reco);
+
+    if (isAgent.value) {
+        return Boolean(response?.can_edit);
     }
 
-    return responsesForReco(reco).find((response) => response.response_type === 'action') ?? null;
+    if (isOwner.value) {
+        return true;
+    }
+
+    return false;
 }
 
 function syncListDepartmentSelection() {

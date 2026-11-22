@@ -6,22 +6,24 @@
     >
         <div class="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
             <div class="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
-                <div class="min-w-0 flex-1">
+                <div class="min-w-0">
                     <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Plan d'action</p>
-                    <h3 class="text-lg font-bold text-slate-900">Ligne {{ plan.line_number }}</h3>
+                    <div class="mt-1 flex flex-wrap items-center gap-2">
+                        <h3 class="text-lg font-bold text-slate-900">Ligne {{ plan.line_number }}</h3>
+                        <span
+                            class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
+                            :class="statusClasses"
+                        >
+                            <span class="h-1.5 w-1.5 rounded-full" :class="dotClass" />
+                            {{ plan.status_fr || '—' }}
+                        </span>
+                    </div>
                 </div>
                 <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
                     <button
-                        type="button"
-                        class="rounded border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50"
-                        @click="$emit('view', plan)"
-                    >
-                        Voir
-                    </button>
-                    <button
                         v-if="canEdit"
                         type="button"
-                        class="rounded border border-emerald-300 px-3 py-1.5 text-xs text-emerald-800 hover:bg-emerald-50"
+                        class="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-50"
                         @click="$emit('edit', plan)"
                     >
                         Modifier
@@ -29,32 +31,30 @@
                     <button
                         v-if="canEdit"
                         type="button"
-                        class="rounded border border-red-200 px-3 py-1.5 text-xs text-red-700 hover:bg-red-50"
+                        class="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50"
                         @click="$emit('delete', plan)"
                     >
                         Supprimer
                     </button>
                     <button
                         type="button"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-sm transition"
+                        class="rounded-lg border px-3 py-1.5 text-xs font-medium transition"
                         :class="section === 'attachments'
-                            ? 'border-slate-700 bg-slate-700 text-white'
-                            : 'border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100'"
-                        title="Pièces justificatives"
+                            ? 'border-slate-800 bg-slate-800 text-white'
+                            : 'border-slate-300 text-slate-700 hover:bg-slate-50'"
                         @click="toggleSection('attachments')"
                     >
-                        📎
+                        Pièces
                     </button>
                     <button
                         type="button"
-                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-semibold transition"
+                        class="rounded-lg border px-3 py-1.5 text-xs font-medium transition"
                         :class="section === 'replies'
                             ? 'border-emerald-700 bg-emerald-700 text-white'
-                            : 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'"
-                        title="Réponses aux actions"
+                            : 'border-emerald-300 text-emerald-800 hover:bg-emerald-50'"
                         @click="toggleSection('replies')"
                     >
-                        +
+                        Réponses
                     </button>
                     <button
                         type="button"
@@ -68,50 +68,33 @@
             </div>
 
             <div class="flex-1 overflow-y-auto p-6">
-                <div class="rounded-xl border border-emerald-100 bg-white p-5 shadow-sm">
-                    <h4 class="text-sm font-semibold uppercase tracking-wide text-emerald-800">Résumé</h4>
-                    <ul class="mt-4 space-y-2.5 text-sm">
-                        <li>
-                            <span class="text-slate-600">N° :</span>
-                            <span class="font-bold text-slate-900">{{ plan.line_number }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">Responsable :</span>
-                            <span class="font-bold text-slate-900">{{ plan.responsible_name || '—' }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">Échéance :</span>
-                            <span class="font-bold text-slate-900">{{ formatDate(plan.due_date) }}</span>
-                        </li>
-                        <li class="flex flex-wrap items-center gap-2">
-                            <span class="text-slate-600">Statut :</span>
-                            <span
-                                class="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium"
-                                :class="statusClasses"
-                            >
-                                <span class="h-2 w-2 rounded-full" :class="dotClass" />
-                                {{ plan.status_fr }}
-                            </span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">Date transmission :</span>
-                            <span class="font-bold text-slate-900">{{ formatDate(plan.transmission_date) }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">Retard (j) :</span>
-                            <span class="font-bold text-slate-900">{{ formatDelay(plan.delay_days) }}</span>
-                        </li>
-                        <li>
-                            <span class="text-slate-600">En attente :</span>
-                            <span class="font-bold text-slate-900">{{ plan.is_waiting ? 'Oui' : '—' }}</span>
-                        </li>
-                    </ul>
-                </div>
+                <article class="rounded-xl border border-slate-200 bg-white px-4 py-4">
+                    <h4 class="text-xs font-medium uppercase tracking-wide text-slate-500">Plan d'action</h4>
+                    <p class="mt-2 whitespace-pre-wrap text-sm text-slate-900">{{ plan.action_plan || '—' }}</p>
+                </article>
 
-                <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50/60 p-5">
-                    <h4 class="text-sm font-semibold text-slate-700">Plan d'action</h4>
-                    <p class="mt-2 whitespace-pre-wrap text-sm font-bold text-slate-900">{{ plan.action_plan || '—' }}</p>
-                </div>
+                <dl class="mt-4 grid gap-3 sm:grid-cols-3">
+                    <div class="rounded-xl bg-slate-50 px-3 py-2">
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Responsable</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ plan.responsible_name || '—' }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 px-3 py-2">
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Échéance</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ formatDate(plan.due_date) }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 px-3 py-2">
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">En attente</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ plan.is_waiting ? 'Oui' : 'Non' }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 px-3 py-2">
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Transmission</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ formatDate(plan.transmission_date) }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 px-3 py-2">
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Retard</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ formatDelay(plan.delay_days) }}</dd>
+                    </div>
+                </dl>
 
                 <div v-if="section === 'attachments'" class="mt-5 rounded-xl border border-slate-200 bg-slate-50/60 p-5">
                     <h4 class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -177,8 +160,8 @@ function formatDate(value) {
 }
 
 function formatDelay(value) {
-    if (value === null || value === undefined) return '—';
-    return value;
+    if (value === null || value === undefined || value === '') return '—';
+    return `${value} j`;
 }
 
 function toggleSection(name) {

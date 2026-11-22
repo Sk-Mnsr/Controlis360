@@ -101,6 +101,12 @@
                             </span>
                         </li>
                     </ul>
+
+                    <MissionRecoReturnsNotice
+                        class="mt-4"
+                        :returns="recommendation.returns ?? []"
+                        :show-reassign-hint="recommendation.status === 'retournee' && recommendation.can_edit"
+                    />
                 </div>
 
                 <div class="mt-6 space-y-5">
@@ -158,6 +164,7 @@ import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
 import { useAuthStore } from '../../stores/auth';
 import MissionRecoRegulatorCommentsPanel from '../../components/audit/MissionRecoRegulatorCommentsPanel.vue';
+import MissionRecoReturnsNotice from '../../components/audit/MissionRecoReturnsNotice.vue';
 
 const route = useRoute();
 const router = useRouter();

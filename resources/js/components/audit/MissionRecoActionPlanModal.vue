@@ -4,20 +4,40 @@
         class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
         @click.self="close"
     >
-        <div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
-            <div class="flex items-start justify-between gap-3">
+        <div class="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-6 py-5">
                 <div>
                     <h3 class="text-lg font-semibold text-slate-900">{{ title }}</h3>
-                    <p v-if="mode === 'view'" class="mt-1 text-sm text-slate-500">Détail de la ligne du plan d'action</p>
+                    <p class="mt-1 text-sm text-slate-500">{{ subtitle }}</p>
                 </div>
-                <button type="button" class="text-slate-400 hover:text-slate-700" @click="close">×</button>
+                <button
+                    type="button"
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                    title="Fermer"
+                    @click="close"
+                >
+                    ×
+                </button>
             </div>
 
-            <form class="mt-6 space-y-4" @submit.prevent="save">
-                <div class="grid gap-4 sm:grid-cols-2">
+            <form class="flex-1 space-y-5 overflow-y-auto px-6 py-5" @submit.prevent="save">
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-slate-700" for="action-plan-text">Plan d'action</label>
+                    <textarea
+                        id="action-plan-text"
+                        v-model="form.action_plan"
+                        rows="5"
+                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                        placeholder="Décrivez l'action à mener"
+                        :readonly="readonly"
+                    />
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-3">
                     <div>
-                        <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">N°</label>
+                        <label class="mb-1 block text-sm font-medium text-slate-700" for="action-plan-line">N°</label>
                         <input
+                            id="action-plan-line"
                             v-model.number="form.line_number"
                             type="number"
                             min="1"
@@ -26,8 +46,9 @@
                         />
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Responsable</label>
+                        <label class="mb-1 block text-sm font-medium text-slate-700" for="action-plan-owner">Responsable</label>
                         <input
+                            id="action-plan-owner"
                             v-model="form.responsible_name"
                             type="text"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
@@ -35,53 +56,48 @@
                         />
                     </div>
                     <div>
-                        <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Échéance</label>
+                        <label class="mb-1 block text-sm font-medium text-slate-700" for="action-plan-due">Échéance</label>
                         <input
+                            id="action-plan-due"
                             v-model="form.due_date"
                             type="date"
                             class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                             :readonly="readonly"
                         />
                     </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">En attente</label>
-                        <label class="flex h-[42px] items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm">
-                            <input
-                                v-model="form.is_waiting"
-                                type="checkbox"
-                                class="rounded border-slate-300"
-                                :disabled="readonly"
-                            />
-                            Oui
-                        </label>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Statut</label>
-                        <p class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">{{ statusLabel }}</p>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Date transmission</label>
-                        <p class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">{{ formatDate(form.transmission_date) }}</p>
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Retard (j)</label>
-                        <p class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm">{{ form.delay_days ?? '—' }}</p>
-                    </div>
                 </div>
 
-                <div>
-                    <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500">Plan d'action</label>
-                    <textarea
-                        v-model="form.action_plan"
-                        rows="4"
-                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        :readonly="readonly"
+                <label class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800">
+                    <span>
+                        <span class="font-medium">En attente</span>
+                        <span class="mt-0.5 block text-xs text-slate-500">L'action est bloquée en attendant un élément extérieur.</span>
+                    </span>
+                    <input
+                        v-model="form.is_waiting"
+                        type="checkbox"
+                        class="h-4 w-4 rounded border-slate-300 text-emerald-700"
+                        :disabled="readonly"
                     />
-                </div>
+                </label>
+
+                <dl v-if="mode !== 'create'" class="grid gap-3 sm:grid-cols-3">
+                    <div class="rounded-xl bg-slate-50 px-3 py-2">
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Statut</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ statusLabel }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 px-3 py-2">
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Transmission</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ formatDate(form.transmission_date) }}</dd>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 px-3 py-2">
+                        <dt class="text-xs font-medium uppercase tracking-wide text-slate-500">Retard</dt>
+                        <dd class="mt-1 text-sm font-semibold text-slate-900">{{ delayLabel }}</dd>
+                    </div>
+                </dl>
 
                 <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
 
-                <div class="flex flex-wrap justify-end gap-2">
+                <div class="flex flex-wrap justify-end gap-2 border-t border-slate-100 pt-4">
                     <button
                         type="button"
                         class="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
@@ -127,10 +143,15 @@ const form = ref(emptyForm());
 
 const readonly = computed(() => props.mode === 'view');
 const title = computed(() => ({
-    view: 'Voir le plan d\'action',
+    view: 'Plan d\'action',
     edit: 'Modifier le plan d\'action',
     create: 'Ajouter un plan d\'action',
 }[props.mode] ?? 'Plan d\'action'));
+const subtitle = computed(() => ({
+    view: 'Lecture seule de cette ligne.',
+    edit: 'Mettez à jour l\'action, le responsable ou l\'échéance.',
+    create: 'Décrivez l\'action à mener pour cette recommandation.',
+}[props.mode] ?? ''));
 
 const statusLabel = computed(() => {
     if (props.plan?.status_fr) return props.plan.status_fr;
@@ -138,6 +159,12 @@ const statusLabel = computed(() => {
     if (!form.value.action_plan?.trim()) return 'Non démarré';
     return ACTION_PLAN_STATUSES.find((item) => item.value === 'en_cours')?.label ?? 'En cours';
 });
+
+const delayLabel = computed(() => (
+    form.value.delay_days === null || form.value.delay_days === undefined || form.value.delay_days === ''
+        ? '—'
+        : `${form.value.delay_days} j`
+));
 
 function emptyForm() {
     return {

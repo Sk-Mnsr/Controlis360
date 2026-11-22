@@ -11,6 +11,29 @@ export function recoStatusBucket(status = 'emise') {
 }
 
 export function recommendationDepartments(reco) {
+    const assigned = assignedDepartments(reco);
+
+    if (assigned.length) {
+        return assigned;
+    }
+
+    const returned = reco.returns?.[0];
+
+    if (returned?.entity_id || returned?.entity_name) {
+        return [{
+            id: returned.entity_id ?? `retour-${returned.id}`,
+            name: returned.entity_name || 'Retournée',
+        }];
+    }
+
+    return [];
+}
+
+function assignedDepartments(reco) {
+    if (reco.status === 'retournee') {
+        return [];
+    }
+
     if (reco.entities?.length) {
         return reco.entities;
     }
@@ -153,7 +176,8 @@ export function recommendationsForOwner(recommendations, ownerEntityIds = []) {
     }
 
     return recommendations.filter((reco) => (
-        recommendationDepartments(reco).some((department) => ids.has(String(department.id)))
+        reco.status !== 'retournee'
+        && assignedDepartments(reco).some((department) => ids.has(String(department.id)))
     ));
 }
 

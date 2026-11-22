@@ -56,6 +56,7 @@ class Recommendation extends BaseModel
                 'en_cours' => 'En cours',
                 'traitee' => 'Traitée',
                 'transmis' => 'Transmis',
+                'retournee' => 'Retournée',
                 'cloturee' => 'Clôturée',
             ],
         ],
@@ -103,6 +104,12 @@ class Recommendation extends BaseModel
     public function regulatorTransmitter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'regulator_transmitted_by');
+    }
+
+    public function returns(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(RecommendationReturn::class)
+            ->orderByDesc('id');
     }
 
     public function regulatorComments(): \Illuminate\Database\Eloquent\Relations\HasMany

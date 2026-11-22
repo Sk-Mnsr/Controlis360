@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Mail\RecommendationReturnedMail;
 use App\Models\Mission;
 use App\Models\MissionResponse;
 use App\Models\Recommendation;
 use App\Models\RecommendationActionPlan;
+use App\Models\RecommendationReturn;
 use App\Models\User;
 use App\Services\ActionPlanStatusService;
 use App\Services\MissionRecipientResolver;
@@ -14,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
@@ -284,7 +287,7 @@ class RecommendationController extends APIController
                 'risk_level' => $data['risk_level'],
                 'risk_type' => $data['risk_type'],
                 'priority' => $data['priority'],
-                'status' => $recommendation->status,
+                'status' => $recommendation->status === 'retournee' ? 'emise' : $recommendation->status,
                 'responsible_name' => $primaryOwnerName ?: null,
                 'due_date' => $data['due_date'] ?? null,
                 'recommendation_label' => $data['recommendation_label'],
@@ -344,6 +347,100 @@ class RecommendationController extends APIController
         });
 
         $recommendation->load(['mission.entities.environment', 'entities', 'followUps.user']);
+
+        return $this->responseOk($this->formatDetail($recommendation, $user));
+    }
+
+    public function returnAssignment(Request $request, int $id)
+    {
+        $user = $request->user();
+        $recommendation = $this->findRecommendation($id);
+        $mission = $recommendation->mission;
+
+        if (! $this->responsableCanReturn($user, $recommendation)) {
+            return $this->responseError(['message' => ['Vous ne pouvez pas retourner cette recommandation.']], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'avis' => 'required|string|min:5|max:5000',
+        ], [
+            'avis.required' => 'Saisissez un avis pour expliquer le retour.',
+            'avis.min' => 'L\'avis doit contenir au moins 5 caractères.',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->responseError($validator->errors(), 422);
+        }
+
+        $avis = trim((string) $validator->validated()['avis']);
+        $detachIds = $this->returnableEntityIds($user, $recommendation);
+        $returnEntityId = $detachIds[0];
+
+        $return = DB::transaction(function () use ($recommendation, $mission, $user, $avis, $detachIds, $returnEntityId) {
+            $record = RecommendationReturn::query()->create([
+                'recommendation_id' => $recommendation->id,
+                'entity_id' => $returnEntityId,
+                'user_id' => $user->id,
+                'author_name' => $user->name,
+                'avis' => $avis,
+            ]);
+
+            $recommendation->entities()->detach($detachIds);
+
+            $remaining = $recommendation->entities()
+                ->pluck('entities.id')
+                ->map(fn ($entityId) => (int) $entityId)
+                ->values()
+                ->all();
+
+            $previousPrimary = $recommendation->primary_entity_id
+                ? (int) $recommendation->primary_entity_id
+                : null;
+            $newPrimary = $previousPrimary && in_array($previousPrimary, $remaining, true)
+                ? $previousPrimary
+                : ($remaining[0] ?? null);
+
+            $recommendation->update([
+                'primary_entity_id' => $newPrimary,
+                'responsible_name' => $newPrimary
+                    ? ($this->recipientResolver->resolveResponsibleNames([$newPrimary]) ?: null)
+                    : null,
+                'status' => $remaining === [] ? 'retournee' : $recommendation->status,
+            ]);
+
+            MissionResponse::query()
+                ->where('mission_id', $mission->id)
+                ->where('recommendation_id', $recommendation->id)
+                ->where('responsable_id', $user->id)
+                ->where('workflow_status', '!=', 'transmis')
+                ->delete();
+
+            $this->recommendationStatusService->syncMissionStatus($mission->fresh('recommendations'));
+
+            return $record;
+        });
+
+        $recommendation = $recommendation->fresh();
+        $mission->loadMissing('creator');
+        $creator = $mission->creator;
+
+        if ($creator?->email) {
+            try {
+                $return->load('entity');
+                Mail::to($creator->email)->send(new RecommendationReturnedMail(
+                    $mission,
+                    $recommendation,
+                    $return,
+                    $creator,
+                    $user,
+                ));
+            } catch (Throwable $e) {
+                Log::warning('Envoi du mail de retour de recommandation échoué', [
+                    'recommendation_id' => $recommendation->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         return $this->responseOk($this->formatDetail($recommendation, $user));
     }
@@ -679,6 +776,11 @@ class RecommendationController extends APIController
             $with[] = 'regulatorComments.user';
         }
 
+        if (Schema::hasTable('recommendation_returns')) {
+            $with[] = 'returns.user';
+            $with[] = 'returns.entity';
+        }
+
         return Recommendation::query()
             ->with($with)
             ->findOrFail($id);
@@ -770,6 +872,106 @@ class RecommendationController extends APIController
         return $paths;
     }
 
+    private function responsableCanReturn(User $user, Recommendation $recommendation): bool
+    {
+        if ($user->isSuperAdmin()) {
+            if (! in_array($recommendation->status, ['emise', 'en_cours'], true)) {
+                return false;
+            }
+
+            if ($recommendation->regulator_transmitted_at) {
+                return false;
+            }
+
+            return $this->returnableEntityIds($user, $recommendation) !== [];
+        }
+
+        if (! $user->isAuditMetierResponsable()) {
+            return false;
+        }
+
+        if (! in_array($recommendation->status, ['emise', 'en_cours'], true)) {
+            return false;
+        }
+
+        if ($recommendation->regulator_transmitted_at) {
+            return false;
+        }
+
+        $mission = $recommendation->mission;
+
+        if (! $mission || ! $mission->recipients()->where('users.id', $user->id)->exists()) {
+            return false;
+        }
+
+        if ($this->returnableEntityIds($user, $recommendation) === []) {
+            return false;
+        }
+
+        return ! MissionResponse::query()
+            ->where('mission_id', $mission->id)
+            ->where('recommendation_id', $recommendation->id)
+            ->where('responsable_id', $user->id)
+            ->where('workflow_status', 'transmis')
+            ->exists();
+    }
+
+    private function returnableEntityIds(User $user, Recommendation $recommendation): array
+    {
+        $linkedIds = $recommendation->entities
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+        $primaryId = $recommendation->primary_entity_id
+            ? (int) $recommendation->primary_entity_id
+            : null;
+
+        if ($user->isSuperAdmin()) {
+            if ($primaryId) {
+                array_unshift($linkedIds, $primaryId);
+            }
+
+            return array_values(array_unique($linkedIds));
+        }
+
+        $ownerIds = array_map('intval', $user->entity_ids ?? []);
+
+        $ids = array_values(array_intersect($ownerIds, $linkedIds));
+        $primaryId = $recommendation->primary_entity_id
+            ? (int) $recommendation->primary_entity_id
+            : null;
+
+        if ($primaryId && in_array($primaryId, $ownerIds, true)) {
+            array_unshift($ids, $primaryId);
+        }
+
+        return array_values(array_unique($ids));
+    }
+
+    private function formatReturns(Recommendation $recommendation): array
+    {
+        if (! Schema::hasTable('recommendation_returns')) {
+            return [];
+        }
+
+        $returns = $recommendation->relationLoaded('returns')
+            ? $recommendation->returns
+            : $recommendation->returns()->with(['user', 'entity'])->get();
+
+        return $returns
+            ->sortByDesc('id')
+            ->map(fn (RecommendationReturn $item) => [
+                'id' => $item->id,
+                'avis' => $item->avis,
+                'author_name' => $item->author_name ?: $item->user?->name,
+                'entity_id' => $item->entity_id ? (int) $item->entity_id : null,
+                'entity_name' => $item->entity?->name,
+                'created_at' => $item->created_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
     private function canFollowUpRecommendation(User $user, Recommendation $recommendation): bool
     {
         return $this->canManageActionPlans($user, $recommendation);
@@ -790,6 +992,16 @@ class RecommendationController extends APIController
 
     private function resolveActionPlanOwnerId(User $user, Recommendation $recommendation): ?int
     {
+        if ($user->isSuperAdmin()) {
+            $response = MissionResponse::query()
+                ->where('mission_id', $recommendation->mission_id)
+                ->where('recommendation_id', $recommendation->id)
+                ->where('response_type', 'action')
+                ->first();
+
+            return $response ? (int) $response->responsable_id : (int) $user->id;
+        }
+
         if ($user->isAuditMetierResponsable()) {
             $entityIds = $user->entity_ids;
             $primaryEntityId = $recommendation->primary_entity_id
@@ -818,6 +1030,7 @@ class RecommendationController extends APIController
         if ($user->isAuditMetierAgent()) {
             $response = MissionResponse::query()
                 ->where('mission_id', $recommendation->mission_id)
+                ->where('recommendation_id', $recommendation->id)
                 ->where('assigned_agent_id', $user->id)
                 ->where('response_type', 'action')
                 ->where('workflow_status', 'en_saisie')
@@ -841,6 +1054,10 @@ class RecommendationController extends APIController
 
     private function canSyncActionPlans(User $user, Recommendation $recommendation): bool
     {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
         if ($this->resolveActionPlanOwnerId($user, $recommendation) === null) {
             return false;
         }
@@ -849,6 +1066,7 @@ class RecommendationController extends APIController
             return ! MissionResponse::query()
                 ->where('mission_id', $recommendation->mission_id)
                 ->where('responsable_id', $user->id)
+                ->where('recommendation_id', $recommendation->id)
                 ->where('response_type', 'action')
                 ->where('handling_mode', 'agent')
                 ->where('workflow_status', 'en_saisie')
@@ -864,6 +1082,10 @@ class RecommendationController extends APIController
             return false;
         }
 
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
         $ownerId = $this->resolveActionPlanOwnerId($user, $recommendation);
 
         if (! $ownerId || (int) $plan->user_id !== (int) $ownerId) {
@@ -877,12 +1099,12 @@ class RecommendationController extends APIController
     {
         $mission = $recommendation->mission;
 
-        if ($mission->responses->isNotEmpty()) {
-            return false;
-        }
-
         if ($user->isSuperAdmin()) {
             return true;
+        }
+
+        if ($mission->responses->isNotEmpty() && $recommendation->status !== 'retournee') {
+            return false;
         }
 
         if ($user->isEnvironmentAdmin()) {
@@ -1229,6 +1451,8 @@ class RecommendationController extends APIController
                 ? $this->formatRegulatorCommentsByType($recommendation, 'avis')
                 : [],
             'follow_ups' => $this->formatFollowUps($recommendation, $viewer),
+            'returns' => $this->formatReturns($recommendation),
+            'can_return' => $viewer ? $this->responsableCanReturn($viewer, $recommendation) : false,
             'action_plans' => $this->formatActionPlans($recommendation, $viewer),
         ];
     }
@@ -1262,7 +1486,8 @@ class RecommendationController extends APIController
             ? $plan->recommendation
             : $plan->recommendation()->first();
         $ownerId = $viewer && $recommendation ? $this->resolveActionPlanOwnerId($viewer, $recommendation) : null;
-        $isOwnerPlan = $ownerId && (int) $plan->user_id === (int) $ownerId;
+        $isOwnerPlan = ($viewer && $viewer->isSuperAdmin())
+            || ($ownerId && (int) $plan->user_id === (int) $ownerId);
         $canSync = $viewer && $recommendation && $this->canSyncActionPlans($viewer, $recommendation);
 
         return [
