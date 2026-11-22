@@ -15,6 +15,10 @@
             {{ error }}
         </div>
 
+        <div v-else-if="!visibleTypes.length" class="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+            <p class="text-sm text-slate-500">{{ emptyMessage }}</p>
+        </div>
+
         <div v-else class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             <button
                 v-for="type in visibleTypes"
@@ -80,24 +84,40 @@ const missionCountByType = computed(() => {
     return counts;
 });
 
+const isMetier = computed(() => auth.user?.profile === 'metier');
+
+const emptyMessage = computed(() => (
+    isMetier.value
+        ? 'Aucune mission ne vous a été adressée.'
+        : 'Aucun type de mission n\'est disponible.'
+));
+
 const visibleTypes = computed(() => {
+    const catalog = missionTypes.value;
     const typesFromMissions = [...new Set(missions.value.map((mission) => mission.mission_type).filter(Boolean))];
     const profile = auth.user?.profile;
-    const profileTypes = profile === 'metier' || profile === 'super_admin' || profile === 'admin'
-        ? missionTypes.value.map((type) => type.value)
-        : missionTypes.value
+    const profileTypes = profile === 'super_admin' || profile === 'admin'
+        ? catalog.map((type) => type.value)
+        : catalog
             .filter((type) => (type.profiles ?? []).includes(profile))
             .map((type) => type.value);
     const typeValues = typesFromMissions.length ? typesFromMissions : profileTypes;
 
-    return missionTypes.value
-        .filter((type) => typeValues.includes(type.value))
-        .map((type) => ({
-            ...type,
-            accent: type.accent_color ?? '#047857',
-            description: type.description ?? 'Consulter les missions enregistrées pour ce type.',
-            count: missionCountByType.value[type.value] ?? 0,
-        }));
+    return typeValues
+        .map((value) => {
+            const type = catalog.find((item) => item.value === value);
+            const sample = missions.value.find((mission) => mission.mission_type === value);
+
+            return {
+                value,
+                label: type?.label ?? sample?.mission_type_fr ?? value,
+                accent: type?.accent_color ?? '#047857',
+                description: type?.description ?? 'Consulter les missions enregistrées pour ce type.',
+                count: missionCountByType.value[value] ?? 0,
+                sort: type?.sort_order ?? 999,
+            };
+        })
+        .sort((left, right) => left.sort - right.sort || left.label.localeCompare(right.label, 'fr'));
 });
 
 function extractMissions(data) {
