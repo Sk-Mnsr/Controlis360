@@ -257,6 +257,39 @@ function onFileSelected(index, event) {
     }
 }
 
+function attachmentErrorMessage(err) {
+    const data = err.response?.data;
+
+    if (data && typeof data === 'object') {
+        const errors = data.errors;
+        if (errors && typeof errors === 'object') {
+            const text = Object.values(errors)
+                .map((value) => (Array.isArray(value) ? value.join(' ') : String(value ?? '')))
+                .join(' ')
+                .replace(/<br\s*\/?>/gi, ' ')
+                .trim();
+
+            if (text) {
+                return text;
+            }
+        }
+
+        if (typeof data.message === 'string' && data.message.trim()) {
+            return data.message;
+        }
+
+        if (Array.isArray(data.message) && data.message[0]) {
+            return String(data.message[0]);
+        }
+    }
+
+    if (err.response?.status === 413) {
+        return 'Le fichier est trop volumineux pour le serveur.';
+    }
+
+    return 'Enregistrement impossible.';
+}
+
 function markForRemoval(path) {
     if (!pendingRemoval.value.includes(path)) {
         pendingRemoval.value.push(path);
@@ -271,6 +304,12 @@ async function save() {
 
     if (invalidSlot) {
         error.value = 'Chaque pièce doit avoir un nom, une date et un fichier.';
+        return;
+    }
+
+    const oversized = slotsToUpload.find((slot) => slot.file.size > 50 * 1024 * 1024);
+    if (oversized) {
+        error.value = `« ${oversized.file.name} » dépasse 50 Mo.`;
         return;
     }
 
@@ -300,9 +339,7 @@ async function save() {
         resetSlots();
         emit('updated', data?.data ?? data);
     } catch (err) {
-        error.value = err.response?.data?.message?.[0]
-            ?? err.response?.data?.attachment_names?.[0]?.[0]
-            ?? 'Enregistrement impossible.';
+        error.value = attachmentErrorMessage(err);
     } finally {
         saving.value = false;
     }

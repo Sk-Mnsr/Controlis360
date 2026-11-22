@@ -209,13 +209,19 @@ class MissionResponseController extends APIController
 
         $validator = Validator::make($request->all(), [
             'attachments' => 'nullable|array',
-            'attachments.*' => 'file|max:10240',
+            'attachments.*' => 'file|max:51200',
             'attachment_names' => 'nullable|array',
             'attachment_names.*' => 'nullable|string|max:255',
             'attachment_dates' => 'nullable|array',
             'attachment_dates.*' => 'nullable|date',
             'remove_attachments' => 'nullable|array',
             'remove_attachments.*' => 'string',
+        ], [
+            'attachments.*.uploaded' => 'Le fichier n’a pas pu être envoyé. Il dépasse la limite du serveur ('.ini_get('upload_max_filesize').').',
+            'attachments.*.file' => 'Le fichier n’a pas pu être reçu.',
+            'attachments.*.max' => 'Chaque pièce justificative doit faire au plus 50 Mo.',
+            'attachment_names.*.max' => 'Le nom du fichier ne doit pas dépasser 255 caractères.',
+            'attachment_dates.*.date' => 'La date de jointure est invalide.',
         ]);
 
         if ($validator->fails()) {
