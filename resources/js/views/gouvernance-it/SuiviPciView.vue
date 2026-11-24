@@ -221,9 +221,9 @@
             </form>
         </div>
 
-        <div v-if="filesTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-            <div class="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-                <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
+        <div v-if="filesTarget" class="fixed inset-0 z-50 flex flex-col bg-white">
+            <div class="flex min-h-0 flex-1 flex-col">
+                <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-8 py-5">
                     <div class="min-w-0">
                         <p class="text-xs font-semibold uppercase tracking-wide text-blue-700">{{ filesTarget.reference }}</p>
                         <h3 class="mt-1 text-xl font-semibold text-slate-900">{{ filesTarget.document_name }}</h3>
@@ -246,14 +246,14 @@
                     <button type="button" class="rounded-lg border border-slate-200 px-2.5 py-1 text-slate-500 hover:bg-slate-50" @click="filesTarget = null">×</button>
                 </div>
 
-                <div class="space-y-5 overflow-y-auto px-6 py-5">
+                <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-8 py-6">
                     <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3" :class="validationTone.box">
                         <div class="min-w-0">
                             <p class="text-xs font-semibold uppercase tracking-wide" :class="validationTone.title">Validation responsable</p>
                             <p class="mt-0.5 text-sm text-slate-800">{{ validationSentence }}</p>
                         </div>
                         <button
-                            v-if="permissions.can_validate && filesTarget.workflow_status === 'pending_validation'"
+                            v-if="canValidateWorkflow && filesTarget.workflow_status === 'pending_validation'"
                             type="button"
                             class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                             :disabled="validating"
@@ -262,7 +262,7 @@
                             {{ validating ? 'Validation…' : 'Valider' }}
                         </button>
                         <button
-                            v-if="permissions.can_validate && filesTarget.workflow_status === 'pending_deletion'"
+                            v-if="canValidateWorkflow && filesTarget.workflow_status === 'pending_deletion'"
                             type="button"
                             class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white"
                             @click="askConfirmDeletion"
@@ -350,7 +350,7 @@
                     </section>
                 </div>
 
-                <div class="flex items-center justify-between gap-2 border-t border-slate-200 bg-white px-6 py-4">
+                <div class="flex items-center justify-between gap-2 border-t border-slate-200 bg-white px-8 py-4">
                     <button type="button" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100" @click="filesTarget = null">Fermer</button>
                     <div class="flex gap-2">
                         <button
@@ -405,7 +405,10 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import api from '../../api/client';
+import { useAuthStore } from '../../stores/auth';
 import { downloadAttachment, isPreviewableAttachment, previewAttachment } from '../../utils/attachments';
+
+const auth = useAuthStore();
 
 const loading = ref(true);
 const saving = ref(false);
@@ -417,6 +420,12 @@ const filiales = ref([]);
 const canSelectFiliale = ref(false);
 const selectedEnvironmentId = ref('');
 const permissions = ref({ can_create: false, can_edit: false, can_delete: false, can_validate: false });
+const canValidateWorkflow = computed(() => {
+    const profile = auth.user?.profile;
+    return permissions.value.can_validate
+        && ['super_admin', 'admin', 'responsable_it'].includes(profile)
+        && profile !== 'agent_it';
+});
 const validating = ref(false);
 const statusFilter = ref('');
 const formOpen = ref(false);
