@@ -52,8 +52,14 @@ class ItProjectPolicy
 
     private function canAccess(User $user): bool
     {
+        $profile = $user->moduleProfile('gouvernance-it') ?? $user->profile;
+
+        if ($profile === 'visiteur_it') {
+            return $user->hasGouvernanceSubmodule('cartographie');
+        }
+
         return $user->hasModuleAccess('gouvernance-it')
-            || in_array($user->moduleProfile('gouvernance-it') ?? $user->profile, [
+            || in_array($profile, [
                 'super_admin', 'admin', 'agent_it', 'responsable_it', 'responsable_regional',
             ], true);
     }

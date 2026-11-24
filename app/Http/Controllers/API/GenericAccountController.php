@@ -230,7 +230,13 @@ class GenericAccountController extends APIController
 
     private function canAccess(User $user): bool
     {
-        return in_array($this->gouvernanceProfile($user), [
+        $profile = $this->gouvernanceProfile($user);
+
+        if ($profile === 'visiteur_it') {
+            return $user->hasGouvernanceSubmodule('registre');
+        }
+
+        return in_array($profile, [
             'super_admin',
             'admin',
             'agent_it',

@@ -67,6 +67,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { gouvernanceVisitorSubmodules, isGouvernanceVisitor } from '../../config/module-access';
 import { useAuthStore } from '../../stores/auth';
 
 const auth = useAuthStore();
@@ -80,7 +81,7 @@ const roleLabel = computed(() => {
     return user.profile_fr ?? '';
 });
 
-const subModules = [
+const allSubModules = [
     {
         key: 'govstrat',
         title: 'GovStrat IT-R',
@@ -118,4 +119,14 @@ const subModules = [
         linkClass: 'bg-blue-50 text-blue-800',
     },
 ];
+
+const subModules = computed(() => {
+    if (!isGouvernanceVisitor(auth.user)) {
+        return allSubModules;
+    }
+
+    const allowed = gouvernanceVisitorSubmodules(auth.user);
+
+    return allSubModules.filter((item) => allowed.includes(item.key));
+});
 </script>

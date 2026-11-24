@@ -8,7 +8,7 @@
                     Référentiel inventaire — structure CARTOGRAPHIE_APP COFSN
                 </p>
             </div>
-            <button type="button" class="apps-btn-primary" @click="openCreate">
+            <button v-if="!readOnlyVisitor" type="button" class="apps-btn-primary" @click="openCreate">
                 + Nouvelle application
             </button>
         </header>
@@ -125,7 +125,7 @@
                         <td>{{ app.version || '—' }}</td>
                         <td>{{ app.last_version || '—' }}</td>
                         <td class="apps-actions">
-                            <div class="apps-action-btns">
+                            <div v-if="!readOnlyVisitor" class="apps-action-btns">
                                 <button
                                     type="button"
                                     class="apps-icon-btn"
@@ -351,14 +351,17 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
+import { isGouvernanceVisitor } from '../../config/module-access';
+import { useAuthStore } from '../../stores/auth';
 import OperationalRiskConfirmModal from '../../components/cartographie/OperationalRiskConfirmModal.vue';
 import { useFilialeSelection } from '../../composables/useFilialeSelection';
 
 const route = useRoute();
 const router = useRouter();
+const readOnlyVisitor = computed(() => isGouvernanceVisitor(useAuthStore().user));
 const {
     environments,
     selectedEnvironmentId,

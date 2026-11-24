@@ -10,7 +10,7 @@
             </div>
             <div class="itp-actions">
                 <button type="button" class="itp-btn-secondary" @click="loadRows">Actualiser</button>
-                <button type="button" class="itp-btn-primary" @click="openCreate">+ Nouveau projet</button>
+                <button v-if="!readOnlyVisitor" type="button" class="itp-btn-primary" @click="openCreate">+ Nouveau projet</button>
             </div>
         </header>
 
@@ -78,8 +78,10 @@
                         <td class="itp-wide">{{ row.comment || '—' }}</td>
                         <td>{{ row.delivery_date || '—' }}</td>
                         <td class="itp-row-actions">
-                            <button type="button" class="itp-link" @click="openEdit(row)">Modifier</button>
-                            <button type="button" class="itp-link danger" @click="removeRow(row)">Supprimer</button>
+                            <template v-if="!readOnlyVisitor">
+                                <button type="button" class="itp-link" @click="openEdit(row)">Modifier</button>
+                                <button type="button" class="itp-link danger" @click="removeRow(row)">Supprimer</button>
+                            </template>
                         </td>
                     </tr>
                     <tr v-if="!rows.length">
@@ -136,9 +138,13 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import api from '../../api/client';
+import { isGouvernanceVisitor } from '../../config/module-access';
+import { useAuthStore } from '../../stores/auth';
 import { useFilialeSelection } from '../../composables/useFilialeSelection';
+
+const readOnlyVisitor = computed(() => isGouvernanceVisitor(useAuthStore().user));
 
 const {
     environments,

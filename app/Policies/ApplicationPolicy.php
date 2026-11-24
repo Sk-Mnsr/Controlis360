@@ -57,11 +57,17 @@ class ApplicationPolicy
 
     private function canAccessInventory(User $user): bool
     {
+        $profile = $this->gouvernanceProfile($user);
+
+        if ($profile === 'visiteur_it') {
+            return $user->hasGouvernanceSubmodule('cartographie');
+        }
+
         if ($user->hasModuleAccess('gouvernance-it') || $user->hasModuleAccess('cartographie-applications')) {
             return true;
         }
 
-        return in_array($this->gouvernanceProfile($user), [
+        return in_array($profile, [
             'super_admin',
             'admin',
             'agent_it',

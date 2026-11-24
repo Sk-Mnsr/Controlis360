@@ -541,7 +541,7 @@ const attachmentsModal = reactive({
 const owners = computed(() => props.owners);
 
 function canManageSection() {
-    return true;
+    return auth.user?.profile !== 'visiteur_it';
 }
 
 function isOwnerOfRow(row) {
@@ -771,7 +771,7 @@ function openAttachmentsModal(row) {
     attachmentsModal.activityId = row.id;
     attachmentsModal.activityTitle = row.title || '';
     attachmentsModal.attachments = [...(row.attachments || [])];
-    attachmentsModal.canEdit = true;
+    attachmentsModal.canEdit = auth.user?.profile !== 'visiteur_it';
     attachmentsModal.rowRef = row;
 }
 

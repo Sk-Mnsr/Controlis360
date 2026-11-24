@@ -32,6 +32,7 @@
                 :loading="loading"
                 :selectable="canSelectFiliale"
                 :filiales="filiales"
+                :show-add="canManageOperations()"
                 @add="onAdd"
                 @change="onFilialeChange"
             />
@@ -54,6 +55,7 @@
 import { nextTick, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '../../api/client';
+import { isGouvernanceVisitor, visitorHasGouvernanceSubmodule } from '../../config/module-access';
 import { useAuthStore } from '../../stores/auth';
 import GovItWorkspaceHeader from '../../components/gouvernance-it/GovItWorkspaceHeader.vue';
 import GovItActivityBoard from '../../components/gouvernance-it/GovItActivityBoard.vue';
@@ -90,8 +92,13 @@ const owners = ref([]);
 const boardRef = ref(null);
 const canAccess = ref(false);
 
-function canAccessOperations() {
+function canManageOperations() {
     return ['super_admin', 'admin', 'agent_it', 'responsable_it'].includes(auth.user?.profile);
+}
+
+function canAccessOperations() {
+    return canManageOperations()
+        || (isGouvernanceVisitor(auth.user) && visitorHasGouvernanceSubmodule(auth.user, 'govstrat'));
 }
 
 function environmentIdFromRoute() {

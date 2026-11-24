@@ -11,6 +11,7 @@ export const PROFILE_LABELS = {
     agent_it: 'Agent IT',
     responsable_it: 'Responsable IT',
     responsable_regional: 'Responsable Régional',
+    visiteur_it: 'Visiteur',
     metier: 'Métier',
     client: 'Client',
     comite: 'Comité',
@@ -39,6 +40,7 @@ export const MODULE_PROFILE_OPTIONS = {
         { value: 'agent_it', label: PROFILE_LABELS.agent_it },
         { value: 'responsable_it', label: PROFILE_LABELS.responsable_it },
         { value: 'responsable_regional', label: PROFILE_LABELS.responsable_regional },
+        { value: 'visiteur_it', label: PROFILE_LABELS.visiteur_it },
     ],
     'vente-encheres': [
         { value: 'client', label: PROFILE_LABELS.client },
@@ -51,7 +53,7 @@ const MODULE_PROFILES = {
     cartographie: ['super_admin', 'admin', 'superviseur', 'controle', 'metier'],
     audit: ['super_admin', 'admin', 'regulateur', 'controle', 'audit', 'metier'],
     conformite: ['super_admin', 'admin', 'conformite', 'metier'],
-    'gouvernance-it': ['super_admin', 'admin', 'agent_it', 'responsable_it', 'responsable_regional'],
+    'gouvernance-it': ['super_admin', 'admin', 'agent_it', 'responsable_it', 'responsable_regional', 'visiteur_it'],
     'vente-encheres': ['super_admin', 'admin', 'client', 'comite', 'admin_encheres'],
 };
 
@@ -105,6 +107,7 @@ export function emptyModuleAssignment(slug) {
         controle_role: 'agent_controle_interne',
         audit_role: 'agent_audit',
         metier_role: 'visiteur',
+        submodules: slug === 'gouvernance-it' ? ['doc-gouvernance'] : undefined,
     };
 }
 
@@ -146,6 +149,7 @@ export function defaultModuleAssignments(user = {}) {
                 controle_role: saved.controle_role ?? base.controle_role,
                 audit_role: saved.audit_role ?? base.audit_role,
                 metier_role: saved.metier_role ?? base.metier_role,
+                submodules: Array.isArray(saved.submodules) ? saved.submodules : base.submodules,
             };
         }
 
@@ -214,6 +218,12 @@ export function assignmentsToPayload(assignments = []) {
         if (encheres) {
             moduleProfiles[item.slug].profiles = encheres.profiles;
         }
+
+        if (item.slug === 'gouvernance-it' && profile === 'visiteur_it') {
+            const picked = (Array.isArray(item.submodules) ? item.submodules : [])
+                .filter((value) => GOUVERNANCE_SUBMODULE_VALUES.includes(value));
+            moduleProfiles[item.slug].submodules = picked.length ? picked : ['doc-gouvernance'];
+        }
     }
 
     return { modules: moduleSlugs, module_profiles: moduleProfiles };
@@ -264,7 +274,67 @@ export function assignmentsToSuperAdminPayload(assignments = []) {
     return { modules: [...ALL_MODULE_SLUGS], module_profiles: moduleProfiles };
 }
 
-export const GOUVERNANCE_IT_PROFILES = ['agent_it', 'responsable_it', 'responsable_regional'];
+export const GOUVERNANCE_IT_PROFILES = ['agent_it', 'responsable_it', 'responsable_regional', 'visiteur_it'];
+
+export const GOUVERNANCE_IT_SUBMODULES = [
+    { value: 'govstrat', label: 'GovStrat IT-R' },
+    { value: 'cartographie', label: 'Cartographie des applications' },
+    { value: 'registre', label: 'Registre de comptes génériques' },
+    { value: 'doc-gouvernance', label: 'Doc Gouvernance' },
+];
+
+const GOUVERNANCE_SUBMODULE_VALUES = GOUVERNANCE_IT_SUBMODULES.map((item) => item.value);
+
+export function isGouvernanceVisitor(user) {
+    if (!user) {
+        return false;
+    }
+
+    const moduleProfile = user.module_profiles?.['gouvernance-it']?.profile ?? user.profile;
+
+    return moduleProfile === 'visiteur_it' || user.profile === 'visiteur_it';
+}
+
+export function gouvernanceVisitorSubmodules(user) {
+    const stored = user?.module_profiles?.['gouvernance-it']?.submodules;
+    const picked = Array.isArray(stored)
+        ? stored.filter((item) => GOUVERNANCE_SUBMODULE_VALUES.includes(item))
+        : [];
+
+    return picked.length ? picked : ['doc-gouvernance'];
+}
+
+export function visitorHasGouvernanceSubmodule(user, key) {
+    if (!isGouvernanceVisitor(user)) {
+        return true;
+    }
+
+    return gouvernanceVisitorSubmodules(user).includes(key);
+}
+
+export function gouvernanceRouteSubmodule(routeName) {
+    if (!routeName || routeName === 'gouvernance-it.home') {
+        return null;
+    }
+
+    if (routeName.startsWith('gouvernance-it.cartographie')) {
+        return 'cartographie';
+    }
+
+    if (routeName === 'gouvernance-it.registre-comptes-generiques') {
+        return 'registre';
+    }
+
+    if (routeName === 'gouvernance-it.suivi-pci') {
+        return 'doc-gouvernance';
+    }
+
+    if (routeName.startsWith('gouvernance-it.')) {
+        return 'govstrat';
+    }
+
+    return null;
+}
 
 export const GOUVERNANCE_IT_ROLE_BY_PROFILE = {
     agent_it: 'AGIT',

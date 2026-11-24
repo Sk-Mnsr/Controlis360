@@ -45,7 +45,7 @@ class GouvernanceItController extends APIController
     {
         $user = $request->user();
 
-        if (! in_array($user->profile, self::GOUVERNANCE_IT_PROFILES, true)) {
+        if (! $this->canReadGovstrat($user)) {
             return $this->responseError(['auth' => ['Accès non autorisé']], 403);
         }
 
@@ -87,7 +87,7 @@ class GouvernanceItController extends APIController
     {
         $user = $request->user();
 
-        if (! in_array($user->profile, self::OPERATIONS_PROFILES, true)) {
+        if (! $this->canReadGovstrat($user)) {
             return $this->responseError(['auth' => ['Accès non autorisé']], 403);
         }
 
@@ -1138,8 +1138,28 @@ class GouvernanceItController extends APIController
             ->contains((int) $activity->environment_id);
     }
 
+    private function canReadGovstrat(User $user): bool
+    {
+        $profile = $user->isPlatformAdministrator()
+            ? $user->profile
+            : ($user->moduleProfile('gouvernance-it') ?? $user->profile);
+
+        if (in_array($profile, self::GOUVERNANCE_IT_PROFILES, true)) {
+            return true;
+        }
+
+        return $profile === 'visiteur_it' && $user->hasGouvernanceSubmodule('govstrat');
+    }
+
     private function userCanViewRetroplanning(User $user, GouvernanceItActivity $activity): bool
     {
+        $profile = $user->moduleProfile('gouvernance-it') ?? $user->profile;
+
+        if ($profile === 'visiteur_it') {
+            return $user->hasGouvernanceSubmodule('govstrat')
+                && $this->userCanAccessActivity($user, $activity);
+        }
+
         if (! in_array($user->profile, self::GOUVERNANCE_IT_PROFILES, true) && ! $user->isSuperAdmin()) {
             return false;
         }

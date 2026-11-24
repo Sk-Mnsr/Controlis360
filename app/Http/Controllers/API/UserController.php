@@ -27,11 +27,13 @@ class UserController extends APIController
 
     protected array $updateRelationArray = ['environments', 'entities'];
 
-    private const PROFILE_RULE = 'super_admin,admin,superviseur,regulateur,controle,audit,conformite,agent_it,responsable_it,responsable_regional,metier,client,comite,admin_encheres';
+    private const PROFILE_RULE = 'super_admin,admin,superviseur,regulateur,controle,audit,conformite,agent_it,responsable_it,responsable_regional,visiteur_it,metier,client,comite,admin_encheres';
 
     private const MODULE_RULE = 'cartographie,audit,conformite,gouvernance-it,vente-encheres';
 
-    private const GOUVERNANCE_IT_PROFILES = ['agent_it', 'responsable_it', 'responsable_regional'];
+    private const GOUVERNANCE_IT_PROFILES = ['agent_it', 'responsable_it', 'responsable_regional', 'visiteur_it'];
+
+    private const GOUVERNANCE_SUBMODULES = ['govstrat', 'cartographie', 'registre', 'doc-gouvernance'];
 
     private const GOUVERNANCE_IT_ROLE_BY_PROFILE = [
         'agent_it' => 'agit',
@@ -331,6 +333,21 @@ class UserController extends APIController
 
     private function validateModuleAssignments(array $requestData, ?User $target = null): ?array
     {
+        $assignedProfiles = $requestData['module_profiles'] ?? $target?->module_profiles ?? [];
+        $gouvernance = is_array($assignedProfiles) ? ($assignedProfiles['gouvernance-it'] ?? null) : null;
+        if (is_array($gouvernance) && ($gouvernance['profile'] ?? null) === 'visiteur_it') {
+            $picked = array_values(array_intersect(
+                self::GOUVERNANCE_SUBMODULES,
+                array_map('strval', (array) ($gouvernance['submodules'] ?? [])),
+            ));
+            if ($picked === []) {
+                return [
+                    'errors' => ['module_profiles' => ['Cochez au moins un sous-module Gouvernance IT pour le visiteur.']],
+                    'status' => 422,
+                ];
+            }
+        }
+
         $profile = $requestData['profile'] ?? $target?->profile;
         $moduleProfiles = $requestData['module_profiles'] ?? $target?->module_profiles;
         $modules = $requestData['modules'] ?? $target?->modules ?? [];
@@ -386,7 +403,7 @@ class UserController extends APIController
             $requestData['audit_role'] = null;
         }
 
-        if (in_array($profile, self::GOUVERNANCE_IT_PROFILES, true)) {
+        if (isset(self::GOUVERNANCE_IT_ROLE_BY_PROFILE[$profile])) {
             $requestData['gouvernance_it_role'] = self::GOUVERNANCE_IT_ROLE_BY_PROFILE[$profile];
         } else {
             $requestData['gouvernance_it_role'] = null;
@@ -479,6 +496,14 @@ class UserController extends APIController
 
             if ($slug === 'vente-encheres') {
                 $normalized[$slug]['profiles'] = $encheresProfiles ?? [$profile];
+            }
+
+            if ($slug === 'gouvernance-it' && $profile === 'visiteur_it') {
+                $picked = array_values(array_intersect(
+                    self::GOUVERNANCE_SUBMODULES,
+                    array_map('strval', (array) ($assignment['submodules'] ?? [])),
+                ));
+                $normalized[$slug]['submodules'] = $picked !== [] ? $picked : ['doc-gouvernance'];
             }
         }
 

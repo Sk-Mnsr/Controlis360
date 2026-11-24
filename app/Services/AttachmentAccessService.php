@@ -95,6 +95,11 @@ class AttachmentAccessService
 
         $profile = $user->moduleProfile('gouvernance-it') ?? $user->profile;
 
+        if ($profile === 'visiteur_it') {
+            return $user->hasGouvernanceSubmodule('doc-gouvernance')
+                && ($document->environment_id === null || $user->belongsToEnvironment((int) $document->environment_id));
+        }
+
         if (! in_array($profile, ['agent_it', 'responsable_it', 'responsable_regional'], true)) {
             return false;
         }
@@ -117,7 +122,14 @@ class AttachmentAccessService
             return true;
         }
 
-        if (! in_array($user->profile, ['agent_it', 'responsable_it', 'responsable_regional'], true)) {
+        $profile = $user->moduleProfile('gouvernance-it') ?? $user->profile;
+
+        if ($profile === 'visiteur_it') {
+            return $user->hasGouvernanceSubmodule('govstrat')
+                && $user->belongsToEnvironment((int) $activity->environment_id);
+        }
+
+        if (! in_array($profile, ['agent_it', 'responsable_it', 'responsable_regional'], true)) {
             return false;
         }
 

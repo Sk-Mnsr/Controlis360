@@ -308,7 +308,68 @@
                 </template>
 
                 <template v-else-if="activeModule?.slug === 'gouvernance-it'">
-                    <template v-if="isCartographieApplicationsSection">
+                    <template v-if="gouvernanceVisitor">
+                        <RouterLink
+                            class="nav-link nav-back"
+                            :to="{ name: 'portal' }"
+                            title="Retour aux modules"
+                        >
+                            <span class="nav-ico" aria-hidden="true">←</span>
+                            <span class="nav-label">Modules</span>
+                        </RouterLink>
+                        <RouterLink
+                            v-if="visitorSubmodules.length > 1"
+                            class="nav-link"
+                            :class="{ 'nav-link-active': route.name === 'gouvernance-it.home' }"
+                            :to="{ name: 'gouvernance-it.home' }"
+                            title="Accueil"
+                        >
+                            <span class="nav-ico" aria-hidden="true">⌂</span>
+                            <span class="nav-label">Accueil</span>
+                        </RouterLink>
+                        <RouterLink
+                            v-if="visitorHasSubmodule('govstrat')"
+                            class="nav-link"
+                            :class="{ 'nav-link-active': isGovStratSection }"
+                            :to="{ name: 'gouvernance-it.govstrat-itr' }"
+                            title="GovStrat IT-R"
+                        >
+                            <span class="nav-ico" aria-hidden="true">⚙</span>
+                            <span class="nav-label">GovStrat IT-R</span>
+                        </RouterLink>
+                        <RouterLink
+                            v-if="visitorHasSubmodule('cartographie')"
+                            class="nav-link"
+                            :class="{ 'nav-link-active': isCartographieApplicationsSection }"
+                            :to="{ name: 'gouvernance-it.cartographie-applications' }"
+                            title="Cartographie des applications"
+                        >
+                            <span class="nav-ico" aria-hidden="true">▤</span>
+                            <span class="nav-label">Cartographie applications</span>
+                        </RouterLink>
+                        <RouterLink
+                            v-if="visitorHasSubmodule('registre')"
+                            class="nav-link"
+                            :class="{ 'nav-link-active': isRegistreComptesSection }"
+                            :to="{ name: 'gouvernance-it.registre-comptes-generiques' }"
+                            title="Registre de comptes génériques"
+                        >
+                            <span class="nav-ico" aria-hidden="true">☰</span>
+                            <span class="nav-label">Comptes génériques</span>
+                        </RouterLink>
+                        <RouterLink
+                            v-if="visitorHasSubmodule('doc-gouvernance')"
+                            class="nav-link"
+                            :class="{ 'nav-link-active': isSuiviPciSection }"
+                            :to="{ name: 'gouvernance-it.suivi-pci' }"
+                            title="Doc Gouvernance"
+                        >
+                            <span class="nav-ico" aria-hidden="true">▣</span>
+                            <span class="nav-label">Doc Gouvernance</span>
+                        </RouterLink>
+                    </template>
+
+                    <template v-else-if="isCartographieApplicationsSection">
                         <RouterLink
                             class="nav-link nav-back"
                             :to="{ name: 'gouvernance-it.home' }"
@@ -625,7 +686,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { methodologyItems } from '../config/cartographie-nav';
 import { getModuleFromRoute } from '../config/modules';
-import { canCreateMission as userCanCreateMission, isRegulatorProfile } from '../config/module-access';
+import { canCreateMission as userCanCreateMission, gouvernanceVisitorSubmodules, isGouvernanceVisitor, isRegulatorProfile } from '../config/module-access';
 import {
     canAccessVenteEncheresAdmin,
     canAccessVenteEncheresClient,
@@ -778,6 +839,13 @@ const isRegistreComptesSection = computed(() =>
 const isSuiviPciSection = computed(() =>
     route.name === 'gouvernance-it.suivi-pci',
 );
+const gouvernanceVisitor = computed(() => isGouvernanceVisitor(auth.user ?? auth.baseUser));
+const visitorSubmodules = computed(() => (
+    gouvernanceVisitor.value ? gouvernanceVisitorSubmodules(auth.user ?? auth.baseUser) : []
+));
+function visitorHasSubmodule(key) {
+    return visitorSubmodules.value.includes(key);
+}
 const isRegulatorOnly = computed(() => platformProfile.value === 'regulateur');
 const showRegulatorNav = computed(() => isRegulatorProfile(platformProfile.value));
 const canManageUsers = computed(() => ['super_admin', 'admin'].includes(platformProfile.value));

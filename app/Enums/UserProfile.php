@@ -14,6 +14,7 @@ enum UserProfile: string
     case AgentIt = 'agent_it';
     case ResponsableIt = 'responsable_it';
     case ResponsableRegional = 'responsable_regional';
+    case VisiteurIt = 'visiteur_it';
     case Metier = 'metier';
     case Client = 'client';
     case Comite = 'comite';
@@ -32,6 +33,7 @@ enum UserProfile: string
             self::AgentIt => 'Agent IT',
             self::ResponsableIt => 'Responsable IT',
             self::ResponsableRegional => 'Responsable Régional',
+            self::VisiteurIt => 'Visiteur',
             self::Metier => 'Métier',
             self::Client => 'Client',
             self::Comite => 'Comité',
@@ -49,7 +51,7 @@ enum UserProfile: string
             self::Controle => 'controle',
             self::Audit => 'audit',
             self::Conformite => 'conformite',
-            self::AgentIt, self::ResponsableIt, self::ResponsableRegional => 'gouvernance_it',
+            self::AgentIt, self::ResponsableIt, self::ResponsableRegional, self::VisiteurIt => 'gouvernance_it',
             self::Metier => 'metier',
             self::Client, self::Comite, self::AdminEncheres => 'vente_encheres',
         };

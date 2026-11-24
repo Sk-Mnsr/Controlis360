@@ -4,8 +4,11 @@
             <div class="h-1.5 bg-[#1d4ed8]" />
             <div class="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-end sm:justify-between">
                 <div>
-                    <RouterLink :to="{ name: 'gouvernance-it.home' }" class="text-sm font-medium text-blue-700 hover:text-blue-800">
-                        ← Gouvernance IT
+                    <RouterLink
+                        :to="visitorBackTarget"
+                        class="text-sm font-medium text-blue-700 hover:text-blue-800"
+                    >
+                        {{ visitorBackTarget.name === 'portal' ? '← Modules' : '← Gouvernance IT' }}
                     </RouterLink>
                     <h2 class="mt-1 text-xl font-semibold text-slate-900">Tableau de bord — Doc Gouvernance</h2>
                     <p class="mt-1 max-w-2xl text-sm text-slate-500">
@@ -405,10 +408,17 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import api from '../../api/client';
+import { gouvernanceVisitorSubmodules, isGouvernanceVisitor } from '../../config/module-access';
 import { useAuthStore } from '../../stores/auth';
 import { downloadAttachment, isPreviewableAttachment, previewAttachment } from '../../utils/attachments';
 
 const auth = useAuthStore();
+const docGouvernanceVisitor = computed(() => isGouvernanceVisitor(auth.user));
+const visitorBackTarget = computed(() => (
+    docGouvernanceVisitor.value && gouvernanceVisitorSubmodules(auth.user).length < 2
+        ? { name: 'portal' }
+        : { name: 'gouvernance-it.home' }
+));
 
 const loading = ref(true);
 const saving = ref(false);

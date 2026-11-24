@@ -60,6 +60,7 @@ class User extends AuthenticatableBase
                 'agent_it' => 'Agent IT',
                 'responsable_it' => 'Responsable IT',
                 'responsable_regional' => 'Responsable Régional',
+                'visiteur_it' => 'Visiteur',
                 'metier' => 'Métier',
                 'client' => 'Client',
                 'comite' => 'Comité',
@@ -99,6 +100,9 @@ class User extends AuthenticatableBase
                 ],
                 'responsable_regional' => [
                     ['subject' => ['governance_it'], 'action' => ['create', 'read', 'update', 'validate']],
+                ],
+                'visiteur_it' => [
+                    ['subject' => ['governance_it'], 'action' => ['read']],
                 ],
                 'metier' => [
                     ['subject' => ['evaluation', 'report'], 'action' => ['read']],
@@ -219,6 +223,31 @@ class User extends AuthenticatableBase
     public function moduleProfile(?string $slug): ?string
     {
         return $this->profileForModule($slug)['profile'] ?? null;
+    }
+
+    public function isGouvernanceVisitor(): bool
+    {
+        return ($this->moduleProfile('gouvernance-it') ?? $this->profile) === 'visiteur_it';
+    }
+
+    public function hasGouvernanceSubmodule(string $key): bool
+    {
+        if (! $this->isGouvernanceVisitor()) {
+            return true;
+        }
+
+        $assignment = is_array($this->module_profiles) ? ($this->module_profiles['gouvernance-it'] ?? []) : [];
+        $stored = is_array($assignment) ? ($assignment['submodules'] ?? null) : null;
+        $allowed = ['govstrat', 'cartographie', 'registre', 'doc-gouvernance'];
+        $picked = is_array($stored)
+            ? array_values(array_intersect($allowed, array_map('strval', $stored)))
+            : [];
+
+        if ($picked === []) {
+            $picked = ['doc-gouvernance'];
+        }
+
+        return in_array($key, $picked, true);
     }
 
     public function moduleMetierRole(?string $slug): ?string

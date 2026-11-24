@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { canAccessModule, canCreateMission } from '../config/module-access';
+import { canAccessModule, canCreateMission, gouvernanceRouteSubmodule, isGouvernanceVisitor, visitorHasGouvernanceSubmodule } from '../config/module-access';
 import {
     canAccessVenteEncheresAdmin,
     canAccessVenteEncheresComite,
@@ -647,6 +647,13 @@ router.beforeEach(async (to, from, next) => {
     }
 
     const routeName = typeof to.name === 'string' ? to.name : '';
+
+    if (moduleSlug === 'gouvernance-it' && auth.baseUser && isGouvernanceVisitor(auth.baseUser)) {
+        const submodule = gouvernanceRouteSubmodule(routeName);
+        if (submodule && !visitorHasGouvernanceSubmodule(auth.baseUser, submodule)) {
+            return next({ name: 'gouvernance-it.home' });
+        }
+    }
     if (auth.baseUser && routeName.startsWith('vente-encheres.comite') && !canAccessVenteEncheresComite(auth.baseUser)) {
         return next({ name: 'vente-encheres.home' });
     }

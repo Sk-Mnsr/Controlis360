@@ -83,6 +83,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { isGouvernanceVisitor, visitorHasGouvernanceSubmodule } from '../../config/module-access';
 import { useAuthStore } from '../../stores/auth';
 import TaskActivityItView from './TaskActivityItView.vue';
 import GovItOperationsSectionView from './GovItOperationsSectionView.vue';
@@ -103,7 +104,8 @@ const canSeeTaskActivity = computed(() =>
 const canSeeOperations = computed(() =>
     isAdminViewer.value
     || profile.value === 'agent_it'
-    || profile.value === 'responsable_it',
+    || profile.value === 'responsable_it'
+    || (isGouvernanceVisitor(auth.user) && visitorHasGouvernanceSubmodule(auth.user, 'govstrat')),
 );
 
 const visibleModules = computed(() => {

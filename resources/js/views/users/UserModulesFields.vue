@@ -55,7 +55,7 @@
                         class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
                         :value="assignment.profile"
                         :disabled="disabled"
-                        @change="updateAssignment(assignment.slug, { profile: $event.target.value })"
+                        @change="onProfileChange(assignment, $event.target.value)"
                     >
                         <option
                             v-for="option in profileOptions(assignment.slug)"
@@ -65,6 +65,32 @@
                             {{ option.label }}
                         </option>
                     </select>
+                </div>
+
+                <div
+                    v-if="assignment.slug === 'gouvernance-it' && assignment.profile === 'visiteur_it'"
+                    class="md:col-span-2"
+                >
+                    <p class="mb-2 text-xs font-medium text-slate-500">Sous-modules</p>
+                    <div class="flex flex-wrap gap-3">
+                        <label
+                            v-for="option in GOUVERNANCE_IT_SUBMODULES"
+                            :key="option.value"
+                            class="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                        >
+                            <input
+                                type="checkbox"
+                                class="rounded border-slate-300"
+                                :checked="selectedSubmodules(assignment).includes(option.value)"
+                                :disabled="disabled"
+                                @change="toggleSubmodule(assignment, option.value, $event.target.checked)"
+                            />
+                            {{ option.label }}
+                        </label>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-500">
+                        Le visiteur ouvre seulement les sous-modules cochés, en lecture.
+                    </p>
                 </div>
 
                 <div v-if="isGouvernanceProfile(assignment.profile)">
@@ -125,8 +151,8 @@
 <script setup>
 import { modules } from '../../config/modules';
 import {
-    GOUVERNANCE_IT_PROFILES,
     GOUVERNANCE_IT_ROLE_BY_PROFILE,
+    GOUVERNANCE_IT_SUBMODULES,
     MODULE_PROFILE_OPTIONS,
     highestEncheresProfile,
     normalizeEncheresProfiles,
@@ -158,11 +184,40 @@ function profileOptions(slug) {
 }
 
 function isGouvernanceProfile(profile) {
-    return GOUVERNANCE_IT_PROFILES.includes(profile);
+    return Boolean(GOUVERNANCE_IT_ROLE_BY_PROFILE[profile]);
 }
 
 function gouvernanceRoleLabel(profile) {
     return GOUVERNANCE_IT_ROLE_BY_PROFILE[profile] ?? '';
+}
+
+function selectedSubmodules(assignment) {
+    const picked = Array.isArray(assignment.submodules)
+        ? assignment.submodules.filter((value) => GOUVERNANCE_IT_SUBMODULES.some((item) => item.value === value))
+        : [];
+
+    return picked.length ? picked : ['doc-gouvernance'];
+}
+
+function onProfileChange(assignment, profile) {
+    const patch = { profile };
+    if (assignment.slug === 'gouvernance-it' && profile === 'visiteur_it') {
+        patch.submodules = selectedSubmodules(assignment);
+    }
+    updateAssignment(assignment.slug, patch);
+}
+
+function toggleSubmodule(assignment, value, checked) {
+    const current = selectedSubmodules(assignment);
+    const next = checked
+        ? [...current, value]
+        : current.filter((item) => item !== value);
+
+    if (!next.length) {
+        return;
+    }
+
+    updateAssignment(assignment.slug, { submodules: next });
 }
 
 function updateAssignment(slug, patch) {
