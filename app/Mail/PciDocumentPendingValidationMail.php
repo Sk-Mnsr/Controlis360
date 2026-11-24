@@ -18,14 +18,19 @@ class PciDocumentPendingValidationMail extends Mailable
         public PciDocument $document,
         public User $recipient,
         public User $sender,
+        public string $action = 'update',
     ) {
         $this->document->loadMissing('environment');
     }
 
     public function envelope(): Envelope
     {
+        $subject = $this->action === 'deletion'
+            ? 'Retrait à valider — '.$this->document->reference
+            : 'Document à valider — '.$this->document->reference;
+
         return new Envelope(
-            subject: 'Document à valider — '.$this->document->reference,
+            subject: $subject,
         );
     }
 

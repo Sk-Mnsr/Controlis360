@@ -9,6 +9,8 @@ class PciDocument extends Model
 {
     public const WORKFLOW_PENDING = 'pending_validation';
 
+    public const WORKFLOW_PENDING_DELETION = 'pending_deletion';
+
     public const WORKFLOW_VALIDATED = 'validated';
 
     protected $fillable = [

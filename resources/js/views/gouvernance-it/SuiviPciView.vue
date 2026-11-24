@@ -17,10 +17,11 @@
                         Filiale
                         <select
                             v-model="selectedEnvironmentId"
-                            class="ml-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                            class="ml-2 min-w-44 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
                             @change="loadRows"
                         >
-                            <option v-for="filiale in filiales" :key="filiale.id" :value="filiale.id">
+                            <option value="">Toutes les filiales</option>
+                            <option v-for="filiale in filiales" :key="filiale.id" :value="String(filiale.id)">
                                 {{ filiale.name || filiale.code }}
                             </option>
                         </select>
@@ -51,6 +52,22 @@
             </button>
         </div>
 
+        <section class="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+            <div>
+                <h3 class="text-sm font-semibold text-slate-900">Documents</h3>
+                <p class="mt-0.5 text-xs text-slate-500">
+                    {{ filteredRows.length }} sur {{ rows.length }}
+                    <template v-if="statusFilter"> · filtre actif</template>
+                </p>
+            </div>
+            <ul class="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <li v-for="(palette, status) in folderPalette" :key="status" class="flex items-center gap-2 text-xs text-slate-600">
+                    <span class="h-2.5 w-2.5 rounded-full" :class="palette.tabClass" />
+                    {{ palette.label }}
+                </li>
+            </ul>
+        </section>
+
         <p v-if="error" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ error }}</p>
         <div v-if="loading" class="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
             Chargement…
@@ -60,24 +77,21 @@
             {{ rows.length ? 'Aucun document pour ce filtre.' : 'Aucun document enregistré.' }}
         </div>
 
-        <div v-else class="space-y-6">
-            <section v-for="group in folderGroups" :key="group.status">
-                <h3 class="mb-3 text-sm font-semibold" :class="group.titleClass">{{ group.label }}</h3>
-                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div v-else class="flex flex-wrap items-stretch gap-4">
                     <button
-                        v-for="row in group.rows"
+                        v-for="row in filteredRows"
                         :key="row.id"
                         type="button"
-                        class="text-left"
+                        class="flex w-52 flex-col text-left"
                         @click="openFiles(row)"
                     >
-                        <span class="block h-3 w-20 rounded-t-lg" :class="group.tabClass" />
+                        <span class="block h-3 w-20 rounded-t-lg" :class="folderPalette[row.status].tabClass" />
                         <span
-                            class="block rounded-xl rounded-tl-none border px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                            :class="group.bodyClass"
+                            class="block flex-1 rounded-xl rounded-tl-none border px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                            :class="folderPalette[row.status].bodyClass"
                         >
                             <span class="flex items-start justify-between gap-2">
-                                <span class="text-xs font-semibold uppercase tracking-wide" :class="group.titleClass">{{ row.reference }}</span>
+                                <span class="text-xs font-semibold uppercase tracking-wide" :class="folderPalette[row.status].titleClass">{{ row.reference }}</span>
                                 <span
                                     v-if="row.attachments?.length"
                                     class="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-white px-1.5 text-[11px] font-bold text-slate-700 ring-1 ring-slate-200"
@@ -92,14 +106,22 @@
                             >
                                 À valider
                             </span>
-                            <span class="mt-2 block text-xs" :class="group.titleClass">
+                            <span
+                                v-else-if="row.workflow_status === 'pending_deletion'"
+                                class="mt-2 inline-flex rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-800"
+                            >
+                                Retrait à valider
+                            </span>
+                            <span
+                                v-if="row.days_remaining !== null && row.days_remaining !== undefined"
+                                class="mt-2 block text-xs"
+                                :class="folderPalette[row.status].titleClass"
+                            >
                                 {{ formatDays(row.days_remaining) }}
                                 <template v-if="row.reminder_label"> · {{ row.reminder_label }}</template>
                             </span>
                         </span>
                     </button>
-                </div>
-            </section>
         </div>
 
         <div v-if="formOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
@@ -158,6 +180,37 @@
                         Observations / Actions
                         <textarea v-model="form.observations" rows="3" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2" />
                     </label>
+                    <div class="sm:col-span-2">
+                        <p class="text-sm font-medium text-slate-700">Fichiers</p>
+                        <div v-if="existingFormFiles.length" class="mt-2 space-y-2">
+                            <div v-for="item in existingFormFiles" :key="item.path" class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_8.5rem_auto] sm:items-center">
+                                <input v-model="item.name" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm" placeholder="Nom">
+                                <p class="truncate rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">{{ item.original_name || item.name }}</p>
+                                <select v-model="item.right" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                                    <option value="Lecture">Lecture</option>
+                                    <option value="Modification">Modification</option>
+                                    <option value="Confidentiel">Confidentiel</option>
+                                </select>
+                                <button type="button" class="text-sm font-medium text-red-700 hover:underline" @click="removeExistingFile(item.path)">Retirer</button>
+                            </div>
+                        </div>
+                        <div class="mt-2 space-y-2">
+                            <div v-for="item in formFiles" :key="item.key" class="grid gap-2 rounded-xl border border-dashed border-slate-300 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_8.5rem_auto] sm:items-center">
+                                <input v-model="item.name" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Nom">
+                                <label class="flex cursor-pointer items-center rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                                    <span class="truncate">{{ item.file ? item.file.name : 'Choisir un fichier' }}</span>
+                                    <input class="sr-only" type="file" @change="onFilePicked(item, $event)">
+                                </label>
+                                <select v-model="item.right" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                                    <option value="Lecture">Lecture</option>
+                                    <option value="Modification">Modification</option>
+                                    <option value="Confidentiel">Confidentiel</option>
+                                </select>
+                                <button type="button" class="text-sm font-medium text-red-700 hover:underline" @click="removeFormFile(item.key)">Retirer</button>
+                            </div>
+                        </div>
+                        <button type="button" class="mt-2 text-sm font-medium text-blue-700 hover:underline" @click="addFormFile">Ajouter une ligne</button>
+                    </div>
                 </div>
                 <div class="mt-5 flex justify-end gap-2">
                     <button type="button" class="rounded-lg border border-slate-300 px-4 py-2 text-sm" @click="formOpen = false">Annuler</button>
@@ -168,112 +221,127 @@
             </form>
         </div>
 
-        <div v-if="filesTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-            <div class="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-xl">
-                <div class="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-slate-200 bg-white px-6 py-5">
+        <div v-if="filesTarget" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+            <div class="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div class="flex items-start justify-between gap-4 border-b border-slate-200 px-6 py-5">
                     <div class="min-w-0">
-                        <p class="text-sm font-semibold text-blue-800">{{ filesTarget.reference }}</p>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-blue-700">{{ filesTarget.reference }}</p>
                         <h3 class="mt-1 text-xl font-semibold text-slate-900">{{ filesTarget.document_name }}</h3>
-                        <div class="mt-3 flex flex-wrap gap-2">
+                        <div class="mt-3 flex flex-wrap items-center gap-2">
                             <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold" :class="statusClass(filesTarget.status)">
                                 {{ filesTarget.status_label }}
                             </span>
                             <span v-if="filesTarget.reminder_label" class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
                                 {{ filesTarget.reminder_label }}
                             </span>
-                            <span class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold" :class="daysClass(filesTarget)">
-                                {{ formatDays(filesTarget.days_remaining) }}
-                            </span>
-                            <span v-if="filesTarget.version" class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
-                                {{ filesTarget.version }}
-                            </span>
                             <span
-                                class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold"
-                                :class="filesTarget.workflow_status === 'pending_validation' ? 'bg-orange-100 text-orange-800' : 'bg-emerald-100 text-emerald-800'"
+                                v-if="filesTarget.days_remaining !== null && filesTarget.days_remaining !== undefined"
+                                class="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold"
+                                :class="daysClass(filesTarget)"
                             >
-                                {{ filesTarget.workflow_status_fr || 'Validé' }}
+                                {{ formatDays(filesTarget.days_remaining) }}
                             </span>
                         </div>
                     </div>
-                    <button type="button" class="rounded-lg border border-slate-200 px-2.5 py-1 text-slate-500" @click="filesTarget = null">×</button>
+                    <button type="button" class="rounded-lg border border-slate-200 px-2.5 py-1 text-slate-500 hover:bg-slate-50" @click="filesTarget = null">×</button>
                 </div>
 
-                <div class="space-y-6 px-6 py-5">
-                    <dl class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        <div v-for="fact in documentFacts" :key="fact.label" class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
-                            <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ fact.label }}</dt>
-                            <dd class="mt-1 text-sm font-medium text-slate-900">{{ fact.value }}</dd>
+                <div class="space-y-5 overflow-y-auto px-6 py-5">
+                    <div class="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3" :class="validationTone.box">
+                        <div class="min-w-0">
+                            <p class="text-xs font-semibold uppercase tracking-wide" :class="validationTone.title">Validation responsable</p>
+                            <p class="mt-0.5 text-sm text-slate-800">{{ validationSentence }}</p>
                         </div>
-                    </dl>
+                        <button
+                            v-if="permissions.can_validate && filesTarget.workflow_status === 'pending_validation'"
+                            type="button"
+                            class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                            :disabled="validating"
+                            @click="validateDocument"
+                        >
+                            {{ validating ? 'Validation…' : 'Valider' }}
+                        </button>
+                        <button
+                            v-if="permissions.can_validate && filesTarget.workflow_status === 'pending_deletion'"
+                            type="button"
+                            class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white"
+                            @click="askConfirmDeletion"
+                        >
+                            Valider le retrait
+                        </button>
+                    </div>
 
-                    <section v-if="filesTarget.observations" class="rounded-xl border border-slate-200 px-4 py-3">
+                    <div class="grid gap-4 lg:grid-cols-2">
+                        <section v-for="section in detailSections" :key="section.title" class="rounded-xl border border-slate-200">
+                            <h4 class="border-b border-slate-100 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{{ section.title }}</h4>
+                            <dl>
+                                <div v-for="fact in section.items" :key="fact.label" class="flex items-baseline justify-between gap-4 border-b border-slate-100 px-4 py-2.5 last:border-0">
+                                    <dt class="text-sm text-slate-500">{{ fact.label }}</dt>
+                                    <dd class="text-right text-sm font-medium" :class="fact.class || 'text-slate-900'">{{ fact.value }}</dd>
+                                </div>
+                            </dl>
+                        </section>
+                    </div>
+
+                    <section v-if="filesTarget.observations" class="rounded-2xl border border-slate-200 px-4 py-3">
                         <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Observations / Actions</h4>
                         <p class="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{{ filesTarget.observations }}</p>
                     </section>
 
-                    <section class="rounded-xl border border-slate-200 px-4 py-4">
+                    <section>
                         <div class="flex items-center justify-between gap-3">
-                            <h4 class="text-sm font-semibold text-slate-900">Fichiers</h4>
-                            <span class="text-xs text-slate-500">{{ filesTarget.attachments?.length || 0 }}</span>
+                            <h4 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Fichiers</h4>
+                            <span class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400">{{ filesTarget.attachments?.length || 0 }}</span>
+                                <button
+                                    v-if="permissions.can_edit && !fileFormOpen && filesTarget.workflow_status !== 'pending_deletion'"
+                                    type="button"
+                                    class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-700 text-lg font-semibold leading-none text-white hover:bg-blue-800"
+                                    @click="showFileForm"
+                                >
+                                    +
+                                </button>
+                            </span>
                         </div>
                         <p v-if="filesError" class="mt-3 text-sm text-red-600">{{ filesError }}</p>
-                        <ul v-if="filesTarget.attachments?.length" class="mt-3 divide-y divide-slate-100 rounded-xl border border-slate-200">
-                            <li v-for="file in filesTarget.attachments" :key="file.path" class="flex items-center justify-between gap-3 px-3 py-2">
-                                <span class="min-w-0">
-                                    <span class="block truncate text-sm font-medium text-slate-900">{{ file.name }}</span>
-                                    <span class="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-700">{{ file.right || 'Lecture' }}</span>
-                                        <span class="truncate">{{ file.original_name || file.name }}</span>
-                                    </span>
+                        <ul v-if="filesTarget.attachments?.length" class="mt-2 space-y-2">
+                            <li v-for="file in filesTarget.attachments" :key="file.path" class="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2.5">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                                    <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="1.8">
+                                        <path d="M7 3.5h7l5 5V20a1.5 1.5 0 0 1-1.5 1.5h-10.5A1.5 1.5 0 0 1 5.5 20V5A1.5 1.5 0 0 1 7 3.5Z" />
+                                        <path d="M14 3.5V9h5.5" />
+                                    </svg>
                                 </span>
-                                <span class="flex shrink-0 gap-2">
-                                    <button v-if="canPreview(file)" type="button" class="text-sm font-medium text-blue-700 hover:underline" @click="previewAttachment(file)">Voir</button>
-                                    <button type="button" class="text-sm font-medium text-blue-700 hover:underline" @click="downloadAttachment(file)">Télécharger</button>
-                                    <button v-if="permissions.can_edit" type="button" class="text-sm font-medium text-red-700 hover:underline" @click="removeFile(file)">Retirer</button>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block truncate text-sm font-semibold text-slate-900">{{ file.name }}</span>
+                                    <span class="block truncate text-xs text-slate-500">{{ file.original_name || file.name }}</span>
+                                </span>
+                                <span class="hidden rounded-full px-2 py-0.5 text-[11px] font-semibold sm:inline-flex" :class="rightClass(file.right)">{{ file.right || 'Lecture' }}</span>
+                                <span class="flex shrink-0 items-center gap-1">
+                                    <button v-if="canPreview(file)" type="button" class="rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50" @click="previewAttachment(file)">Voir</button>
+                                    <button type="button" class="rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50" @click="downloadAttachment(file)">Télécharger</button>
+                                    <button v-if="permissions.can_edit && filesTarget.workflow_status !== 'pending_deletion'" type="button" class="rounded-lg px-2 py-1 text-xs font-semibold text-red-700 hover:bg-red-50" @click="removeFile(file)">Retirer</button>
                                 </span>
                             </li>
                         </ul>
-                        <p v-else class="mt-3 text-sm text-slate-500">Aucun fichier sur ce document.</p>
-                        <form v-if="permissions.can_edit" class="mt-4 space-y-3" @submit.prevent="uploadFiles">
-                            <div class="overflow-x-auto rounded-xl border border-slate-200">
-                                <table class="min-w-full text-sm">
-                                    <thead>
-                                        <tr class="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
-                                            <th class="px-3 py-2 font-semibold">Nom</th>
-                                            <th class="px-3 py-2 font-semibold">Fichier</th>
-                                            <th class="px-3 py-2 font-semibold">Droit</th>
-                                            <th class="w-16 px-2 py-2" />
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="item in pendingFiles" :key="item.key" class="border-b border-slate-100 last:border-0">
-                                            <td class="px-3 py-2">
-                                                <input v-model="item.name" class="w-full rounded-lg border border-slate-300 px-3 py-2" placeholder="Saisir le nom">
-                                            </td>
-                                            <td class="px-3 py-2">
-                                                <label class="inline-flex max-w-full cursor-pointer items-center rounded-lg border border-slate-300 px-3 py-2 text-slate-700 hover:bg-slate-50">
-                                                    <span class="truncate">{{ item.file ? item.file.name : 'Choisir un fichier' }}</span>
-                                                    <input class="sr-only" type="file" @change="onFilePicked(item, $event)">
-                                                </label>
-                                            </td>
-                                            <td class="px-3 py-2">
-                                                <select v-model="item.right" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2">
-                                                    <option value="Lecture">Lecture</option>
-                                                    <option value="Modification">Modification</option>
-                                                    <option value="Confidentiel">Confidentiel</option>
-                                                </select>
-                                            </td>
-                                            <td class="px-2 py-2 text-center">
-                                                <button type="button" class="text-sm font-medium text-red-700 hover:underline" @click="removePending(item.key)">Retirer</button>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                        <p v-else class="mt-2 rounded-xl border border-dashed border-slate-200 px-4 py-3 text-sm text-slate-500">Aucun fichier sur ce document.</p>
+
+                        <form v-if="permissions.can_edit && fileFormOpen && filesTarget.workflow_status !== 'pending_deletion'" class="mt-3 space-y-2" @submit.prevent="uploadFiles">
+                            <div v-for="item in pendingFiles" :key="item.key" class="grid gap-2 rounded-xl border border-dashed border-slate-300 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_8.5rem_auto] sm:items-center">
+                                <input v-model="item.name" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Nom">
+                                <label class="flex cursor-pointer items-center rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                                    <span class="truncate">{{ item.file ? item.file.name : 'Choisir un fichier' }}</span>
+                                    <input class="sr-only" type="file" @change="onFilePicked(item, $event)">
+                                </label>
+                                <select v-model="item.right" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">
+                                    <option value="Lecture">Lecture</option>
+                                    <option value="Modification">Modification</option>
+                                    <option value="Confidentiel">Confidentiel</option>
+                                </select>
+                                <button type="button" class="text-sm font-medium text-red-700 hover:underline" @click="removePending(item.key)">Retirer</button>
                             </div>
-                            <div class="flex items-center justify-between gap-3">
-                                <button type="button" class="text-sm font-medium text-blue-700 hover:underline" @click="addPendingRow">
-                                    Ajouter une ligne
-                                </button>
+                            <div class="flex items-center justify-between gap-3 pt-1">
+                                <button type="button" class="text-sm font-medium text-blue-700 hover:underline" @click="addPendingRow">Ajouter une ligne</button>
                                 <button type="submit" class="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" :disabled="uploading">
                                     {{ uploading ? 'Envoi…' : 'Ajouter' }}
                                 </button>
@@ -282,46 +350,52 @@
                     </section>
                 </div>
 
-                <div class="sticky bottom-0 flex justify-end gap-2 border-t border-slate-200 bg-white px-6 py-4">
-                    <button
-                        v-if="permissions.can_validate && filesTarget.workflow_status === 'pending_validation'"
-                        type="button"
-                        class="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                        :disabled="validating"
-                        @click="validateDocument"
-                    >
-                        {{ validating ? 'Validation…' : 'Valider' }}
-                    </button>
-                    <button
-                        v-if="permissions.can_edit"
-                        type="button"
-                        class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
-                        @click="editFromDetail"
-                    >
-                        Modifier
-                    </button>
-                    <button
-                        v-if="permissions.can_delete"
-                        type="button"
-                        class="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700"
-                        @click="askDelete(filesTarget)"
-                    >
-                        Retirer
-                    </button>
-                    <button type="button" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white" @click="filesTarget = null">
-                        Fermer
-                    </button>
+                <div class="flex items-center justify-between gap-2 border-t border-slate-200 bg-white px-6 py-4">
+                    <button type="button" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100" @click="filesTarget = null">Fermer</button>
+                    <div class="flex gap-2">
+                        <button
+                            v-if="permissions.can_delete && filesTarget.workflow_status === 'pending_deletion'"
+                            type="button"
+                            class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
+                            @click="cancelDeletion"
+                        >
+                            Annuler le retrait
+                        </button>
+                        <button
+                            v-else-if="permissions.can_delete"
+                            type="button"
+                            class="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700"
+                            @click="askDelete(filesTarget)"
+                        >
+                            Retirer
+                        </button>
+                        <button
+                            v-if="permissions.can_edit && filesTarget.workflow_status !== 'pending_deletion'"
+                            type="button"
+                            class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
+                            @click="editFromDetail"
+                        >
+                            Modifier
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <div v-if="deleteTarget" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4">
             <div class="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
-                <h3 class="text-lg font-semibold text-slate-900">Retirer ce document ?</h3>
+                <h3 class="text-lg font-semibold text-slate-900">{{ deleteMode === 'confirm' ? 'Valider le retrait ?' : 'Demander le retrait ?' }}</h3>
                 <p class="mt-2 text-sm text-slate-600">{{ deleteTarget.reference }} — {{ deleteTarget.document_name }}</p>
+                <p class="mt-2 text-sm text-slate-500">
+                    {{ deleteMode === 'confirm'
+                        ? 'Le document et ses fichiers seront supprimés.'
+                        : 'Le document reste visible jusqu’à la validation du Responsable IT.' }}
+                </p>
                 <div class="mt-5 flex justify-end gap-2">
                     <button type="button" class="rounded-lg border border-slate-300 px-4 py-2 text-sm" @click="deleteTarget = null">Annuler</button>
-                    <button type="button" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white" @click="confirmDelete">Retirer</button>
+                    <button type="button" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60" :disabled="deleting" @click="confirmDelete">
+                        {{ deleting ? 'Envoi…' : (deleteMode === 'confirm' ? 'Valider le retrait' : 'Demander') }}
+                    </button>
                 </div>
             </div>
         </div>
@@ -341,16 +415,21 @@ const rows = ref([]);
 const stats = ref({});
 const filiales = ref([]);
 const canSelectFiliale = ref(false);
-const selectedEnvironmentId = ref(null);
+const selectedEnvironmentId = ref('');
 const permissions = ref({ can_create: false, can_edit: false, can_delete: false, can_validate: false });
 const validating = ref(false);
 const statusFilter = ref('');
 const formOpen = ref(false);
 const editingId = ref(null);
 const deleteTarget = ref(null);
+const deleteMode = ref('request');
+const deleting = ref(false);
 const filesTarget = ref(null);
 const filesError = ref('');
 const pendingFiles = ref([]);
+const formFiles = ref([]);
+const existingFormFiles = ref([]);
+const fileFormOpen = ref(false);
 const uploading = ref(false);
 
 const emptyForm = () => ({
@@ -419,34 +498,62 @@ const filteredRows = computed(() => {
     return rows.value.filter((row) => row.status === statusFilter.value);
 });
 
-const folderGroups = computed(() => Object.entries(folderPalette)
-    .map(([status, palette]) => ({
-        status,
-        ...palette,
-        rows: filteredRows.value.filter((row) => row.status === status),
-    }))
-    .filter((group) => group.rows.length));
-
-const documentFacts = computed(() => {
+const detailSections = computed(() => {
     const row = filesTarget.value;
     if (!row) return [];
 
     return [
-        { label: 'Catégorie', value: row.category || '—' },
-        { label: 'Direction / Service', value: row.direction || '—' },
-        { label: 'Responsable', value: row.responsible || '—' },
-        { label: 'Filiale', value: row.environment?.name || '—' },
-        { label: 'Date de création', value: formatDate(row.created_on) },
-        { label: 'Dernière revue', value: formatDate(row.last_review_date) },
-        { label: 'Périodicité', value: row.periodicity_months ? `${row.periodicity_months} mois` : '—' },
-        { label: 'Prochaine revue', value: formatDate(row.next_review_date) },
-        { label: 'Jours restants', value: formatDays(row.days_remaining) },
-        { label: 'Date de validation', value: formatDate(row.validated_on) },
-        { label: 'Validé par', value: row.validated_by || '—' },
-        { label: 'Validation responsable', value: row.workflow_status_fr || 'Validé' },
-        { label: 'Validé par le responsable', value: row.workflow_validator_name || '—' },
-        { label: 'Version', value: row.version || '—' },
+        {
+            title: 'Revue',
+            items: [
+                { label: 'Date de création', value: formatDate(row.created_on) },
+                { label: 'Dernière revue', value: formatDate(row.last_review_date) },
+                { label: 'Périodicité', value: row.periodicity_months ? `${row.periodicity_months} mois` : '—' },
+                { label: 'Prochaine revue', value: formatDate(row.next_review_date) },
+                { label: 'Jours restants', value: formatDays(row.days_remaining), class: daysClass(row) },
+            ],
+        },
+        {
+            title: 'Document',
+            items: [
+                { label: 'Filiale', value: row.environment?.name || '—' },
+                { label: 'Catégorie', value: row.category || '—' },
+                { label: 'Direction / Service', value: row.direction || '—' },
+                { label: 'Responsable', value: row.responsible || '—' },
+                { label: 'Version', value: row.version || '—' },
+                { label: 'Date de validation', value: formatDate(row.validated_on) },
+                { label: 'Validé par', value: row.validated_by || '—' },
+            ],
+        },
     ];
+});
+
+const validationTone = computed(() => {
+    if (filesTarget.value?.workflow_status === 'pending_deletion') {
+        return { box: 'border-red-200 bg-red-50', title: 'text-red-800' };
+    }
+    if (filesTarget.value?.workflow_status === 'pending_validation') {
+        return { box: 'border-orange-200 bg-orange-50', title: 'text-orange-800' };
+    }
+    return { box: 'border-emerald-200 bg-emerald-50', title: 'text-emerald-800' };
+});
+
+const validationSentence = computed(() => {
+    const row = filesTarget.value;
+    if (!row) return '';
+    if (row.workflow_status === 'pending_deletion') {
+        return 'Le retrait de ce document attend la validation du Responsable IT.';
+    }
+    if (row.workflow_status === 'pending_validation') {
+        return 'Ce document attend la validation du Responsable IT.';
+    }
+    if (row.workflow_validator_name) {
+        const when = formatDate(row.workflow_validated_at);
+        return when === '—'
+            ? `Validé par ${row.workflow_validator_name}.`
+            : `Validé par ${row.workflow_validator_name} le ${when}.`;
+    }
+    return 'Document validé.';
 });
 
 function formatDate(value) {
@@ -467,6 +574,12 @@ function daysClass(row) {
     if (row.days_remaining <= 7) return 'text-orange-700';
     if (row.days_remaining <= 90) return 'text-amber-700';
     return 'text-emerald-700';
+}
+
+function rightClass(right) {
+    if (right === 'Confidentiel') return 'bg-amber-100 text-amber-800';
+    if (right === 'Modification') return 'bg-blue-100 text-blue-800';
+    return 'bg-slate-100 text-slate-700';
 }
 
 function statusClass(status) {
@@ -496,9 +609,7 @@ function applyPayload(payload) {
     filiales.value = payload?.filiales ?? [];
     canSelectFiliale.value = Boolean(payload?.can_select_filiale);
     permissions.value = payload?.permissions ?? permissions.value;
-    if (payload?.environment_id) {
-        selectedEnvironmentId.value = payload.environment_id;
-    }
+    selectedEnvironmentId.value = payload?.environment_id ? String(payload.environment_id) : '';
 }
 
 async function loadRows() {
@@ -535,6 +646,8 @@ function fillForm(row) {
 
 function openCreate() {
     editingId.value = null;
+    existingFormFiles.value = [];
+    formFiles.value = [blankFileRow()];
     formError.value = '';
     fillForm(null);
     formOpen.value = true;
@@ -542,13 +655,42 @@ function openCreate() {
 
 function openEdit(row) {
     editingId.value = row.id;
+    existingFormFiles.value = (row.attachments || []).map((file) => ({
+        path: file.path,
+        name: file.name || '',
+        original_name: file.original_name || file.name || '',
+        right: file.right || 'Lecture',
+    }));
+    formFiles.value = [blankFileRow()];
     formError.value = '';
     fillForm(row);
     formOpen.value = true;
 }
 
+function removeExistingFile(path) {
+    existingFormFiles.value = existingFormFiles.value.filter((item) => item.path !== path);
+}
+
+function addFormFile() {
+    formFiles.value = [...formFiles.value, blankFileRow()];
+}
+
+function removeFormFile(key) {
+    formFiles.value = formFiles.value.filter((item) => item.key !== key);
+    if (!formFiles.value.length) {
+        formFiles.value = [blankFileRow()];
+    }
+}
+
 function askDelete(row) {
+    deleteMode.value = 'request';
     deleteTarget.value = row;
+}
+
+function askConfirmDeletion() {
+    if (!filesTarget.value) return;
+    deleteMode.value = 'confirm';
+    deleteTarget.value = filesTarget.value;
 }
 
 function canPreview(file) {
@@ -566,8 +708,16 @@ function blankFileRow() {
 
 function openFiles(row) {
     filesError.value = '';
-    pendingFiles.value = [blankFileRow()];
+    fileFormOpen.value = false;
+    pendingFiles.value = [];
     filesTarget.value = row;
+}
+
+function showFileForm() {
+    if (!pendingFiles.value.length) {
+        pendingFiles.value = [blankFileRow()];
+    }
+    fileFormOpen.value = true;
 }
 
 function addPendingRow() {
@@ -583,20 +733,21 @@ function editFromDetail() {
 
 function onFilePicked(item, event) {
     const file = event.target.files?.[0] ?? null;
+    const errorTarget = formOpen.value ? formError : filesError;
     if (file && file.size > 20 * 1024 * 1024) {
-        filesError.value = 'Chaque fichier doit faire au plus 20 Mo.';
+        errorTarget.value = 'Chaque fichier doit faire au plus 20 Mo.';
         event.target.value = '';
         return;
     }
     item.file = file;
-    filesError.value = '';
+    errorTarget.value = '';
     event.target.value = '';
 }
 
 function removePending(key) {
     pendingFiles.value = pendingFiles.value.filter((item) => item.key !== key);
     if (!pendingFiles.value.length) {
-        pendingFiles.value = [blankFileRow()];
+        fileFormOpen.value = false;
     }
 }
 
@@ -628,7 +779,8 @@ async function uploadFiles() {
     try {
         const { data } = await api.post(`/pci-documents/${filesTarget.value.id}/attachments`, body);
         replaceRow(data?.data ?? data);
-        pendingFiles.value = [blankFileRow()];
+        pendingFiles.value = [];
+        fileFormOpen.value = false;
     } catch (err) {
         filesError.value = apiError(err, 'Ajout du fichier impossible.');
     } finally {
@@ -666,14 +818,48 @@ async function removeFile(file) {
 async function save() {
     saving.value = true;
     formError.value = '';
+    const ready = formFiles.value.filter((item) => item.file);
+    if (ready.some((item) => !item.name.trim()) || existingFormFiles.value.some((item) => !item.name.trim())) {
+        formError.value = 'Saisissez le nom de chaque fichier.';
+        saving.value = false;
+        return;
+    }
     const payload = {
         ...form,
         reference: form.reference.trim() || null,
         periodicity_months: Number(form.periodicity_months) || 12,
         environment_id: selectedEnvironmentId.value,
     };
+    if (editingId.value) {
+        payload.sync_attachments = true;
+        payload.kept_paths = existingFormFiles.value.map((item) => item.path);
+        payload.kept_names = existingFormFiles.value.map((item) => item.name.trim());
+        payload.kept_rights = existingFormFiles.value.map((item) => item.right);
+    }
     try {
-        if (editingId.value) {
+        if (ready.length) {
+            const body = new FormData();
+            Object.entries(payload).forEach(([key, value]) => {
+                if (Array.isArray(value)) {
+                    value.forEach((entry) => body.append(`${key}[]`, entry));
+                    return;
+                }
+                if (value !== null && value !== undefined && value !== '') {
+                    body.append(key, value === true ? '1' : value);
+                }
+            });
+            ready.forEach((item) => {
+                body.append('attachments[]', item.file);
+                body.append('attachment_names[]', item.name.trim());
+                body.append('attachment_rights[]', item.right);
+            });
+            if (editingId.value) {
+                body.append('_method', 'PUT');
+                await api.post(`/pci-documents/${editingId.value}`, body);
+            } else {
+                await api.post('/pci-documents', body);
+            }
+        } else if (editingId.value) {
             await api.put(`/pci-documents/${editingId.value}`, payload);
         } else {
             await api.post('/pci-documents', payload);
@@ -690,13 +876,36 @@ async function save() {
 async function confirmDelete() {
     const target = deleteTarget.value;
     if (!target) return;
+    deleting.value = true;
     try {
-        await api.delete(`/pci-documents/${target.id}`);
+        if (deleteMode.value === 'confirm') {
+            await api.post(`/pci-documents/${target.id}/confirm-deletion`);
+            if (filesTarget.value?.id === target.id) {
+                filesTarget.value = null;
+            }
+        } else {
+            const { data } = await api.delete(`/pci-documents/${target.id}`);
+            const updated = data?.data ?? data;
+            replaceRow(updated);
+        }
         deleteTarget.value = null;
         await loadRows();
     } catch (err) {
-        error.value = apiError(err, 'Suppression impossible.');
+        error.value = apiError(err, 'Retrait impossible.');
         deleteTarget.value = null;
+    } finally {
+        deleting.value = false;
+    }
+}
+
+async function cancelDeletion() {
+    if (!filesTarget.value) return;
+    try {
+        const { data } = await api.post(`/pci-documents/${filesTarget.value.id}/cancel-deletion`);
+        replaceRow(data?.data ?? data);
+        await loadRows();
+    } catch (err) {
+        filesError.value = apiError(err, 'Annulation du retrait impossible.');
     }
 }
 

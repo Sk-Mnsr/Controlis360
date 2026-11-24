@@ -262,6 +262,8 @@ Route::controller(AuthController::class)->group(function () {
                 Route::put('/{id}', 'update')->name('update');
                 Route::post('/{id}/attachments', 'attachments')->name('attachments');
                 Route::post('/{id}/validate', 'validateDocument')->name('validate');
+                Route::post('/{id}/confirm-deletion', 'confirmDeletion')->name('confirm-deletion');
+                Route::post('/{id}/cancel-deletion', 'cancelDeletion')->name('cancel-deletion');
                 Route::delete('/{id}', 'destroy')->name('destroy');
             });
 
