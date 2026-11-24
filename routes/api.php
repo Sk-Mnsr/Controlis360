@@ -20,6 +20,7 @@ use App\Http\Controllers\API\RecommendationController;
 use App\Http\Controllers\API\RegulatoryReportingFicheController;
 use App\Http\Controllers\API\GouvernanceItController;
 use App\Http\Controllers\API\GenericAccountController;
+use App\Http\Controllers\API\PciDocumentController;
 use App\Http\Controllers\API\EncheresAuctionController;
 use App\Http\Controllers\API\EncheresClientAuthController;
 use App\Http\Controllers\API\EncheresCommitteeController;
@@ -253,6 +254,15 @@ Route::controller(AuthController::class)->group(function () {
                 Route::put('/activities/{id}/retroplanning/{itemId}', 'retroplanningUpdate')->name('activities.retroplanning.update');
                 Route::delete('/activities/{id}/retroplanning/{itemId}', 'retroplanningDestroy')->name('activities.retroplanning.destroy');
                 Route::delete('/activities/{id}', 'activitiesDestroy')->name('activities.destroy');
+            });
+
+            Route::prefix('pci-documents')->name('pci-documents.')->controller(PciDocumentController::class)->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::post('/', 'store')->name('store');
+                Route::put('/{id}', 'update')->name('update');
+                Route::post('/{id}/attachments', 'attachments')->name('attachments');
+                Route::post('/{id}/validate', 'validateDocument')->name('validate');
+                Route::delete('/{id}', 'destroy')->name('destroy');
             });
 
             Route::prefix('generic-accounts')->name('generic-accounts.')->controller(GenericAccountController::class)->group(function () {

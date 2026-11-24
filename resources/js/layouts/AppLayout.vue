@@ -380,6 +380,26 @@
                         </RouterLink>
                     </template>
 
+                    <template v-else-if="isSuiviPciSection">
+                        <RouterLink
+                            class="nav-link nav-back"
+                            :to="{ name: 'gouvernance-it.home' }"
+                            title="Retour Gouvernance IT"
+                        >
+                            <span class="nav-ico" aria-hidden="true">←</span>
+                            <span class="nav-label">Gouvernance IT</span>
+                        </RouterLink>
+
+                        <RouterLink
+                            class="nav-link nav-link-active"
+                            :to="{ name: 'gouvernance-it.suivi-pci' }"
+                            title="Doc Gouvernance"
+                        >
+                            <span class="nav-ico" aria-hidden="true">▤</span>
+                            <span class="nav-label">Doc Gouvernance</span>
+                        </RouterLink>
+                    </template>
+
                     <template v-else>
                         <RouterLink class="nav-link nav-back" :to="{ name: 'portal' }" title="Tous les modules">
                             <span class="nav-ico" aria-hidden="true">←</span>
@@ -424,6 +444,16 @@
                         >
                             <span class="nav-ico" aria-hidden="true">☰</span>
                             <span class="nav-label">Comptes génériques</span>
+                        </RouterLink>
+
+                        <RouterLink
+                            class="nav-link"
+                            :class="{ 'nav-link-active': isSuiviPciSection }"
+                            :to="{ name: 'gouvernance-it.suivi-pci' }"
+                            title="Doc Gouvernance"
+                        >
+                            <span class="nav-ico" aria-hidden="true">▤</span>
+                            <span class="nav-label">Doc Gouvernance</span>
                         </RouterLink>
                     </template>
                 </template>
@@ -744,6 +774,9 @@ const isCartographieApplicationsSection = computed(() =>
 );
 const isRegistreComptesSection = computed(() =>
     route.name === 'gouvernance-it.registre-comptes-generiques',
+);
+const isSuiviPciSection = computed(() =>
+    route.name === 'gouvernance-it.suivi-pci',
 );
 const isRegulatorOnly = computed(() => platformProfile.value === 'regulateur');
 const showRegulatorNav = computed(() => isRegulatorProfile(platformProfile.value));

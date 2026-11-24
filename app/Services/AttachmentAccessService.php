@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\GouvernanceItActivity;
 use App\Models\Mission;
+use App\Models\PciDocument;
 use App\Models\MissionResponse;
 use App\Models\Recommendation;
 use App\Models\RecommendationActionPlan;
@@ -65,6 +66,10 @@ class AttachmentAccessService
             return $this->canViewGouvernanceItActivity($user, (int) $matches[1]);
         }
 
+        if (preg_match('#^pci-documents/(\d+)/#', $path, $matches)) {
+            return $this->canViewPciDocument($user, (int) $matches[1]);
+        }
+
         if (str_starts_with($path, 'mission-reports/')) {
             $mission = Mission::query()
                 ->whereJsonContains('report_attachment_paths', $path)
@@ -74,6 +79,31 @@ class AttachmentAccessService
         }
 
         return false;
+    }
+
+    private function canViewPciDocument(User $user, int $documentId): bool
+    {
+        $document = PciDocument::query()->find($documentId);
+
+        if (! $document) {
+            return false;
+        }
+
+        if ($user->isPlatformAdministrator()) {
+            return true;
+        }
+
+        $profile = $user->moduleProfile('gouvernance-it') ?? $user->profile;
+
+        if (! in_array($profile, ['agent_it', 'responsable_it', 'responsable_regional'], true)) {
+            return false;
+        }
+
+        if (! $document->environment_id) {
+            return true;
+        }
+
+        return $user->belongsToEnvironment((int) $document->environment_id);
     }
 
     private function canViewGouvernanceItActivity(User $user, int $activityId): bool

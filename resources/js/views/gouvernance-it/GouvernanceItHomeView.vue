@@ -7,7 +7,7 @@
                     <p class="text-xs font-bold uppercase tracking-[0.14em] text-[#c00000]">Gouvernance IT</p>
                     <h2 class="mt-1 text-2xl font-semibold text-slate-900">Accueil</h2>
                     <p class="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">
-                        Pilotage stratégique, patrimoine applicatif et comptes génériques du système d’information.
+                        Pilotage stratégique, patrimoine applicatif, comptes génériques et Doc Gouvernance.
                     </p>
                 </div>
                 <p class="shrink-0 rounded-full border border-white bg-white/90 px-3 py-1.5 text-sm text-slate-700 shadow-sm">
@@ -18,7 +18,7 @@
             </div>
         </section>
 
-        <div class="grid gap-4 lg:grid-cols-3">
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <RouterLink
                 v-for="item in subModules"
                 :key="item.route"
@@ -39,6 +39,11 @@
                         <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.2" />
                         <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.2" />
                         <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.2" />
+                    </svg>
+                    <svg v-else-if="item.key === 'doc-gouvernance'" class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M7 3.5h7.2L19 8.2V20.5H7z" />
+                        <path stroke-linecap="round" d="M14 3.5V8.5h5" />
+                        <path stroke-linecap="round" d="M9.5 13h5M9.5 16.5h3.5" />
                     </svg>
                     <svg v-else class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true">
                         <circle cx="9" cy="8" r="2.4" />
@@ -102,6 +107,15 @@ const subModules = [
         barClass: 'bg-emerald-600',
         iconClass: 'bg-emerald-600',
         linkClass: 'bg-emerald-50 text-emerald-800',
+    },
+    {
+        key: 'doc-gouvernance',
+        title: 'Doc Gouvernance',
+        description: 'Registre des procédures et politiques, revues périodiques et échéances.',
+        route: 'gouvernance-it.suivi-pci',
+        barClass: 'bg-blue-700',
+        iconClass: 'bg-blue-700',
+        linkClass: 'bg-blue-50 text-blue-800',
     },
 ];
 </script>

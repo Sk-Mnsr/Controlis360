@@ -447,6 +447,11 @@ const routes = [
                         name: 'gouvernance-it.registre-comptes-generiques',
                         component: () => import('../views/gouvernance-it/RegistreComptesGeneriquesView.vue'),
                     },
+                    {
+                        path: 'suivi-pci',
+                        name: 'gouvernance-it.suivi-pci',
+                        component: () => import('../views/gouvernance-it/SuiviPciView.vue'),
+                    },
                 ],
             },
             {
